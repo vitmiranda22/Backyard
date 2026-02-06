@@ -1,0 +1,38 @@
+# WanderVox Backend Dependencies
+# Python 3.11+
+
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# Async HTTP client (for calling Gemini, TTS, Nominatim, R2)
+httpx==0.28.1
+
+# Supabase Python client
+supabase==2.11.0
+
+# JWT validation (to verify Supabase auth tokens)
+python-jose[cryptography]==3.3.0
+
+# Data validation (FastAPI uses this under the hood, we pin it explicitly)
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# Cloudflare R2 (S3-compatible)
+boto3==1.36.7
+
+# Geohash encoding (for zone-based caching)
+geohash2==1.1
+
+# Environment variables
+python-dotenv==1.0.1
+
+# Google Cloud TTS
+google-cloud-texttospeech==2.24.0
+
+# Google Generative AI (Gemini)
+google-genai==1.5.0
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.25.2

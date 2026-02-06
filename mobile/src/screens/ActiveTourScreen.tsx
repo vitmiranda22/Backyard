@@ -1,0 +1,255 @@
+// Active Tour screen — THE main screen
+//
+// Shows: map with user location, narration card, audio controls.
+// Auto-triggers narrations when user enters a new zone.
+// Manual trigger with "Tell me about here" button.
+
+import React, { useState, useEffect, useRef } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import MapView from "react-native-maps";
+import { useZoneTracker } from "../hooks/useZoneTracker";
+import { watchPosition, getCurrentLocation } from "../services/location";
+import { narrateBlock, saveBlock, startTour } from "../services/api";
+import NarrationCard from "../components/NarrationCard";
+
+interface ActiveTourProps {
+  mood: string;
+  voice: string;
+  contentSafety: boolean;
+  onEndTour: (tourId: string, blocksVisited: number, startTime: number) => void;
+}
+
+export default function ActiveTourScreen({
+  mood,
+  voice,
+  contentSafety,
+  onEndTour,
+}: ActiveTourProps) {
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [tourId, setTourId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [streetName, setStreetName] = useState<string | null>(null);
+  const [narrationText, setNarrationText] = useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [blocksVisited, setBlocksVisited] = useState(0);
+
+  const { checkZone, reset: resetZones } = useZoneTracker();
+  const sequenceRef = useRef(0);
+  const startTimeRef = useRef(Date.now());
+  const subscriptionRef = useRef<any>(null);
+
+  // Start tour session on mount
+  useEffect(() => {
+    async function init() {
+      try {
+        // Create tour in backend
+        const tour = await startTour(mood, voice, contentSafety);
+        setTourId(tour.tour_id);
+        startTimeRef.current = Date.now();
+
+        // Get initial location and trigger first narration
+        const loc = await getCurrentLocation();
+        setLocation(loc);
+        triggerNarration(loc.lat, loc.lng, "auto");
+
+        // Start watching position for zone changes
+        const sub = await watchPosition((lat, lng) => {
+          setLocation({ lat, lng });
+          const { isNewZone } = checkZone(lat, lng);
+          if (isNewZone && !isLoading) {
+            triggerNarration(lat, lng, "auto");
+          }
+        });
+        subscriptionRef.current = sub;
+      } catch (e: any) {
+        Alert.alert("Error", "Failed to start tour: " + e.message);
+      }
+    }
+    init();
+
+    return () => {
+      if (subscriptionRef.current) {
+        subscriptionRef.current.remove();
+      }
+    };
+  }, []);
+
+  async function triggerNarration(lat: number, lng: number, triggerType: "auto" | "manual") {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await narrateBlock(lat, lng, mood, voice, contentSafety, triggerType);
+
+      setStreetName(result.street_name);
+      setNarrationText(result.narration_text);
+      setAudioUrl(result.audio_url);
+
+      sequenceRef.current += 1;
+      setBlocksVisited(sequenceRef.current);
+
+      // Save block to tour
+      if (tourId) {
+        try {
+          await saveBlock({
+            tour_id: tourId,
+            sequence: sequenceRef.current,
+            lat,
+            lng,
+            street_name: result.street_name,
+            neighborhood: result.neighborhood,
+            narration_text: result.narration_text,
+            mood,
+            trigger_type: triggerType,
+          });
+        } catch (e) {
+          console.warn("Failed to save block (tour continues):", e);
+        }
+      }
+    } catch (e: any) {
+      setError("Having trouble finding stories. Keep walking!");
+      console.error("Narration failed:", e.message);
+    }
+
+    setIsLoading(false);
+  }
+
+  function handleManualTrigger() {
+    if (location && !isLoading) {
+      triggerNarration(location.lat, location.lng, "manual");
+    }
+  }
+
+  function handleEndTour() {
+    if (subscriptionRef.current) {
+      subscriptionRef.current.remove();
+    }
+    resetZones();
+    onEndTour(tourId || "", blocksVisited, startTimeRef.current);
+  }
+
+  return (
+    <View style={styles.container}>
+      {/* Map */}
+      {location ? (
+        <MapView
+          style={styles.map}
+          region={{
+            latitude: location.lat,
+            longitude: location.lng,
+            latitudeDelta: 0.003,
+            longitudeDelta: 0.003,
+          }}
+          showsUserLocation
+        />
+      ) : (
+        <View style={styles.mapPlaceholder}>
+          <Text style={styles.placeholderText}>Getting location...</Text>
+        </View>
+      )}
+
+      {/* Blocks counter */}
+      <View style={styles.statsBar}>
+        <Text style={styles.statsText}>📍 {blocksVisited} blocks</Text>
+        <Text style={styles.moodBadge}>{mood}</Text>
+      </View>
+
+      {/* Narration card */}
+      <NarrationCard
+        isLoading={isLoading}
+        error={error}
+        streetName={streetName}
+        narrationText={narrationText}
+        audioUrl={audioUrl}
+        onSkip={() => {
+          setNarrationText(null);
+          setAudioUrl(null);
+          setStreetName(null);
+        }}
+      />
+
+      {/* Bottom buttons */}
+      <View style={styles.bottomBar}>
+        <TouchableOpacity
+          style={styles.manualBtn}
+          onPress={handleManualTrigger}
+          disabled={isLoading}
+        >
+          <Text style={styles.manualBtnText}>
+            {isLoading ? "Generating..." : "Tell me about here"}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.endBtn} onPress={handleEndTour}>
+          <Text style={styles.endBtnText}>End Tour</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#0d0d1a",
+  },
+  map: {
+    flex: 1,
+  },
+  mapPlaceholder: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  placeholderText: {
+    color: "#666",
+  },
+  statsBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "#0d0d1a",
+  },
+  statsText: {
+    color: "#fff",
+    fontSize: 14,
+  },
+  moodBadge: {
+    color: "#4A90D9",
+    fontSize: 14,
+    fontWeight: "bold",
+    textTransform: "capitalize",
+  },
+  bottomBar: {
+    flexDirection: "row",
+    padding: 12,
+    gap: 10,
+    backgroundColor: "#0d0d1a",
+  },
+  manualBtn: {
+    flex: 2,
+    backgroundColor: "#4A90D9",
+    padding: 14,
+    borderRadius: 10,
+  },
+  manualBtnText: {
+    color: "#fff",
+    textAlign: "center",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  endBtn: {
+    flex: 1,
+    backgroundColor: "#cc3333",
+    padding: 14,
+    borderRadius: 10,
+  },
+  endBtnText: {
+    color: "#fff",
+    textAlign: "center",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+});

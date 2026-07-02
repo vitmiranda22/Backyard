@@ -153,6 +153,70 @@ async def store_audio_file(
 
 
 # =============================================================================
+# Zone data cache (Week 3) — raw data per zone, mood-agnostic
+# =============================================================================
+
+async def get_cached_zone_data(geo_hash: str):
+    """Check if we have zone data for this geohash. Returns dict or None."""
+    try:
+        client = _get_client()
+        result = (
+            client.table("zone_data_cache")
+            .select("*")
+            .eq("geo_hash", geo_hash)
+            .gt("expires_at", datetime.now(timezone.utc).isoformat())
+            .limit(1)
+            .execute()
+        )
+        if result.data and len(result.data) > 0:
+            logger.info(f"Zone data cache HIT: {geo_hash}")
+            return result.data[0]
+        logger.info(f"Zone data cache MISS: {geo_hash}")
+        return None
+    except Exception as e:
+        logger.error(f"Zone data cache lookup failed: {e}")
+        return None
+
+
+async def store_zone_data(
+    geo_hash: str,
+    street_name: str,
+    neighborhood: str,
+    city: str,
+    country: str,
+    raw_data: dict,
+    sources_queried: list,
+    sources_failed: list,
+):
+    """Store zone data bundle in cache (expires in 30 days)."""
+    expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+    try:
+        client = _get_client()
+        result = (
+            client.table("zone_data_cache")
+            .upsert({
+                "geo_hash": geo_hash,
+                "street_name": street_name,
+                "neighborhood": neighborhood,
+                "city": city,
+                "country": country,
+                "raw_data": raw_data,
+                "sources_queried": sources_queried,
+                "sources_failed": sources_failed,
+                "expires_at": expires_at.isoformat(),
+            })
+            .execute()
+        )
+        if result.data:
+            logger.info(f"Stored zone data: {geo_hash} ({len(sources_queried)} sources)")
+            return result.data[0]
+        return None
+    except Exception as e:
+        logger.error(f"Failed to store zone data: {e}")
+        return None
+
+
+# =============================================================================
 # Tour session management (Week 2)
 # =============================================================================
 
@@ -212,6 +276,7 @@ async def save_tour_block(
     sequence: int,
     street_name: str,
     neighborhood: str,
+    city: str,
     lat: float,
     lng: float,
     narration_text: str,
@@ -230,6 +295,7 @@ async def save_tour_block(
                 "sequence": sequence,
                 "street_name": street_name,
                 "neighborhood": neighborhood,
+                "city": city,
                 "lat": lat,
                 "lng": lng,
                 "narration_text": narration_text,

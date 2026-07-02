@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Be a good citizen — identify ourselves and don't hammer the server.
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
-USER_AGENT = "WanderVox/0.1 (tour narration app; contact: hello@wandervox.app)"
+USER_AGENT = "BackyardApp/1.0 (tour guide app; contact@backyard.app)"
 REQUEST_TIMEOUT = 5.0  # seconds
 
 

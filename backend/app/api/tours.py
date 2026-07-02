@@ -126,6 +126,7 @@ async def save_block(
         sequence=request.sequence,
         street_name=request.street_name,
         neighborhood=request.neighborhood,
+        city=request.city,
         lat=request.lat,
         lng=request.lng,
         narration_text=request.narration_text,
@@ -198,7 +199,7 @@ async def end_tour(
 
     # Auto-generate title from mood + neighborhoods
     title = _generate_tour_title(
-        mood=tour.get("mood", "informative"),
+        mood=tour.get("mood", "time_machine"),
         blocks=blocks,
     )
 
@@ -212,8 +213,7 @@ async def end_tour(
         if lats and lngs:
             center_lat = sum(lats) / len(lats)
             center_lng = sum(lngs) / len(lngs)
-        # Use the first block's neighborhood for city context
-        city = blocks[0].get("neighborhood", "Unknown")
+        city = blocks[0].get("city", "Unknown")
 
     # Update the tour record
     updated = await supabase_db.end_tour(
@@ -243,7 +243,7 @@ async def end_tour(
         blocks_visited=blocks_visited,
         total_distance_m=request.total_distance_m,
         duration_sec=request.duration_sec,
-        mood=tour.get("mood", "informative"),
+        mood=tour.get("mood", "time_machine"),
     )
 
 
@@ -258,10 +258,11 @@ def _generate_tour_title(mood: str, blocks: list) -> str:
       - "Exploring SoMa"
     """
     mood_labels = {
-        "informative": "Exploring",
-        "haunted": "Haunted",
-        "celebrity": "Celebrity",
-        "curiosities": "Curiosities of",
+        "time_machine": "Time Machine:",
+        "hidden_city": "Hidden",
+        "dark_side": "Dark Side of",
+        "behind_scenes": "Behind the Scenes:",
+        "unfiltered": "Unfiltered",
     }
 
     mood_prefix = mood_labels.get(mood, "Exploring")
@@ -282,16 +283,16 @@ def _generate_tour_title(mood: str, blocks: list) -> str:
         return f"{mood_prefix} Tour"
 
     if len(neighborhoods) == 1:
-        if mood == "curiosities":
-            return f"Curiosities of {neighborhoods[0]}"
+        if mood == "dark_side":
+            return f"Dark Side of {neighborhoods[0]}"
         return f"{mood_prefix} {neighborhoods[0]}"
 
     if len(neighborhoods) == 2:
-        if mood == "curiosities":
-            return f"Curiosities of {neighborhoods[0]} & {neighborhoods[1]}"
+        if mood == "dark_side":
+            return f"Dark Side of {neighborhoods[0]} & {neighborhoods[1]}"
         return f"{mood_prefix} {neighborhoods[0]} & {neighborhoods[1]}"
 
     # 3+ neighborhoods: use first two + "& more"
-    if mood == "curiosities":
-        return f"Curiosities of {neighborhoods[0]}, {neighborhoods[1]} & More"
+    if mood == "dark_side":
+        return f"Dark Side of {neighborhoods[0]}, {neighborhoods[1]} & More"
     return f"{mood_prefix} {neighborhoods[0]}, {neighborhoods[1]} & More"

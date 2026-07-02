@@ -16,10 +16,11 @@ from pydantic import BaseModel, Field
 # =============================================================================
 
 class Mood(str, Enum):
-    INFORMATIVE = "informative"
-    HAUNTED = "haunted"
-    CELEBRITY = "celebrity"
-    CURIOSITIES = "curiosities"
+    TIME_MACHINE = "time_machine"
+    HIDDEN_CITY = "hidden_city"
+    DARK_SIDE = "dark_side"
+    BEHIND_SCENES = "behind_scenes"
+    UNFILTERED = "unfiltered"
 
 
 class Voice(str, Enum):
@@ -46,20 +47,14 @@ class NarrateBlockRequest(BaseModel):
     """POST /api/narrate-block"""
     lat: float = Field(..., ge=-90, le=90, examples=[37.7696])
     lng: float = Field(..., ge=-180, le=180, examples=[-122.4469])
-    mood: Mood = Field(..., examples=["haunted"])
+    mood: Mood = Field(..., examples=["time_machine"])
     content_safety: bool = Field(default=False)
     trigger_type: TriggerType = Field(default=TriggerType.AUTO)
     voice: Voice = Field(default=Voice.NEUTRAL)
 
 
-class NarrationHighlight(BaseModel):
-    source: str
-    detail: str
-
-
 class ZoneDataUsed(BaseModel):
     sources_hit: List[str] = Field(default_factory=list)
-    highlights: List[NarrationHighlight] = Field(default_factory=list)
 
 
 class NarrateBlockResponse(BaseModel):
@@ -69,6 +64,7 @@ class NarrateBlockResponse(BaseModel):
     city: str
     narration_text: str
     audio_url: Optional[str] = None
+    audio_r2_key: Optional[str] = None
     audio_duration_ms: Optional[int] = None
     mood: Mood
     content_safety_applied: bool
@@ -82,7 +78,7 @@ class NarrateBlockResponse(BaseModel):
 
 class StartTourRequest(BaseModel):
     """POST /api/start-tour"""
-    mood: Mood = Field(..., examples=["haunted"])
+    mood: Mood = Field(..., examples=["time_machine"])
     voice: Voice = Field(default=Voice.NEUTRAL)
     content_safety: bool = Field(default=False)
     tour_type: TourType = Field(default=TourType.WALKING)
@@ -104,6 +100,7 @@ class SaveBlockRequest(BaseModel):
     lng: float = Field(..., ge=-180, le=180)
     street_name: str = Field(..., max_length=200)
     neighborhood: str = Field(default="Unknown", max_length=200)
+    city: str = Field(default="Unknown", max_length=200)
     narration_text: str = Field(..., description="The AI-generated narration text")
     audio_r2_key: Optional[str] = Field(None, description="R2 key for the audio file")
     voice: Optional[Voice] = None

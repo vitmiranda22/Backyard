@@ -43,6 +43,7 @@ export interface NarrationResponse {
   city: string;
   narration_text: string;
   audio_url: string | null;
+  audio_r2_key: string | null;
   audio_duration_ms: number | null;
   mood: string;
   content_safety_applied: boolean;
@@ -105,8 +106,10 @@ export async function saveBlock(params: {
   lng: number;
   street_name: string;
   neighborhood: string;
+  city: string;
   narration_text: string;
   audio_r2_key?: string;
+  voice: string;
   mood: string;
   trigger_type: string;
 }) {

@@ -1,5 +1,5 @@
 """
-Configuration loader for WanderVox backend.
+Configuration loader for the Backyard backend.
 
 All environment variables are loaded here and validated on startup.
 If a required variable is missing, the app won't start — you'll get a clear
@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     R2_ACCOUNT_ID: str
     R2_ACCESS_KEY_ID: str
     R2_SECRET_ACCESS_KEY: str
-    R2_BUCKET_NAME: str = "wandervox-audio"
+    R2_BUCKET_NAME: str = "backyard-audio"
 
     # -------------------------------------------------------------------------
     # Rate limiting

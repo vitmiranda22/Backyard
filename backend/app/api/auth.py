@@ -43,7 +43,11 @@ async def get_current_user_id(request: Request) -> str:
     if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(
             status_code=401,
-            detail="Missing or invalid Authorization header. Expected: Bearer <token>",
+            detail={
+                "error": "Missing or invalid Authorization header. Expected: Bearer <token>",
+                "code": "missing_token",
+                "retry": False,
+            },
         )
 
     token = auth_header.split(" ", 1)[1]
@@ -63,21 +67,32 @@ async def get_current_user_id(request: Request) -> str:
 
         user_id = payload.get("sub")
         if not user_id:
-            raise HTTPException(status_code=401, detail="Token missing user ID")
+            raise HTTPException(
+                status_code=401,
+                detail={"error": "Token missing user ID", "code": "invalid_token", "retry": False},
+            )
 
         return user_id
 
+    except HTTPException:
+        raise
     except pyjwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired. Please sign in again.")
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "Token expired. Please sign in again.", "code": "token_expired", "retry": False},
+        )
     except pyjwt.InvalidTokenError as e:
         logger.warning(f"JWT validation failed: {e}")
         raise HTTPException(
             status_code=401,
-            detail="Invalid or expired token. Please sign in again.",
+            detail={"error": "Invalid or expired token. Please sign in again.", "code": "invalid_token", "retry": False},
         )
     except Exception as e:
         logger.error(f"Auth error: {e}")
-        raise HTTPException(status_code=401, detail="Authentication failed.")
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "Authentication failed.", "code": "auth_failed", "retry": False},
+        )
 
 
 # Type alias for cleaner endpoint signatures

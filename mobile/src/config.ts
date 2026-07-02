@@ -4,7 +4,7 @@
 // Find them in your backend/.env file.
 
 // Your laptop's IP so the phone can reach the backend
-export const API_URL = "http://192.168.4.39:8000/api";
+export const API_URL = "http://192.168.4.24:8000/api";
 
 // Copy these from your backend/.env file
 export const SUPABASE_URL = "https://mhsbqyvpuccshmkheweu.supabase.co";       // e.g. https://xxxxx.supabase.co

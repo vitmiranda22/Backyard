@@ -1,5 +1,5 @@
 # =============================================================================
-# WanderVox Backend — Dockerfile
+# Backyard Backend — Dockerfile
 # =============================================================================
 # This is for deployment (Railway, Render, Fly.io, etc.)
 # For local development, just use: uvicorn app.main:app --reload

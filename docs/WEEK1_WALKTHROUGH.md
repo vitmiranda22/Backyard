@@ -57,9 +57,9 @@ uvicorn app.main:app --reload
 
 You should see:
 ```
-INFO | wandervox | 🎙️ WanderVox API starting up (env: development)
-INFO | wandervox |    Supabase: https://xxxx.supabase.co
-INFO | wandervox |    R2 bucket: wandervox-audio
+INFO | backyard | 🎙️ Backyard API starting up (env: development)
+INFO | backyard |    Supabase: https://xxxx.supabase.co
+INFO | backyard |    R2 bucket: backyard-audio
 ```
 
 Open http://localhost:8000/docs in your browser. You should see the Swagger UI

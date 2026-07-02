@@ -1,13 +1,47 @@
-// Mood picker — choose your tour mood before starting
+// Mode picker — choose your experience before starting a tour
+//
+// 2 free modes + 3 premium modes
+// Premium modes show a lock badge (for now all are unlocked — paywall comes later)
 
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 
-const MOODS = [
-  { id: "informative", emoji: "📚", label: "Informative", desc: "Facts, history, architecture" },
-  { id: "haunted", emoji: "👻", label: "Haunted", desc: "Ghost stories, dark history, mystery" },
-  { id: "celebrity", emoji: "⭐", label: "Celebrity", desc: "Famous people, films, pop culture" },
-  { id: "curiosities", emoji: "🔮", label: "Curiosities", desc: "Weird facts, hidden gems, oddities" },
+const MODES = [
+  {
+    id: "time_machine",
+    emoji: "🕰️",
+    label: "Time Machine",
+    desc: "Get transported to what this spot looked like decades ago",
+    premium: false,
+  },
+  {
+    id: "hidden_city",
+    emoji: "🔮",
+    label: "Hidden City",
+    desc: "Secrets hiding in plain sight that everyone walks past",
+    premium: false,
+  },
+  {
+    id: "dark_side",
+    emoji: "🕵️",
+    label: "Dark Side",
+    desc: "Unsolved mysteries, dark history, true crime energy",
+    premium: true,
+  },
+  {
+    id: "behind_scenes",
+    emoji: "🎬",
+    label: "Behind the Scenes",
+    desc: "Celebrity secrets, film locations, the real stories",
+    premium: true,
+  },
+  {
+    id: "unfiltered",
+    emoji: "🎭",
+    label: "Unfiltered",
+    desc: "Raw, funny, opinionated — like walking with a local friend",
+    premium: true,
+  },
 ];
 
 interface MoodPickerProps {
@@ -17,19 +51,30 @@ interface MoodPickerProps {
 export default function MoodPickerScreen({ onSelect }: MoodPickerProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Pick your mood</Text>
-      <Text style={styles.subtitle}>Same streets, completely different stories</Text>
+      <Text style={styles.title}>Choose your experience</Text>
+      <Text style={styles.subtitle}>Same streets. Completely different stories.</Text>
 
-      {MOODS.map((mood) => (
+      {MODES.map((mode) => (
         <TouchableOpacity
-          key={mood.id}
-          style={styles.moodCard}
-          onPress={() => onSelect(mood.id)}
+          key={mode.id}
+          style={styles.modeCard}
+          onPress={() => onSelect(mode.id)}
         >
-          <Text style={styles.emoji}>{mood.emoji}</Text>
-          <View style={styles.moodInfo}>
-            <Text style={styles.moodLabel}>{mood.label}</Text>
-            <Text style={styles.moodDesc}>{mood.desc}</Text>
+          <Text style={styles.emoji}>{mode.emoji}</Text>
+          <View style={styles.modeInfo}>
+            <View style={styles.labelRow}>
+              <Text style={styles.modeLabel}>{mode.label}</Text>
+              {mode.premium ? (
+                <View style={styles.premiumBadge}>
+                  <Text style={styles.premiumText}>PRO</Text>
+                </View>
+              ) : (
+                <View style={styles.freeBadge}>
+                  <Text style={styles.freeText}>FREE</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.modeDesc}>{mode.desc}</Text>
           </View>
         </TouchableOpacity>
       ))}
@@ -55,29 +100,57 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#999",
     textAlign: "center",
-    marginBottom: 30,
+    marginBottom: 24,
   },
-  moodCard: {
+  modeCard: {
     flexDirection: "row",
     backgroundColor: "#1a1a2e",
-    padding: 18,
+    padding: 16,
     borderRadius: 14,
-    marginBottom: 12,
+    marginBottom: 10,
     alignItems: "center",
   },
   emoji: {
-    fontSize: 32,
-    marginRight: 16,
+    fontSize: 30,
+    marginRight: 14,
   },
-  moodInfo: {
+  modeInfo: {
     flex: 1,
   },
-  moodLabel: {
-    fontSize: 18,
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 2,
+  },
+  modeLabel: {
+    fontSize: 17,
     fontWeight: "bold",
     color: "#fff",
   },
-  moodDesc: {
+  premiumBadge: {
+    backgroundColor: "#FFD700",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  premiumText: {
+    fontSize: 10,
+    fontWeight: "bold",
+    color: "#000",
+  },
+  freeBadge: {
+    backgroundColor: "#2ecc71",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  freeText: {
+    fontSize: 10,
+    fontWeight: "bold",
+    color: "#000",
+  },
+  modeDesc: {
     fontSize: 13,
     color: "#999",
     marginTop: 2,

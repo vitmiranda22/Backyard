@@ -1,26 +1,20 @@
 """
-POST /narrate-block — The core endpoint of WanderVox.
+POST /narrate-block — The core endpoint of Backyard.
 
-This is where the magic happens. A user sends their GPS coordinates and
-preferences, and we return a narration with streamable audio. Here's the
-full pipeline this endpoint orchestrates:
+Full pipeline:
+1. Compute geohash from GPS coordinates
+2. Check narration cache → HIT? Skip to step 7
+3. Reverse geocode → street name, neighborhood, city
+4. Check zone data cache → HIT? Skip to step 6
+5. Fetch ALL 19 data sources in parallel (~2-4 seconds)
+6. Feed zone data to Gemini → generate narration
+7. TTS → MP3
+8. Upload to R2 → signed URL
+9. Return to client
 
-1. Validate the request (Pydantic does this automatically)
-2. Compute a geohash from the GPS coordinates (for caching)
-3. Check narration cache → if HIT, skip to step 6
-4. Reverse geocode the coordinates → street name, neighborhood, city
-5. Call Gemini AI to generate a narration (with web search grounding)
-6. Store the narration in cache
-7. Check audio cache → if HIT, return signed URL immediately
-8. Call Google TTS to convert narration text → MP3
-9. Upload MP3 to Cloudflare R2
-10. Store audio file record in database
-11. Generate a signed URL for the MP3
-12. Return everything to the client
-
-On a cache hit (step 3), the response time is ~200ms.
-On a full miss (all steps), the response time is ~8-12 seconds.
-After the first user visits a zone, everyone else gets cache hits.
+Two cache layers:
+- Zone data cache: raw data per zone (mood-agnostic, shared across moods)
+- Narration cache: AI-generated text per zone + mood + safety combo
 """
 
 import logging
@@ -36,15 +30,12 @@ from app.models.schemas import (
     ZoneDataUsed,
 )
 from app.services import geocode, gemini, tts, r2, supabase_db
+from app.services.zone_data import fetch_all_zone_data, format_zone_data_for_prompt
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Geohash precision 7 = roughly 150m × 150m zones.
-# This is the "zone size" — users within the same 150m square share narrations.
-# Too small = too many unique zones, cache never hits.
-# Too big = narrations feel generic ("you're somewhere in the Mission").
 GEOHASH_PRECISION = 7
 
 
@@ -52,24 +43,17 @@ GEOHASH_PRECISION = 7
     "/narrate-block",
     response_model=NarrateBlockResponse,
     responses={
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
-        408: {"model": ErrorResponse, "description": "Generation timed out"},
-        500: {"model": ErrorResponse, "description": "Internal error"},
+        429: {"model": ErrorResponse},
+        408: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
     },
     summary="Generate a narration for the user's current location",
-    description=(
-        "The core endpoint. Send GPS coordinates + mood + voice, "
-        "get back a narration with streamable audio."
-    ),
 )
 async def narrate_block(
     request: NarrateBlockRequest,
     user_id: AuthenticatedUser,
 ):
-    """
-    Main narration pipeline. See module docstring for the full flow.
-    """
-    # --- Step 1: Compute geohash for this location ---
+    # --- Step 1: Compute geohash ---
     geo_hash = geohash2.encode(request.lat, request.lng, precision=GEOHASH_PRECISION)
     logger.info(
         f"Narration request: user={user_id[:8]}... "
@@ -90,43 +74,96 @@ async def narrate_block(
     street_name = ""
     neighborhood = ""
     city = ""
+    country = ""
     was_cached = False
+    zone_data_used = None
 
     if cached_narration:
-        # Cache hit — we already have a narration for this zone + mood
         narration_text = cached_narration["narration_text"]
         narration_cache_id = cached_narration["id"]
-        # We still need location info for the response.
-        # In a full implementation we'd store this in the cache too.
-        # For now, do a quick geocode anyway (it's fast and free).
         was_cached = True
 
-    # --- Step 3: Reverse geocode (always, even on cache hit, for response data) ---
+    # --- Step 3: Reverse geocode ---
     geo_result = await geocode.reverse_geocode(request.lat, request.lng)
     if geo_result:
         street_name = geo_result.street
         neighborhood = geo_result.neighborhood
         city = geo_result.city
+        country = geo_result.country
     else:
-        # Geocoding failed — use generic location info
         street_name = f"Location ({request.lat:.4f}, {request.lng:.4f})"
         neighborhood = "Unknown"
         city = "Unknown"
+        country = "Unknown"
 
-    # --- Step 4: Generate narration if not cached ---
+    # --- Step 4-6: Generate narration if not cached ---
     if narration_text is None:
+        # Step 4: Check zone data cache
+        zone_data_str = None
+        cached_zone = await supabase_db.get_cached_zone_data(geo_hash)
+
+        if cached_zone:
+            # Zone data cache HIT — use stored data
+            logger.info(f"Zone data cache HIT for {geo_hash}")
+            raw_data = cached_zone.get("raw_data", {})
+            zone_data_str = format_zone_data_for_prompt(raw_data)
+
+            sources_hit = [k for k, v in raw_data.items() if v]
+            zone_data_used = ZoneDataUsed(
+                sources_hit=sources_hit,
+            )
+        else:
+            # Step 5: Fetch ALL 19 sources in parallel
+            logger.info(f"Zone data cache MISS for {geo_hash} — fetching all sources...")
+            result = await fetch_all_zone_data(
+                lat=request.lat,
+                lng=request.lng,
+                street_name=street_name,
+                neighborhood=neighborhood,
+                city=city,
+            )
+
+            raw_data = result["zone_data"]
+            sources_queried = result["sources_queried"]
+            sources_failed = result["sources_failed"]
+
+            # Format for prompt
+            zone_data_str = format_zone_data_for_prompt(raw_data)
+
+            # Store in zone data cache
+            await supabase_db.store_zone_data(
+                geo_hash=geo_hash,
+                street_name=street_name,
+                neighborhood=neighborhood,
+                city=city,
+                country=country,
+                raw_data=raw_data,
+                sources_queried=sources_queried,
+                sources_failed=sources_failed,
+            )
+
+            sources_hit = [k for k, v in raw_data.items() if v]
+            zone_data_used = ZoneDataUsed(
+                sources_hit=sources_hit,
+            )
+
+            logger.info(
+                f"Zone data fetched: {len(sources_hit)} sources with data, "
+                f"{len(sources_failed)} failed"
+            )
+
+        # Step 6: Call Gemini with zone data
         narration_text = await gemini.generate_narration(
             street=street_name,
             neighborhood=neighborhood,
             city=city,
-            country=geo_result.country if geo_result else "Unknown",
+            country=country,
             mood=request.mood.value,
             content_safety=request.content_safety,
-            zone_data=None,  # Week 3: this will have DataSF data
+            zone_data=zone_data_str,
         )
 
         if narration_text is None:
-            # Gemini failed — return an error but keep the tour alive
             raise HTTPException(
                 status_code=408,
                 detail={
@@ -136,7 +173,7 @@ async def narrate_block(
                 },
             )
 
-        # --- Step 5: Cache the narration ---
+        # Cache the narration
         stored = await supabase_db.store_narration(
             geo_hash=geo_hash,
             mood=request.mood.value,
@@ -146,11 +183,10 @@ async def narrate_block(
         if stored:
             narration_cache_id = stored["id"]
 
-    # --- Step 6: Handle audio ---
+    # --- Step 7-8: Handle audio ---
     audio_url = None
     audio_duration_ms = None
 
-    # Build the R2 key for this specific narration + voice combo
     r2_key = r2.build_r2_key(
         geo_hash=geo_hash,
         mood=request.mood.value,
@@ -158,13 +194,10 @@ async def narrate_block(
         voice=request.voice.value,
     )
 
-    # Check if audio already exists on R2
     audio_exists = await r2.check_audio_exists(r2_key)
 
     if audio_exists:
-        # Audio cache hit — just generate a signed URL
         audio_url = r2.generate_signed_url(r2_key)
-        # Try to get duration from DB
         if narration_cache_id:
             cached_audio = await supabase_db.get_cached_audio(
                 narration_cache_id, request.voice.value
@@ -174,22 +207,17 @@ async def narrate_block(
         if not audio_duration_ms:
             audio_duration_ms = tts.estimate_duration_ms(narration_text, request.voice.value)
     else:
-        # Audio cache miss — generate TTS, upload to R2
         audio_bytes = await tts.synthesize_speech(
             text=narration_text,
             voice=request.voice.value,
         )
 
         if audio_bytes:
-            # Upload to R2
             upload_ok = await r2.upload_audio(audio_bytes, r2_key)
             if upload_ok:
                 audio_url = r2.generate_signed_url(r2_key)
-                audio_duration_ms = tts.estimate_duration_ms(
-                    narration_text, request.voice.value
-                )
+                audio_duration_ms = tts.estimate_duration_ms(narration_text, request.voice.value)
 
-                # Track the audio file in the database
                 if narration_cache_id:
                     await supabase_db.store_audio_file(
                         narration_cache_id=narration_cache_id,
@@ -200,20 +228,19 @@ async def narrate_block(
                         tts_provider="google",
                     )
         else:
-            # TTS failed — we still return the narration text.
-            # The client can fall back to device TTS.
             logger.warning("TTS failed — returning text-only response")
 
-    # --- Step 7: Build and return the response ---
+    # --- Step 9: Return ---
     return NarrateBlockResponse(
         street_name=street_name,
         neighborhood=neighborhood,
         city=city,
         narration_text=narration_text,
         audio_url=audio_url,
+        audio_r2_key=r2_key if audio_url else None,
         audio_duration_ms=audio_duration_ms,
         mood=request.mood,
         content_safety_applied=request.content_safety,
         cached=was_cached,
-        zone_data_used=None,  # Week 3: will include data source highlights
+        zone_data_used=zone_data_used,
     )

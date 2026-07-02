@@ -77,8 +77,8 @@ export default function TourCompleteScreen({
         </View>
         {mood ? (
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>🌙 {mood}</Text>
-            <Text style={styles.statLabel}>mood</Text>
+            <Text style={styles.statValue}>🌙 {mood.replace("_", " ")}</Text>
+            <Text style={styles.statLabel}>mode</Text>
           </View>
         ) : null}
       </View>

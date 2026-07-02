@@ -1,6 +1,6 @@
 # API Setup Guide
 
-Follow these steps to set up every external service WanderVox needs.
+Follow these steps to set up every external service Backyard needs.
 Budget about 45 minutes. Everything is free tier.
 
 ---
@@ -15,7 +15,7 @@ with bonus features.
 
 1. Go to https://supabase.com → Sign up.
 2. Click **New Project**.
-3. Name it `wandervox-staging`, pick a region near you, set a DB password.
+3. Name it `backyard-staging`, pick a region near you, set a DB password.
 4. Wait ~2 minutes for it to spin up.
 
 ### Grab your keys
@@ -76,10 +76,10 @@ A 90-second narration is ~2,000 characters. That's ~500 narrations/month for fre
 
 1. Go to https://dash.cloudflare.com → sign up or log in.
 2. Left sidebar → **R2 Object Storage** → **Create Bucket**.
-3. Name it `wandervox-audio` → Create.
+3. Name it `backyard-audio` → Create.
 4. Click **Manage R2 API Tokens** → **Create API Token**.
-5. Name: `wandervox-backend`, Permissions: **Object Read & Write**,
-   Bucket: `wandervox-audio` only.
+5. Name: `backyard-backend`, Permissions: **Object Read & Write**,
+   Bucket: `backyard-audio` only.
 6. **SAVE THESE RIGHT NOW** (shown only once):
    - Access Key ID → `R2_ACCESS_KEY_ID`
    - Secret Access Key → `R2_SECRET_ACCESS_KEY`
@@ -128,7 +128,7 @@ GOOGLE_TTS_API_KEY=AIzaSy...
 R2_ACCOUNT_ID=your_account_id
 R2_ACCESS_KEY_ID=your_access_key
 R2_SECRET_ACCESS_KEY=your_secret_key
-R2_BUCKET_NAME=wandervox-audio
+R2_BUCKET_NAME=backyard-audio
 
 # Mapbox (used by mobile app, but good to have here too)
 MAPBOX_PUBLIC_TOKEN=pk.eyJ...

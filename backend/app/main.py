@@ -104,12 +104,16 @@ async def global_exception_handler(request: Request, exc: Exception):
 
     detail = str(exc) if settings.ENVIRONMENT == "development" else "Internal server error"
 
+    # Nested under "detail" to match the envelope FastAPI produces for
+    # HTTPException(detail={...}) — every error response has one shape.
     return JSONResponse(
         status_code=500,
         content={
-            "error": detail,
-            "code": "internal_error",
-            "retry": False,
+            "detail": {
+                "error": detail,
+                "code": "internal_error",
+                "retry": False,
+            }
         },
     )
 

@@ -1,16 +1,11 @@
 """
 Gemini AI narration generation service.
 
-This is the creative brain of WanderVox. It takes a location and mood,
-then asks Gemini 2.5 Flash (with Google Search Grounding enabled) to
-generate a compelling narration.
+Takes a location, mood, and zone data, then asks Gemini 2.5 Flash
+(with Google Search Grounding) to generate a compelling narration.
 
-The search grounding is critical — it means Gemini searches the web IN REAL TIME
-for information about the location. We don't need to pre-build a database of
-every street in the world. Gemini does the research for us.
-
-In Week 3, we'll also feed it city open data (DataSF) for even richer narrations.
-For now, it relies on its training data + live web search.
+Zone data from 19 sources is fed directly into the prompt so Gemini
+uses REAL facts about the location instead of generic filler.
 """
 
 import logging
@@ -22,15 +17,9 @@ from app.core.prompts import build_prompt
 
 logger = logging.getLogger(__name__)
 
-# Initialize the Gemini client once at module level.
-# This is reused across all requests — no need to create a new client each time.
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
-# The model we're using. Flash is the fast, cheap one — perfect for narrations.
 MODEL = "gemini-2.5-flash"
-
-# Maximum time to wait for Gemini to respond. Narrations take a few seconds
-# because of the search grounding (Gemini is literally searching Google).
 TIMEOUT_SECONDS = 15
 
 
@@ -46,23 +35,18 @@ async def generate_narration(
     """
     Generate a narration for a specific location and mood.
 
-    Uses Gemini 2.5 Flash with Google Search Grounding to produce a 60-90 second
-    spoken narration. The AI searches the web in real time for facts about
-    the location, then weaves them into a story matching the requested mood.
-
     Args:
         street: Street name from reverse geocoding
         neighborhood: Neighborhood name
         city: City name
         country: Country name
-        mood: One of "informative", "haunted", "celebrity", "curiosities"
+        mood: One of "time_machine", "hidden_city", "dark_side", "behind_scenes", "unfiltered"
         content_safety: True = allow mature content, False = family-friendly
-        zone_data: Optional JSON string of pre-fetched city data (Week 3+)
+        zone_data: Formatted string of zone data from 19 sources
 
     Returns:
         The narration text (150-225 words, ready for TTS), or None if generation failed.
     """
-    # Build the prompt from our templates
     system_prompt = build_prompt(
         street=street,
         neighborhood=neighborhood,
@@ -73,18 +57,25 @@ async def generate_narration(
         zone_data=zone_data,
     )
 
-    # The user message is simple — the system prompt does the heavy lifting.
     user_message = (
-        f"Generate a {mood} tour narration for this location. "
-        f"Use Google Search to find real, verifiable facts about "
+        f"Generate a {mood} narration for someone at "
         f"{street}, {neighborhood}, {city}. "
-        f"Remember: 60-90 seconds of spoken audio, conversational tone, "
-        f"end with a teaser about the next block."
+        f"You MUST use at least 3 specific facts from the zone data provided. "
+        f"Do NOT start with a rhetorical question. "
+        f"Start with a specific year, detail, or observation. "
+        f"Use Google Search to find additional real facts about this exact location. "
+        f"60-90 seconds of spoken audio."
     )
 
     try:
-        # Enable Google Search grounding — this is the magic.
         google_search_tool = Tool(google_search=GoogleSearch())
+
+        # DEBUG: Log what we're sending to Gemini
+        logger.info(f"=== GEMINI CALL ===")
+        logger.info(f"PROMPT FIRST 300 CHARS: {system_prompt[:300]}")
+        logger.info(f"ZONE DATA IN PROMPT: {'YES' if zone_data and len(zone_data) > 50 else 'NO/EMPTY'}")
+        logger.info(f"ZONE DATA LENGTH: {len(zone_data) if zone_data else 0} chars")
+        logger.info(f"USER MESSAGE: {user_message}")
 
         response = client.models.generate_content(
             model=MODEL,
@@ -97,38 +88,28 @@ async def generate_narration(
             ),
         )
 
-        # Extract the text — handle various response formats
         narration = None
         try:
             narration = response.text
         except Exception:
             pass
 
-        # If .text failed, try extracting from parts
         if not narration and response.candidates:
             parts = response.candidates[0].content.parts
             text_parts = [p.text for p in parts if hasattr(p, 'text') and p.text]
             if text_parts:
                 narration = " ".join(text_parts)
 
-        logger.info(f"Gemini raw response type: {type(response)}")
         logger.info(f"Gemini narration length: {len(narration) if narration else 0} chars")
-        logger.info(f"Gemini narration preview: {narration[:200] if narration else 'EMPTY'}...")
+        logger.info(f"Gemini narration preview: {narration[:300] if narration else 'EMPTY'}...")
 
         if not narration or len(narration) < 20:
             logger.warning(f"Gemini returned empty or too-short narration for {street}")
             return None
 
-        # Basic sanity check: narration should be within expected range
         if len(narration) > 5000:
-            logger.warning(f"Gemini narration too long ({len(narration)} chars), truncating")
             narration = narration[:5000]
 
-        logger.info(
-            f"Generated narration for {street}, {neighborhood} "
-            f"({mood}, safety={'on' if content_safety else 'off'}): "
-            f"{len(narration)} chars"
-        )
         return narration
 
     except Exception as e:

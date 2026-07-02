@@ -1,6 +1,6 @@
-# WanderVox — MVP Technical Blueprint v4.0
+# Backyard — MVP Technical Blueprint v4.0
 
-**App Name (working title):** WanderVox
+**App Name (working title):** Backyard
 **One-liner:** AI-powered guided tours anywhere in the world — every street has a story.
 **Date:** February 5, 2026
 **Version:** 4.0 — FINAL. All product decisions locked, all architecture finalized, all security gaps closed.
@@ -19,7 +19,7 @@
 | Solo vs group | **Solo first** for MVP; group/multiplayer is post-MVP |
 | Revenue model | **Decide later** — prototype first |
 | Language | **English only** for MVP |
-| App name | **WanderVox** (working title, not final) |
+| App name | **Backyard** (working title, not final) |
 | TTS / Voice API | **Google Cloud TTS** (1M chars/month free, neural voices). Fallback: Edge TTS (Microsoft, free, unlimited). Premium: ElevenLabs post-MVP. |
 | Audio storage | **Cloudflare R2** (10GB free, zero egress fees). Audio generated server-side, stored as MP3, streamed to client. |
 | Audio access | **Authenticated only** — must have account to stream/listen to shared tour audio |
@@ -141,7 +141,7 @@ Tour Complete / Summary → Save & Rate
 
 | Edge Case | Handling |
 |---|---|
-| **Location permission denied** | Show explanation screen: "WanderVox needs your location to tell stories about where you are." CTA → device settings. Offer Virtual Tours as alternative (no GPS needed). |
+| **Location permission denied** | Show explanation screen: "Backyard needs your location to tell stories about where you are." CTA → device settings. Offer Virtual Tours as alternative (no GPS needed). |
 | **User stationary for 5+ minutes** | Gentle nudge: "Still exploring? Tap 'Tell me more about here' or keep walking for new stories." Don't auto-fire same narration twice. |
 | **User revisits a block they already heard** | Don't re-trigger auto-narration for same zone in same session. User can manually tap "Tell me about here" for a fresh take (LLM will generate different angle). |
 | **LLM API fails / timeout** | Retry once (3s delay) → show fallback: "Having trouble finding stories right now. Keep walking — we'll try again at the next block." Keep tour active, don't crash. |
@@ -437,7 +437,7 @@ USER'S GPS COORDINATES
 ┌────────────────────────────────────────────────────────────┐
 │  8. UPLOAD + STORE AUDIO (Cloudflare R2)                    │
 │                                                            │
-│  • Upload MP3 to R2 bucket: wandervox-audio                │
+│  • Upload MP3 to R2 bucket: backyard-audio                │
 │  • Key pattern: audio/{geo_hash}/{mood}/{safety}/{voice}.mp3│
 │  • Generate signed URL (1-hour expiry, auth required)      │
 │  • Store audio_url in narration_cache row                  │
@@ -590,7 +590,7 @@ After a zone is "warmed up" by the first visitor, every subsequent visitor with 
 | narration_cache_id | uuid (FK → narration_cache) | which narration this audio belongs to |
 | voice | text | enum: 'neutral', 'dramatic', 'warm' |
 | r2_key | text | R2 object key: `audio/{geo_hash}/{mood}/{safety}/{voice}.mp3` |
-| r2_bucket | text | default: 'wandervox-audio' |
+| r2_bucket | text | default: 'backyard-audio' |
 | file_size_bytes | int | for storage monitoring (~1.5MB per 90s narration) |
 | duration_ms | int | audio duration in milliseconds |
 | tts_provider | text | 'google' or 'edge' — tracks which API generated this file |
@@ -725,7 +725,7 @@ Response (200):
     "neighborhood": "Haight-Ashbury",
     "city": "San Francisco",
     "narration_text": "You're standing in front of 710 Ashbury — the house where the Grateful Dead lived from 1966 to 1968...",
-    "audio_url": "https://wandervox-audio.r2.cloudflarestorage.com/audio/9q8yyk8/haunted/on/dramatic.mp3?X-Amz-Signature=...",
+    "audio_url": "https://backyard-audio.r2.cloudflarestorage.com/audio/9q8yyk8/haunted/on/dramatic.mp3?X-Amz-Signature=...",
     "audio_duration_ms": 87000,
     "mood": "haunted",
     "content_safety_applied": true,
@@ -901,7 +901,7 @@ Request:
 
 Response (200):
 {
-  "share_url": "https://wandervox.app/t/a1b2c3",
+  "share_url": "https://backyard.app/t/a1b2c3",
   "share_code": "a1b2c3"
 }
 
@@ -1006,7 +1006,7 @@ GET    /rest/v1/content_reports?status=eq.pending&order=created_at.asc
 - [ ] Configure Supabase Auth (email + Google OAuth)
 - [ ] Obtain Gemini API key (free tier) + test Search Grounding in playground
 - [ ] Set up Google Cloud TTS API (enable API, get credentials, verify free tier)
-- [ ] Set up Cloudflare R2 bucket ('wandervox-audio') + generate API tokens
+- [ ] Set up Cloudflare R2 bucket ('backyard-audio') + generate API tokens
 - [ ] Configure environment variables (see Environment & Secrets section below)
 - [ ] Build Splash + Onboarding screens (3 panels, static)
 - [ ] Build Sign Up / Login screen (email + Google)
@@ -1079,7 +1079,7 @@ GET    /rest/v1/content_reports?status=eq.pending&order=created_at.asc
 - [ ] Build "Save & Share" flow on Tour Complete screen
 - [ ] Anonymous toggle: "Post as [name]" or "Post as Anonymous Explorer"
 - [ ] Build Edge Function: `/share-tour` — generate unique 6-char share code + deep link URL
-- [ ] Configure Expo universal links (iOS) + app links (Android) for `wandervox.app/t/{code}`
+- [ ] Configure Expo universal links (iOS) + app links (Android) for `backyard.app/t/{code}`
 - [ ] Build Edge Function: `/resolve-link` — share code → tour metadata
 - [ ] Deep link handling: app receives link → resolve → navigate to Tour Detail screen
 - [ ] App store fallback: if app not installed, link redirects to app store listing
@@ -1363,7 +1363,7 @@ The Gemini system prompt is carefully structured to prevent user-manipulated inp
    supabase secrets set R2_ACCOUNT_ID=...
    supabase secrets set R2_ACCESS_KEY_ID=...
    supabase secrets set R2_SECRET_ACCESS_KEY=...
-   supabase secrets set R2_BUCKET_NAME=wandervox-audio
+   supabase secrets set R2_BUCKET_NAME=backyard-audio
 
 4. supabase start                    (local Postgres + PostGIS via Docker)
 5. supabase db push                  (apply migrations — all tables + RLS + indexes)

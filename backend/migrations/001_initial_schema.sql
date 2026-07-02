@@ -1,5 +1,5 @@
 -- =============================================================================
--- WanderVox Database Migration — v1.0
+-- Backyard Database Migration — v1.0
 -- =============================================================================
 -- Run this in the Supabase SQL Editor (Dashboard → SQL Editor → New Query).
 -- It creates all tables, indexes, RLS policies, and triggers.
@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS public.audio_files (
     narration_cache_id UUID NOT NULL REFERENCES public.narration_cache(id) ON DELETE CASCADE,
     voice TEXT NOT NULL CHECK (voice IN ('neutral', 'dramatic', 'warm')),
     r2_key TEXT NOT NULL,
-    r2_bucket TEXT DEFAULT 'wandervox-audio',
+    r2_bucket TEXT DEFAULT 'backyard-audio',
     file_size_bytes INT,
     duration_ms INT,
     tts_provider TEXT DEFAULT 'google',

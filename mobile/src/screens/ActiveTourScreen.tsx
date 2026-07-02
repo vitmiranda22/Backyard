@@ -1,10 +1,11 @@
 // Active Tour screen — THE main screen
 //
-// Shows: map with user location, narration card, audio controls.
-// Auto-triggers narrations when user enters a new zone.
-// Manual trigger with "Tell me about here" button.
+// Fixes:
+// - Uses ref for isLoading to prevent double triggers from GPS callbacks
+// - Audio and text are always from the same narration response
+// - Debounce on zone changes prevents rapid re-fires
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import MapView from "react-native-maps";
 import { useZoneTracker } from "../hooks/useZoneTracker";
@@ -38,14 +39,26 @@ export default function ActiveTourScreen({
   const sequenceRef = useRef(0);
   const startTimeRef = useRef(Date.now());
   const subscriptionRef = useRef<any>(null);
+  const tourIdRef = useRef<string | null>(null);
+
+  // Use a ref for isLoading so GPS callbacks always see the current value
+  const isLoadingRef = useRef(false);
+
+  // Debounce — don't trigger more than once every 10 seconds
+  const lastTriggerTime = useRef(0);
+
+  // Keep tourIdRef in sync
+  useEffect(() => {
+    tourIdRef.current = tourId;
+  }, [tourId]);
 
   // Start tour session on mount
   useEffect(() => {
     async function init() {
       try {
-        // Create tour in backend
         const tour = await startTour(mood, voice, contentSafety);
         setTourId(tour.tour_id);
+        tourIdRef.current = tour.tour_id;
         startTimeRef.current = Date.now();
 
         // Get initial location and trigger first narration
@@ -56,10 +69,18 @@ export default function ActiveTourScreen({
         // Start watching position for zone changes
         const sub = await watchPosition((lat, lng) => {
           setLocation({ lat, lng });
+
           const { isNewZone } = checkZone(lat, lng);
-          if (isNewZone && !isLoading) {
-            triggerNarration(lat, lng, "auto");
-          }
+          if (!isNewZone) return;
+
+          // Check loading ref (not state — state is stale in callbacks)
+          if (isLoadingRef.current) return;
+
+          // Debounce: at least 10 seconds between triggers
+          const now = Date.now();
+          if (now - lastTriggerTime.current < 10000) return;
+
+          triggerNarration(lat, lng, "auto");
         });
         subscriptionRef.current = sub;
       } catch (e: any) {
@@ -76,12 +97,18 @@ export default function ActiveTourScreen({
   }, []);
 
   async function triggerNarration(lat: number, lng: number, triggerType: "auto" | "manual") {
+    // Double-check we're not already loading
+    if (isLoadingRef.current) return;
+
+    isLoadingRef.current = true;
+    lastTriggerTime.current = Date.now();
     setIsLoading(true);
     setError(null);
 
     try {
       const result = await narrateBlock(lat, lng, mood, voice, contentSafety, triggerType);
 
+      // Set text and audio together — they always come from the same response
       setStreetName(result.street_name);
       setNarrationText(result.narration_text);
       setAudioUrl(result.audio_url);
@@ -90,16 +117,20 @@ export default function ActiveTourScreen({
       setBlocksVisited(sequenceRef.current);
 
       // Save block to tour
-      if (tourId) {
+      const currentTourId = tourIdRef.current;
+      if (currentTourId) {
         try {
           await saveBlock({
-            tour_id: tourId,
+            tour_id: currentTourId,
             sequence: sequenceRef.current,
             lat,
             lng,
             street_name: result.street_name,
             neighborhood: result.neighborhood,
+            city: result.city,
             narration_text: result.narration_text,
+            audio_r2_key: result.audio_r2_key || undefined,
+            voice,
             mood,
             trigger_type: triggerType,
           });
@@ -112,11 +143,12 @@ export default function ActiveTourScreen({
       console.error("Narration failed:", e.message);
     }
 
+    isLoadingRef.current = false;
     setIsLoading(false);
   }
 
   function handleManualTrigger() {
-    if (location && !isLoading) {
+    if (location && !isLoadingRef.current) {
       triggerNarration(location.lat, location.lng, "manual");
     }
   }
@@ -152,7 +184,7 @@ export default function ActiveTourScreen({
       {/* Blocks counter */}
       <View style={styles.statsBar}>
         <Text style={styles.statsText}>📍 {blocksVisited} blocks</Text>
-        <Text style={styles.moodBadge}>{mood}</Text>
+        <Text style={styles.moodBadge}>{mood.replace("_", " ")}</Text>
       </View>
 
       {/* Narration card */}

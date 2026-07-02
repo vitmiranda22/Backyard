@@ -1,12 +1,13 @@
-# WanderVox
+# Backyard
 
 > AI-powered guided tours anywhere in the world — every street has a story.
 
-WanderVox uses AI to narrate the history, culture, and hidden stories of whatever
-street you're walking on. Pick a mood (Haunted, Informative, Celebrity, Curiosities),
-put in your earbuds, and start walking. The app generates a unique narration for
-every ~150m zone you enter, pulling from city open data, Wikipedia, and real-time
-web search — then reads it to you in a high-quality AI voice.
+Backyard uses AI to narrate the history, culture, and hidden stories of whatever
+street you're walking on. Pick a mode (Time Machine, Hidden City, Dark Side,
+Behind the Scenes, Unfiltered), put in your earbuds, and start walking. The app
+generates a unique narration for every ~150m zone you enter, pulling from city
+open data, Wikipedia, OpenStreetMap, and real-time web search — then reads it
+to you in a high-quality AI voice.
 
 ## Architecture
 
@@ -32,17 +33,22 @@ GPS coordinates to the backend. Minimal JS — just UI wiring.
 ## Project structure
 
 ```
-wandervox/
+backyard/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py              ← FastAPI entry point
 │   │   ├── config.py            ← Environment variables
 │   │   ├── api/
 │   │   │   ├── narrate.py       ← POST /narrate-block (the core endpoint)
+│   │   │   ├── tours.py         ← Tour session lifecycle (start/save/end)
+│   │   │   ├── settings.py      ← User preference endpoints
 │   │   │   ├── auth.py          ← Auth middleware (validates Supabase JWTs)
 │   │   │   └── health.py        ← GET /health
 │   │   ├── services/
 │   │   │   ├── geocode.py       ← Nominatim reverse geocoding
+│   │   │   ├── zone_data.py     ← Orchestrates all 19 data sources in parallel
+│   │   │   ├── datasf.py        ← 15 DataSF datasets (SF-only)
+│   │   │   ├── global_sources.py← Wikipedia, Wikimedia, OSM, Knowledge Graph (any city)
 │   │   │   ├── gemini.py        ← Gemini AI + Search Grounding
 │   │   │   ├── tts.py           ← Google Cloud TTS → MP3
 │   │   │   ├── r2.py            ← Cloudflare R2 upload + signed URLs
@@ -50,11 +56,13 @@ wandervox/
 │   │   ├── models/
 │   │   │   └── schemas.py       ← Pydantic models for request/response validation
 │   │   └── core/
-│   │       └── prompts.py       ← Gemini system prompts per mood
+│   │       └── prompts.py       ← Gemini system prompts per mode
+│   ├── migrations/               ← SQL migrations, run in order against Supabase
 │   ├── requirements.txt
 │   ├── .env.example
 │   └── Dockerfile
-├── mobile/                      ← React Native app (Week 1: minimal)
+├── mobile/                      ← React Native app: login, map, mood picker,
+│                                   active tour with GPS-triggered narration + audio
 ├── docs/
 │   ├── API_SETUP_GUIDE.md       ← How to get all your API keys
 │   └── WEEK1_WALKTHROUGH.md     ← Step-by-step guide for Week 1
@@ -94,7 +102,7 @@ Scan the QR code with Expo Go on your phone.
 
 ## Week 1 goal
 
-Sign up → tap "Start Tour" → pick Haunted + Dramatic voice → hear a high-quality
+Sign up → tap "Start Tour" → pick Dark Side + Dramatic voice → hear a high-quality
 AI narration about your current street streaming from the cloud.
 
 If that makes you smile, Week 1 is done.

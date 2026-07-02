@@ -9,7 +9,7 @@ File organization in the bucket:
     audio/{geo_hash}/{mood}/{safety}/{voice}.mp3
 
 Example:
-    audio/9q8yyk8/haunted/off/dramatic.mp3
+    audio/9q8yyk8/dark_side/off/dramatic.mp3
 
 This key structure means:
 - Same zone + mood + safety + voice = same file (natural deduplication)
@@ -63,12 +63,12 @@ def build_r2_key(geo_hash: str, mood: str, content_safety: bool, voice: str) -> 
 
     Args:
         geo_hash: Geohash of the location (precision 7, e.g., "9q8yyk8")
-        mood: "informative", "haunted", "celebrity", "curiosities"
+        mood: "time_machine", "hidden_city", "dark_side", "behind_scenes", "unfiltered"
         content_safety: True = mature content, False = family-friendly
         voice: "neutral", "dramatic", "warm"
 
     Returns:
-        R2 object key, e.g., "audio/9q8yyk8/haunted/off/dramatic.mp3"
+        R2 object key, e.g., "audio/9q8yyk8/dark_side/off/dramatic.mp3"
     """
     safety_str = "on" if content_safety else "off"
     return f"audio/{geo_hash}/{mood}/{safety_str}/{voice}.mp3"

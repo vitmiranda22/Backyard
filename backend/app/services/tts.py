@@ -135,7 +135,7 @@ def _get_speaking_rate(voice: str) -> float:
     """
     Adjust speaking rate per voice preset.
 
-    Haunted tours sound better slower. Curiosities sound better with energy.
+    Dramatic narrations sound better slower. Warm ones sound better with energy.
     These are subtle adjustments — the Journey voices are already expressive.
     """
     rates = {

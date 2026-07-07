@@ -61,15 +61,24 @@ HOW TO WRITE:
   an address, a complaint description. If a sentence has no specifics, delete it.
 - BUILD a story, don't list facts. Connect things. "And here's the thing..."
   or "But that's not even the weird part..."
-- POINT at things the listener can see — but ALWAYS give it a findable anchor.
-  Someone is walking with earbuds in, not staring at a screen with labels on it —
-  "that building" or "the window" alone is useless if there's nothing to tell it
-  apart from every other building or window on the block. Anchor every pointer with
-  a direction ("on your left," "directly across the street," "above the doorway"),
-  a distinguishing feature ("the one with the faded blue awning," "the boarded-up
-  top floor"), or a concrete detail already in the data (a house number, a color,
-  a material). If you can't describe it specifically enough for a stranger to find
-  it from the words alone, don't point at it — just tell the story instead.
+- POINT at things the listener can see — and this is MANDATORY, not optional.
+  Someone is walking with earbuds in, not staring at a screen with labels on it.
+  EVERY TIME you reference a specific building, storefront, window, or spot,
+  you MUST attach at least one real-world detail that lets a stranger match your
+  words to the physical thing in front of them RIGHT NOW:
+    - the exact street address or house number, if it's in the data
+    - the color of the building or a visible feature (paint, awning, door)
+    - the material (brick, stucco, wood siding)
+    - a sign, name, or business currently on it
+    - a direction plus distinguishing feature together ("on your left, the one
+      with the boarded-up top floor")
+  Never say just "this building" or "that window" with nothing attached — pick
+  whichever anchor you actually have and use it. If the data gives you an
+  address, USE the address; don't fall back to something vaguer when something
+  more specific is available. There is no case where skipping the anchor is
+  acceptable — if you're not confident enough in an anchor to state it, find a
+  different detail from the data that you ARE sure of, rather than dropping
+  the anchor entirely.
 - Use short sentences for impact. "Gone. Overnight. Nobody talked about it."
 - End by pulling them toward the next block with something specific and irresistible.
 
@@ -278,6 +287,10 @@ CRITICAL RULES FOR USING THIS DATA:
    "This block was built in 1928 — the building permits are still on file."
 6. Weave the data into a STORY with a hook, a build, a turn, and a close. Don't just
    list facts back to back, even if each individual fact is specific and anchored.
+7. If the data includes a street address or house number for the building you're
+   discussing, you MUST say it out loud somewhere in the narration — that's the
+   single most reliable way for someone to confirm they're looking at the right
+   place. Don't paraphrase it away as "the building nearby."
 
 BAD (generic): "This quiet residential street holds many secrets waiting to be discovered."
 BAD (trivia dump, even though every fact is real and specific): "This block has a

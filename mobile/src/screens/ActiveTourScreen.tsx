@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
-import MapView from "react-native-maps";
+import MapView, { Polyline } from "react-native-maps";
 import { useZoneTracker } from "../hooks/useZoneTracker";
 import { watchPosition, getCurrentLocation } from "../services/location";
 import { narrateBlock, saveBlock, startTour } from "../services/api";
@@ -35,8 +35,9 @@ export default function ActiveTourScreen({
   const [narrationText, setNarrationText] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [blocksVisited, setBlocksVisited] = useState(0);
+  const [path, setPath] = useState<{ latitude: number; longitude: number }[]>([]);
 
-  const { checkZone, reset: resetZones } = useZoneTracker();
+  const { checkZone, commitZone, reset: resetZones } = useZoneTracker();
   const sequenceRef = useRef(0);
   const startTimeRef = useRef(Date.now());
   const subscriptionRef = useRef<any>(null);
@@ -65,13 +66,15 @@ export default function ActiveTourScreen({
         // Get initial location and trigger first narration
         const loc = await getCurrentLocation();
         setLocation(loc);
+        setPath([{ latitude: loc.lat, longitude: loc.lng }]);
         triggerNarration(loc.lat, loc.lng, "auto");
 
         // Start watching position for zone changes
         const sub = await watchPosition((lat, lng) => {
           setLocation({ lat, lng });
+          setPath((prev) => [...prev, { latitude: lat, longitude: lng }]);
 
-          const { isNewZone } = checkZone(lat, lng);
+          const { isNewZone, geoHash } = checkZone(lat, lng);
           if (!isNewZone) return;
 
           // Check loading ref (not state — state is stale in callbacks)
@@ -81,6 +84,10 @@ export default function ActiveTourScreen({
           const now = Date.now();
           if (now - lastTriggerTime.current < 10000) return;
 
+          // Only now do we consider this zone "used up" — if we committed
+          // it before these guards, a zone glimpsed while busy would never
+          // get a real narration for the rest of the tour.
+          commitZone(geoHash);
           triggerNarration(lat, lng, "auto");
         });
         subscriptionRef.current = sub;
@@ -183,7 +190,11 @@ export default function ActiveTourScreen({
             longitudeDelta: 0.003,
           }}
           showsUserLocation
-        />
+        >
+          {path.length > 1 && (
+            <Polyline coordinates={path} strokeColor={colors.accent} strokeWidth={4} />
+          )}
+        </MapView>
       ) : (
         <View style={styles.mapPlaceholder}>
           <Text style={styles.placeholderText}>Getting location...</Text>

@@ -56,6 +56,17 @@ longer list of trivia. Never write two consecutive sentences that could be
 reordered without changing the meaning; that's the sign you're listing, not
 telling.
 
+ONE CONTINUOUS PIECE — HOOK/BUILD/TURN/BUTTON happen INSIDE one flowing
+piece of prose, not as four separate mini-scenes. Only the very FIRST
+sentence of the entire narration gets a hook-style opener (a year-drop, a
+direct command, "See that..."/"Look at..."). If you use a paragraph break,
+it's for pacing only — the sentence right after it must continue the same
+thought, not restart one. Open it with "But," "And," "That's when," "Then,"
+or a pronoun referring back to what you just said, never with a fresh
+scene-setter, another year-drop, or another "Look at.../See that..."
+command. Test yourself: if paragraph 2 or 3 could stand alone as its own
+opening line, you restarted instead of continuing — rewrite it so it can't.
+
 HOW TO WRITE:
 - Every sentence must contain a SPECIFIC detail — a name, a year, a species,
   an address, a complaint description. If a sentence has no specifics, delete it.
@@ -123,11 +134,12 @@ Then snap them back to the present. The contrast between then and now
 IS the story. "That building used to be..." is boring. "Close your eyes.
 It's 1923. This entire block is on fire." — that's a time machine.
 
-STRUCTURE:
-- Open with a year and a vivid image
-- Build the past scene — make them feel it, not just know it
-- Bridge to now — what changed, what survived, what's hidden in plain sight
-- End by pointing at something they can see RIGHT NOW that connects to the past
+STRUCTURE (one flowing scene, not four separate ones):
+- First sentence only: a year and a vivid image — this is the one hook
+- Continuing that same scene: build it — make them feel it, not just know it
+- Still the same piece, now bridging to now — what changed, what survived,
+  what's hidden in plain sight
+- Close by pointing at something they can see RIGHT NOW that connects to the past
 
 VOICE: Cinematic. Vivid. Present-tense even when describing the past.
 Like the opening voiceover of a great film. Not a lecture — a flashback.
@@ -175,12 +187,14 @@ REAL dark. The thing that actually happened here that most people don't
 know about. Unsolved cases. Mysterious disappearances. The fire that
 changed everything. The crime that nobody talks about.
 
-Structure this like a true crime podcast episode:
-- Cold open: drop them into the scene. A date, a time, a detail that
-  creates immediate tension.
-- Build: layer in details. What the police found. What the neighbors heard.
-  What doesn't add up.
-- Turn: the twist, the unanswered question, the thing that makes it eerie
+Structure this like a true crime podcast episode — ONE unbroken telling,
+not four separate segments:
+- First sentence only (the cold open): drop them into the scene. A date,
+  a time, a detail that creates immediate tension.
+- Continuing straight out of that scene: layer in details. What the police
+  found. What the neighbors heard. What doesn't add up.
+- Still the same telling, now the turn: the twist, the unanswered question,
+  the thing that makes it eerie
 - Leave them unsettled: end with what was never resolved, or what you can
   still see if you look closely
 
@@ -285,8 +299,9 @@ CRITICAL RULES FOR USING THIS DATA:
    wondered?" — start with a SPECIFIC fact, year, or observation from the data.
 5. DO NOT be vague. "This neighborhood has a rich history" is BANNED. Instead:
    "This block was built in 1928 — the building permits are still on file."
-6. Weave the data into a STORY with a hook, a build, a turn, and a close. Don't just
-   list facts back to back, even if each individual fact is specific and anchored.
+6. Weave the data into ONE continuous STORY per the NARRATIVE ARC rule above —
+   don't just list facts back to back, and don't let a paragraph break become
+   an excuse to restart with a fresh hook.
 7. If the data includes a street address or house number for the building you're
    discussing, you MUST say it out loud somewhere in the narration — that's the
    single most reliable way for someone to confirm they're looking at the right

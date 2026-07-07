@@ -86,6 +86,21 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
             This route's audio isn't available right now — you can still walk it and read the narration text.
           </Text>
         )}
+
+        {tour.is_own_tour && tour.blocks.length > 0 && (
+          <View style={styles.logSection}>
+            <Text style={styles.logHeader}>Your walk log</Text>
+            {tour.blocks.map((block) => (
+              <View key={block.block_id} style={styles.logCard}>
+                <Text style={styles.logStreet}>
+                  📍 {block.street_name}
+                  {block.neighborhood ? `, ${block.neighborhood}` : ""}
+                </Text>
+                <Text style={styles.logText}>{block.narration_text}</Text>
+              </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
 
       <TouchableOpacity style={styles.startBtn} onPress={() => onStartReplay(tour)}>
@@ -158,6 +173,37 @@ const styles = StyleSheet.create({
     color: colors.muted,
     textAlign: "center",
     paddingHorizontal: 10,
+  },
+  logSection: {
+    width: "100%",
+    marginTop: 24,
+  },
+  logHeader: {
+    fontFamily: font.display,
+    fontSize: 18,
+    color: colors.text,
+    marginBottom: 12,
+    alignSelf: "flex-start",
+  },
+  logCard: {
+    width: "100%",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 14,
+    marginBottom: 10,
+  },
+  logStreet: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: 6,
+  },
+  logText: {
+    fontSize: 13,
+    color: colors.muted,
+    lineHeight: 19,
   },
   errorText: {
     color: colors.danger,

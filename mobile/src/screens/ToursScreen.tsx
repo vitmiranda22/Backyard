@@ -137,7 +137,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
               </View>
             }
             renderItem={({ item }) => (
-              <View style={styles.card}>
+              <TouchableOpacity style={styles.card} onPress={() => onSelectRoute(item.tour_id)}>
                 <View style={styles.icon}>
                   <Text style={styles.iconText}>{MOOD_EMOJI[item.mood] ?? "🗺️"}</Text>
                 </View>
@@ -148,7 +148,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
                   <Text style={styles.meta}>{formatStats(item) || "In progress"}</Text>
                 </View>
                 <Text style={styles.date}>{formatDate(item.created_at)}</Text>
-              </View>
+              </TouchableOpacity>
             )}
           />
         )

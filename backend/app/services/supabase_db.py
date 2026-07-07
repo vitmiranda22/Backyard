@@ -276,6 +276,17 @@ async def get_tour(tour_id: str):
         return None
 
 
+async def update_tour_narrative_summary(tour_id: str, summary: str):
+    """Persist the tour's rolling narrative summary for the next block to build on."""
+    try:
+        client = _get_client()
+        client.table("tours").update({"narrative_summary": summary}).eq("id", tour_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to update narrative summary for tour {tour_id}: {e}")
+        return False
+
+
 async def get_tours_by_user(creator_id: str, limit: int = 20):
     """Get a user's tours, most recent first. Returns a list (empty on failure)."""
     try:

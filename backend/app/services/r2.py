@@ -74,6 +74,23 @@ def build_r2_key(geo_hash: str, mood: str, content_safety: bool, voice: str) -> 
     return f"audio/{geo_hash}/{mood}/{safety_str}/{voice}.mp3"
 
 
+def build_tour_r2_key(tour_id: str, geo_hash: str, content_safety: bool, voice: str) -> str:
+    """
+    Build the R2 object key for a block whose audio includes a tour-specific
+    continuity transition (see narrate.py's connector step).
+
+    This audio is stitched from this exact tour's running narrative summary,
+    so it can never be reused by a different tour at the same geohash — it
+    lives at its own key instead of the shared `build_r2_key()` path, and is
+    intentionally not tracked in narration_cache/audio_files.
+
+    Returns:
+        R2 object key, e.g. "audio/tours/3f9a.../9q8yyk8/off/dramatic.mp3"
+    """
+    safety_str = "on" if content_safety else "off"
+    return f"audio/tours/{tour_id}/{geo_hash}/{safety_str}/{voice}.mp3"
+
+
 async def upload_audio(audio_bytes: bytes, r2_key: str) -> bool:
     """
     Upload an MP3 file to R2.

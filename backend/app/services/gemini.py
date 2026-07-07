@@ -13,7 +13,7 @@ from google import genai
 from google.genai.types import Tool, GoogleSearch, GenerateContentConfig
 
 from app.config import settings
-from app.core.prompts import build_prompt
+from app.core.prompts import build_prompt, build_connector_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -123,3 +123,85 @@ async def generate_narration(
         import traceback
         logger.error(traceback.format_exc())
         return None
+
+
+async def generate_connector(
+    prior_summary: str,
+    mood: str,
+    current_narration: str,
+) -> tuple:
+    """
+    Generate a short transition line connecting this block to the tour's
+    running story, plus an updated rolling summary for the next block.
+
+    Deliberately no search grounding and a small token budget — this is a
+    cheap, tour-scoped call, not a replacement for the main narration call.
+
+    Returns:
+        (connector_text, updated_summary). connector_text is None if
+        generation/parsing failed — callers should skip stitching in that
+        case but can still persist updated_summary (falls back to a
+        truncated version of current_narration) so future blocks keep
+        building continuity.
+    """
+    prompt = build_connector_prompt(
+        prior_summary=prior_summary,
+        mood=mood,
+        current_narration=current_narration,
+    )
+    fallback_summary = current_narration[:200]
+
+    try:
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=prompt,
+            config=GenerateContentConfig(
+                temperature=0.8,
+                # Same headroom issue as the main narration call — Gemini 2.5
+                # Flash spends part of this budget on internal "thinking"
+                # before writing output, independent of how short the final
+                # text is, and that thinking budget varies call to call.
+                # 300 got eaten entirely; 1024 still clipped some responses
+                # mid-word. Unused budget costs nothing, so be generous.
+                max_output_tokens=2048,
+            ),
+        )
+
+        text = None
+        try:
+            text = response.text
+        except Exception:
+            pass
+
+        if not text and response.candidates:
+            parts = response.candidates[0].content.parts
+            text_parts = [p.text for p in parts if hasattr(p, "text") and p.text]
+            if text_parts:
+                text = "".join(text_parts)
+
+        text = text or ""
+        transition = None
+        summary = None
+
+        # Find both markers by position rather than parsing line-by-line —
+        # the model doesn't always keep each field on a single line, and a
+        # per-line parse silently drops any wrapped continuation.
+        upper_text = text.upper()
+        t_idx = upper_text.find("TRANSITION:")
+        s_idx = upper_text.find("SUMMARY:")
+
+        if t_idx != -1 and s_idx != -1 and s_idx > t_idx:
+            transition = text[t_idx + len("TRANSITION:"):s_idx].strip()
+            summary = text[s_idx + len("SUMMARY:"):].strip()
+        elif t_idx != -1:
+            transition = text[t_idx + len("TRANSITION:"):].strip()
+
+        if not transition:
+            logger.warning("Connector generation returned no parseable TRANSITION line")
+            return None, summary or fallback_summary
+
+        return transition, summary or fallback_summary
+
+    except Exception as e:
+        logger.error(f"Connector generation failed: {e}")
+        return None, fallback_summary

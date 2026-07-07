@@ -41,6 +41,21 @@ GOOD OPENINGS — start with ONE of these patterns:
 - A direct command: "Look at the building directly across the street — the one with
   the bricked-up second-floor windows. Notice anything weird?"
 
+NARRATIVE ARC — this is not a trivia dump. It is ONE story with a shape:
+- HOOK: the opening fact or image (see GOOD OPENINGS above).
+- BUILD: 1-2 more details that deepen the SAME thread — not new, disconnected
+  facts, but the next thing that happens, or the next layer of the same story.
+- TURN: a twist, contradiction, or "and here's the part nobody tells you" —
+  the reason this is worth 90 seconds of someone's walk.
+- BUTTON: a short close that resolves or leaves one specific image behind,
+  then hands them to the next block.
+Every fact you use must be a LINK in this chain, not a bullet point. If you
+can't connect a fact to the thread with a "which meant," "because of that,"
+"and that's why," or "but," cut the fact — a shorter connected story beats a
+longer list of trivia. Never write two consecutive sentences that could be
+reordered without changing the meaning; that's the sign you're listing, not
+telling.
+
 HOW TO WRITE:
 - Every sentence must contain a SPECIFIC detail — a name, a year, a species,
   an address, a complaint description. If a sentence has no specifics, delete it.
@@ -246,24 +261,71 @@ It is SPECIFIC to the exact spot the listener is standing at.
 === END DATA ===
 
 CRITICAL RULES FOR USING THIS DATA:
-1. You MUST reference at least 3 specific facts from the data above in your narration.
-   Use real names, real dates, real details from the data. Quote specifics.
-2. If the data mentions a tree species — name it. If it mentions a 311 complaint — 
+1. You MUST reference at least 3 specific facts from the data above — but they must
+   all serve ONE narrative thread (see NARRATIVE ARC). Pick the 3+ facts that connect
+   to each other, not the 3 most impressive facts in isolation. A tree species, a
+   building permit, and a 311 complaint that have nothing to do with each other make
+   a worse narration than 2 facts that form one real story.
+2. If the data mentions a tree species — name it. If it mentions a 311 complaint —
    describe it. If it mentions a building permit date — use it. SPECIFICS are what
-   make this narration better than generic AI slop.
+   make this narration better than generic AI slop. But specifics still need to be
+   IN the story, not appended to it.
 3. DO NOT invent facts that aren't in the data or your web search. If you're unsure,
    don't say it.
 4. DO NOT start with a rhetorical question like "Can you hear it?" or "Have you ever
    wondered?" — start with a SPECIFIC fact, year, or observation from the data.
 5. DO NOT be vague. "This neighborhood has a rich history" is BANNED. Instead:
    "This block was built in 1928 — the building permits are still on file."
-6. Weave the data into a STORY. Don't just list facts. Connect them.
+6. Weave the data into a STORY with a hook, a build, a turn, and a close. Don't just
+   list facts back to back, even if each individual fact is specific and anchored.
 
 BAD (generic): "This quiet residential street holds many secrets waiting to be discovered."
+BAD (trivia dump, even though every fact is real and specific): "This block has a
+Monterey Cypress planted in 1985. There was also a 311 complaint about noise last year.
+The building on the corner got a permit in 1927."
 GOOD (specific): "That tree right there — it's a New Zealand Christmas Tree, planted in 1985.
 One of only twelve in the entire city. And the house behind it? A building permit from 1927
 shows it was originally a corner grocery."
 """
+
+
+# =============================================================================
+# Connector — stitches a block onto the tour's running story (cheap, tour-scoped)
+# =============================================================================
+
+_CONNECTOR_PROMPT = """
+You are writing ONE short transition line for a walking-tour narrator, in
+the same {mood} voice as the rest of the tour.
+
+SO FAR ON THIS TOUR: {prior_summary}
+
+THE NEXT THING THE NARRATOR IS ABOUT TO SAY: {current_narration}
+
+Write two things:
+
+1. A transition of 1-2 sentences (20-35 words) that a listener would hear
+   RIGHT BEFORE the text above. It must explicitly call back to something
+   specific from "SO FAR ON THIS TOUR" — not a generic "as we continue our
+   walk" filler — and hand off naturally into the next block. Second person,
+   present tense, matches the mood's voice.
+2. An updated rolling summary (2-3 sentences, under 60 words) of the tour
+   so far, folding in what the next block is about to cover, written so it
+   can be handed back to you as "SO FAR ON THIS TOUR" for the block after
+   this one.
+
+Respond in EXACTLY this format, nothing else:
+TRANSITION: <the transition text>
+SUMMARY: <the updated summary>
+"""
+
+
+def build_connector_prompt(prior_summary: str, mood: str, current_narration: str) -> str:
+    """Build the prompt for generating a cross-block transition + updated summary."""
+    return _CONNECTOR_PROMPT.format(
+        prior_summary=prior_summary,
+        mood=mood,
+        current_narration=current_narration,
+    )
 
 
 def build_prompt(

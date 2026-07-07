@@ -183,63 +183,115 @@ async def narrate_block(
         if stored:
             narration_cache_id = stored["id"]
 
+    # --- Step 6.5: Cross-block narrative continuity (only within an active tour) ---
+    # The core narration_text above is untouched and stays fully cacheable —
+    # continuity is a thin layer added on top, keyed off the tour, not the
+    # geohash. A request with no tour_id (older client, or a one-off request
+    # outside a tour) skips this entirely and behaves exactly as before.
+    final_narration_text = narration_text
+    connector_added = False
+
+    if request.tour_id:
+        tour = await supabase_db.get_tour(request.tour_id)
+        prior_summary = tour.get("narrative_summary") if tour else None
+
+        if prior_summary:
+            connector_text, updated_summary = await gemini.generate_connector(
+                prior_summary=prior_summary,
+                mood=request.mood.value,
+                current_narration=narration_text,
+            )
+            if connector_text:
+                final_narration_text = f"{connector_text} {narration_text}"
+                connector_added = True
+        else:
+            # First block of this tour — nothing to connect to yet. Seed the
+            # summary from this block's own text so block 2 has something to
+            # build on.
+            updated_summary = narration_text[:200]
+
+        await supabase_db.update_tour_narrative_summary(request.tour_id, updated_summary)
+
     # --- Step 7-8: Handle audio ---
     audio_url = None
     audio_duration_ms = None
 
-    r2_key = r2.build_r2_key(
-        geo_hash=geo_hash,
-        mood=request.mood.value,
-        content_safety=request.content_safety,
-        voice=request.voice.value,
-    )
-
-    # Only reuse R2 audio when the DB confirms it was generated for THIS
-    # exact cached narration (get_cached_audio is keyed by narration_cache_id,
-    # not just geo_hash/mood/voice). Raw R2 existence alone isn't proof the
-    # audio matches the current text — R2 objects never expire on their own,
-    # so a narration_cache reset or expiry can produce different text while
-    # older, unrelated audio silently keeps getting served for the same
-    # geohash+mood+safety+voice path.
-    cached_audio = None
-    if narration_cache_id:
-        cached_audio = await supabase_db.get_cached_audio(narration_cache_id, request.voice.value)
-
-    if cached_audio:
-        audio_url = r2.generate_signed_url(r2_key)
-        audio_duration_ms = cached_audio.get("duration_ms") or tts.estimate_duration_ms(
-            narration_text, request.voice.value
-        )
-    else:
-        audio_bytes = await tts.synthesize_speech(
-            text=narration_text,
+    if connector_added:
+        # This block's audio is stitched with a tour-specific transition, so
+        # it can never be shared across tours at the same geohash — always
+        # synthesize fresh and store it under a tour-scoped key instead of
+        # the shared narration_cache/audio_files path.
+        r2_key = r2.build_tour_r2_key(
+            tour_id=request.tour_id,
+            geo_hash=geo_hash,
+            content_safety=request.content_safety,
             voice=request.voice.value,
         )
-
+        audio_bytes = await tts.synthesize_speech(
+            text=final_narration_text,
+            voice=request.voice.value,
+        )
         if audio_bytes:
             upload_ok = await r2.upload_audio(audio_bytes, r2_key)
             if upload_ok:
                 audio_url = r2.generate_signed_url(r2_key)
-                audio_duration_ms = tts.estimate_duration_ms(narration_text, request.voice.value)
-
-                if narration_cache_id:
-                    await supabase_db.store_audio_file(
-                        narration_cache_id=narration_cache_id,
-                        voice=request.voice.value,
-                        r2_key=r2_key,
-                        file_size_bytes=len(audio_bytes),
-                        duration_ms=audio_duration_ms,
-                        tts_provider="google",
-                    )
+                audio_duration_ms = tts.estimate_duration_ms(final_narration_text, request.voice.value)
         else:
             logger.warning("TTS failed — returning text-only response")
+    else:
+        r2_key = r2.build_r2_key(
+            geo_hash=geo_hash,
+            mood=request.mood.value,
+            content_safety=request.content_safety,
+            voice=request.voice.value,
+        )
+
+        # Only reuse R2 audio when the DB confirms it was generated for THIS
+        # exact cached narration (get_cached_audio is keyed by narration_cache_id,
+        # not just geo_hash/mood/voice). Raw R2 existence alone isn't proof the
+        # audio matches the current text — R2 objects never expire on their own,
+        # so a narration_cache reset or expiry can produce different text while
+        # older, unrelated audio silently keeps getting served for the same
+        # geohash+mood+safety+voice path.
+        cached_audio = None
+        if narration_cache_id:
+            cached_audio = await supabase_db.get_cached_audio(narration_cache_id, request.voice.value)
+
+        if cached_audio:
+            audio_url = r2.generate_signed_url(r2_key)
+            audio_duration_ms = cached_audio.get("duration_ms") or tts.estimate_duration_ms(
+                final_narration_text, request.voice.value
+            )
+        else:
+            audio_bytes = await tts.synthesize_speech(
+                text=final_narration_text,
+                voice=request.voice.value,
+            )
+
+            if audio_bytes:
+                upload_ok = await r2.upload_audio(audio_bytes, r2_key)
+                if upload_ok:
+                    audio_url = r2.generate_signed_url(r2_key)
+                    audio_duration_ms = tts.estimate_duration_ms(final_narration_text, request.voice.value)
+
+                    if narration_cache_id:
+                        await supabase_db.store_audio_file(
+                            narration_cache_id=narration_cache_id,
+                            voice=request.voice.value,
+                            r2_key=r2_key,
+                            file_size_bytes=len(audio_bytes),
+                            duration_ms=audio_duration_ms,
+                            tts_provider="google",
+                        )
+            else:
+                logger.warning("TTS failed — returning text-only response")
 
     # --- Step 9: Return ---
     return NarrateBlockResponse(
         street_name=street_name,
         neighborhood=neighborhood,
         city=city,
-        narration_text=narration_text,
+        narration_text=final_narration_text,
         audio_url=audio_url,
         audio_r2_key=r2_key if audio_url else None,
         audio_duration_ms=audio_duration_ms,

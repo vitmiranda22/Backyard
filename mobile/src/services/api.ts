@@ -56,7 +56,8 @@ export async function narrateBlock(
   mood: string,
   voice: string,
   contentSafety: boolean,
-  triggerType: "auto" | "manual"
+  triggerType: "auto" | "manual",
+  tourId?: string
 ): Promise<NarrationResponse> {
   return authFetch("/narrate-block", {
     method: "POST",
@@ -67,6 +68,7 @@ export async function narrateBlock(
       voice,
       content_safety: contentSafety,
       trigger_type: triggerType,
+      tour_id: tourId,
     }),
   });
 }

@@ -106,7 +106,15 @@ export default function ActiveTourScreen({
     setError(null);
 
     try {
-      const result = await narrateBlock(lat, lng, mood, voice, contentSafety, triggerType);
+      const result = await narrateBlock(
+        lat,
+        lng,
+        mood,
+        voice,
+        contentSafety,
+        triggerType,
+        tourIdRef.current || undefined
+      );
 
       // Set text and audio together — they always come from the same response
       setStreetName(result.street_name);

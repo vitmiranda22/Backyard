@@ -51,6 +51,12 @@ class NarrateBlockRequest(BaseModel):
     content_safety: bool = Field(default=False)
     trigger_type: TriggerType = Field(default=TriggerType.AUTO)
     voice: Voice = Field(default=Voice.NEUTRAL)
+    tour_id: Optional[str] = Field(
+        default=None,
+        description="Active tour this block belongs to. When present, the "
+        "narration is stitched with a transition connecting it to the "
+        "tour's prior blocks. Omit for one-off requests outside a tour.",
+    )
 
 
 class ZoneDataUsed(BaseModel):

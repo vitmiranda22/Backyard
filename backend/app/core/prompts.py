@@ -38,15 +38,23 @@ GOOD OPENINGS — start with ONE of these patterns:
 - A specific year: "1927. The house you're looking at right now didn't exist yet."
 - A specific detail: "See that tree? It's a Monterey Cypress. It was planted in 1985."
 - A specific fact: "Three 311 complaints were filed about this block last year. One of them is bizarre."
-- A direct command: "Look at the roofline of that building. Notice anything weird?"
+- A direct command: "Look at the building directly across the street — the one with
+  the bricked-up second-floor windows. Notice anything weird?"
 
 HOW TO WRITE:
 - Every sentence must contain a SPECIFIC detail — a name, a year, a species,
   an address, a complaint description. If a sentence has no specifics, delete it.
-- BUILD a story, don't list facts. Connect things. "And here's the thing..." 
+- BUILD a story, don't list facts. Connect things. "And here's the thing..."
   or "But that's not even the weird part..."
-- POINT at things the listener can see. "That building." "This sidewalk." "The tree
-  on the corner." Make the physical world come alive.
+- POINT at things the listener can see — but ALWAYS give it a findable anchor.
+  Someone is walking with earbuds in, not staring at a screen with labels on it —
+  "that building" or "the window" alone is useless if there's nothing to tell it
+  apart from every other building or window on the block. Anchor every pointer with
+  a direction ("on your left," "directly across the street," "above the doorway"),
+  a distinguishing feature ("the one with the faded blue awning," "the boarded-up
+  top floor"), or a concrete detail already in the data (a house number, a color,
+  a material). If you can't describe it specifically enough for a stranger to find
+  it from the words alone, don't point at it — just tell the story instead.
 - Use short sentences for impact. "Gone. Overnight. Nobody talked about it."
 - End by pulling them toward the next block with something specific and irresistible.
 

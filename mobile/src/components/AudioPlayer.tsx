@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Audio } from "expo-av";
+import { colors } from "../theme";
 
 interface AudioPlayerProps {
   audioUrl: string | null;
@@ -156,7 +157,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#4A90D9",
+    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -167,7 +168,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#666",
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -181,24 +184,24 @@ const styles = StyleSheet.create({
   },
   timeText: {
     fontSize: 12,
-    color: "#999",
+    color: colors.muted,
     width: 40,
     textAlign: "center",
   },
   progressBar: {
     flex: 1,
     height: 4,
-    backgroundColor: "#333",
+    backgroundColor: colors.border,
     borderRadius: 2,
   },
   progressFill: {
     height: 4,
-    backgroundColor: "#4A90D9",
+    backgroundColor: colors.accent,
     borderRadius: 2,
   },
   fallbackText: {
     textAlign: "center",
-    color: "#999",
+    color: colors.muted,
     fontSize: 14,
     padding: 12,
   },

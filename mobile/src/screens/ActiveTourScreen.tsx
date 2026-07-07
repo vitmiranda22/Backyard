@@ -12,6 +12,7 @@ import { useZoneTracker } from "../hooks/useZoneTracker";
 import { watchPosition, getCurrentLocation } from "../services/location";
 import { narrateBlock, saveBlock, startTour } from "../services/api";
 import NarrationCard from "../components/NarrationCard";
+import { colors, radius } from "../theme";
 
 interface ActiveTourProps {
   mood: string;
@@ -232,7 +233,7 @@ export default function ActiveTourScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0d0d1a",
+    backgroundColor: colors.bg,
   },
   map: {
     flex: 1,
@@ -241,55 +242,62 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: colors.surfaceAlt,
   },
   placeholderText: {
-    color: "#666",
+    color: colors.muted,
   },
   statsBar: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: "#0d0d1a",
+    paddingVertical: 10,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   statsText: {
-    color: "#fff",
+    color: colors.text,
     fontSize: 14,
+    fontWeight: "600",
   },
   moodBadge: {
-    color: "#4A90D9",
+    color: colors.accent,
     fontSize: 14,
-    fontWeight: "bold",
+    fontWeight: "700",
     textTransform: "capitalize",
   },
   bottomBar: {
     flexDirection: "row",
     padding: 12,
     gap: 10,
-    backgroundColor: "#0d0d1a",
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   manualBtn: {
     flex: 2,
-    backgroundColor: "#4A90D9",
+    backgroundColor: colors.accent,
     padding: 14,
-    borderRadius: 10,
+    borderRadius: radius.md,
   },
   manualBtnText: {
-    color: "#fff",
+    color: colors.accentText,
     textAlign: "center",
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "700",
   },
   endBtn: {
     flex: 1,
-    backgroundColor: "#cc3333",
+    backgroundColor: colors.danger,
     padding: 14,
-    borderRadius: 10,
+    borderRadius: radius.md,
   },
   endBtnText: {
-    color: "#fff",
+    color: colors.accentText,
     textAlign: "center",
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "700",
   },
 });

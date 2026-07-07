@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { signIn, signUp } from "../services/auth";
+import { colors, font, radius } from "../theme";
 
 export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const [email, setEmail] = useState("");
@@ -61,7 +62,7 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
       <TextInput
         style={styles.input}
         placeholder="Email"
-        placeholderTextColor="#666"
+        placeholderTextColor={colors.muted}
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
@@ -71,14 +72,14 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
       <TextInput
         style={styles.input}
         placeholder="Password"
-        placeholderTextColor="#666"
+        placeholderTextColor={colors.muted}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
 
       {loading ? (
-        <ActivityIndicator size="large" color="#4A90D9" style={{ margin: 20 }} />
+        <ActivityIndicator size="large" color={colors.accent} style={{ margin: 20 }} />
       ) : (
         <>
           <TouchableOpacity style={styles.signInBtn} onPress={handleSignIn}>
@@ -97,50 +98,53 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0d0d1a",
+    backgroundColor: colors.bg,
     justifyContent: "center",
     padding: 30,
   },
   title: {
-    fontSize: 36,
-    fontWeight: "bold",
-    color: "#fff",
+    fontFamily: font.display,
+    fontSize: 34,
+    color: colors.text,
     textAlign: "center",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: "#999",
+    color: colors.muted,
     textAlign: "center",
     marginBottom: 40,
   },
   input: {
-    backgroundColor: "#1a1a2e",
-    color: "#fff",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    color: colors.text,
     padding: 14,
-    borderRadius: 10,
+    borderRadius: radius.md,
     marginBottom: 12,
     fontSize: 16,
   },
   signInBtn: {
-    backgroundColor: "#4A90D9",
+    backgroundColor: colors.accent,
     padding: 16,
-    borderRadius: 10,
+    borderRadius: radius.md,
     marginTop: 8,
   },
   signInText: {
-    color: "#fff",
+    color: colors.accentText,
     textAlign: "center",
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: "700",
   },
   signUpBtn: {
     padding: 16,
     marginTop: 8,
   },
   signUpText: {
-    color: "#4A90D9",
+    color: colors.accent,
     textAlign: "center",
     fontSize: 16,
+    fontWeight: "600",
   },
 });

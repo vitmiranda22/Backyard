@@ -6,6 +6,7 @@
 import React from "react";
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
 import AudioPlayer from "./AudioPlayer";
+import { colors, radius } from "../theme";
 
 interface NarrationCardProps {
   isLoading: boolean;
@@ -31,7 +32,7 @@ export default function NarrationCard({
   if (isLoading) {
     return (
       <View style={styles.card}>
-        <ActivityIndicator size="small" color="#4A90D9" />
+        <ActivityIndicator size="small" color={colors.accent} />
         <Text style={styles.loadingText}>Finding stories about this block...</Text>
       </View>
     );
@@ -78,16 +79,19 @@ export default function NarrationCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#1a1a2e",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderBottomWidth: 0,
     padding: 16,
     maxHeight: 320,
   },
   streetName: {
     fontSize: 16,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: "700",
+    color: colors.text,
     marginBottom: 8,
   },
   textScroll: {
@@ -96,23 +100,23 @@ const styles = StyleSheet.create({
   },
   narrationText: {
     fontSize: 14,
-    color: "#ccc",
+    color: colors.muted,
     lineHeight: 20,
   },
   loadingText: {
-    color: "#999",
+    color: colors.muted,
     textAlign: "center",
     marginTop: 8,
     fontSize: 14,
   },
   errorText: {
-    color: "#ff6b6b",
+    color: colors.danger,
     textAlign: "center",
     fontSize: 14,
     padding: 12,
   },
   emptyText: {
-    color: "#666",
+    color: colors.muted,
     textAlign: "center",
     fontSize: 14,
     padding: 20,

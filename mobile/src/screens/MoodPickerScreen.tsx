@@ -5,6 +5,7 @@
 
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { colors, font, radius } from "../theme";
 
 const MODES = [
   {
@@ -85,28 +86,30 @@ export default function MoodPickerScreen({ onSelect }: MoodPickerProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0d0d1a",
+    backgroundColor: colors.bg,
     padding: 20,
     justifyContent: "center",
   },
   title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#fff",
+    fontFamily: font.display,
+    fontSize: 26,
+    color: colors.text,
     textAlign: "center",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: "#999",
+    color: colors.muted,
     textAlign: "center",
     marginBottom: 24,
   },
   modeCard: {
     flexDirection: "row",
-    backgroundColor: "#1a1a2e",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: 16,
-    borderRadius: 14,
+    borderRadius: radius.md,
     marginBottom: 10,
     alignItems: "center",
   },
@@ -125,34 +128,36 @@ const styles = StyleSheet.create({
   },
   modeLabel: {
     fontSize: 17,
-    fontWeight: "bold",
-    color: "#fff",
+    fontWeight: "700",
+    color: colors.text,
   },
   premiumBadge: {
-    backgroundColor: "#FFD700",
+    backgroundColor: colors.pro,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 5,
   },
   premiumText: {
     fontSize: 10,
-    fontWeight: "bold",
-    color: "#000",
+    fontWeight: "800",
+    color: colors.proText,
   },
   freeBadge: {
-    backgroundColor: "#2ecc71",
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 5,
   },
   freeText: {
     fontSize: 10,
-    fontWeight: "bold",
-    color: "#000",
+    fontWeight: "800",
+    color: colors.muted,
   },
   modeDesc: {
     fontSize: 13,
-    color: "#999",
+    color: colors.muted,
     marginTop: 2,
   },
 });

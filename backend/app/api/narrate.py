@@ -194,18 +194,22 @@ async def narrate_block(
         voice=request.voice.value,
     )
 
-    audio_exists = await r2.check_audio_exists(r2_key)
+    # Only reuse R2 audio when the DB confirms it was generated for THIS
+    # exact cached narration (get_cached_audio is keyed by narration_cache_id,
+    # not just geo_hash/mood/voice). Raw R2 existence alone isn't proof the
+    # audio matches the current text — R2 objects never expire on their own,
+    # so a narration_cache reset or expiry can produce different text while
+    # older, unrelated audio silently keeps getting served for the same
+    # geohash+mood+safety+voice path.
+    cached_audio = None
+    if narration_cache_id:
+        cached_audio = await supabase_db.get_cached_audio(narration_cache_id, request.voice.value)
 
-    if audio_exists:
+    if cached_audio:
         audio_url = r2.generate_signed_url(r2_key)
-        if narration_cache_id:
-            cached_audio = await supabase_db.get_cached_audio(
-                narration_cache_id, request.voice.value
-            )
-            if cached_audio:
-                audio_duration_ms = cached_audio.get("duration_ms")
-        if not audio_duration_ms:
-            audio_duration_ms = tts.estimate_duration_ms(narration_text, request.voice.value)
+        audio_duration_ms = cached_audio.get("duration_ms") or tts.estimate_duration_ms(
+            narration_text, request.voice.value
+        )
     else:
         audio_bytes = await tts.synthesize_speech(
             text=narration_text,

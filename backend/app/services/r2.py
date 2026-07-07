@@ -131,26 +131,3 @@ def generate_signed_url(r2_key: str, expires_in: int = 3600):
     except Exception as e:
         logger.error(f"Failed to generate signed URL for {r2_key}: {e}")
         return None
-
-
-async def check_audio_exists(r2_key: str) -> bool:
-    """
-    Check if an audio file already exists in R2.
-
-    Used to skip TTS generation if we already have the audio cached.
-    This is a HEAD request — fast and cheap.
-    """
-    try:
-        client = _get_s3_client()
-        client.head_object(
-            Bucket=settings.R2_BUCKET_NAME,
-            Key=r2_key,
-        )
-        return True
-
-    except client.exceptions.ClientError:
-        # 404 = doesn't exist, which is expected for uncached audio
-        return False
-    except Exception as e:
-        logger.error(f"R2 head_object failed for {r2_key}: {e}")
-        return False

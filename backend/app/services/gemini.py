@@ -86,13 +86,25 @@ async def generate_narration(
                 temperature=0.8,
                 # Gemini 2.5 Flash spends part of this budget on internal
                 # "thinking" and search-grounding tool calls before writing
-                # the actual narration — 1024 was letting that eat the whole
-                # budget and cut the narration off mid-sentence. This SDK
-                # version (google-genai 1.5.0) doesn't expose a separate
-                # thinking-budget knob, so the fix is just more headroom.
-                max_output_tokens=4096,
+                # the actual narration, and how much varies call to call —
+                # this isn't a one-time constant to tune once. 1024 got cut
+                # off, then 4096 started getting cut off too once the prompt
+                # grew a NARRATIVE ARC requirement (more instruction to
+                # reason through = more thinking overhead on average). This
+                # SDK version (google-genai 1.5.0) only exposes
+                # ThinkingConfig.include_thoughts, not an actual thinking
+                # budget knob, so the only lever is headroom — if this keeps
+                # recurring as prompts grow, raise it again.
+                max_output_tokens=8192,
             ),
         )
+
+        if response.candidates and response.candidates[0].finish_reason == "MAX_TOKENS":
+            logger.warning(
+                f"Gemini narration for {street} ({mood}) hit MAX_TOKENS — "
+                f"output was truncated mid-generation. Consider raising "
+                f"max_output_tokens further."
+            )
 
         narration = None
         try:

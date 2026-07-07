@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect } from "react";
 import { StatusBar, View, ActivityIndicator } from "react-native";
+import * as Updates from "expo-updates";
 import { restoreSession, signIn } from "./src/services/auth";
 import { DEV_SKIP_LOGIN, DEV_EMAIL, DEV_PASSWORD } from "./src/config";
 import { colors } from "./src/theme";
@@ -46,6 +47,26 @@ export default function App() {
   // Routes/replay state
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [replayTour, setReplayTour] = useState<TourDetail | null>(null);
+
+  useEffect(() => {
+    // Without this, a published EAS Update only downloads on this launch and
+    // doesn't take effect until the NEXT cold start — every update needs two
+    // manual relaunches to show up. Fetch + reload eagerly instead so one
+    // relaunch is enough.
+    async function applyPendingUpdate() {
+      if (__DEV__) return;
+      try {
+        const result = await Updates.checkForUpdateAsync();
+        if (result.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch (e) {
+        console.warn("Update check failed:", e);
+      }
+    }
+    applyPendingUpdate();
+  }, []);
 
   useEffect(() => {
     async function checkSession() {

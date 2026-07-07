@@ -4,7 +4,7 @@ Gemini AI narration generation service.
 Takes a location, mood, and zone data, then asks Gemini 2.5 Flash
 (with Google Search Grounding) to generate a compelling narration.
 
-Zone data from 19 sources is fed directly into the prompt so Gemini
+Zone data from 23 sources is fed directly into the prompt so Gemini
 uses REAL facts about the location instead of generic filler.
 """
 
@@ -42,7 +42,7 @@ async def generate_narration(
         country: Country name
         mood: One of "time_machine", "hidden_city", "dark_side", "behind_scenes", "unfiltered"
         content_safety: True = allow mature content, False = family-friendly
-        zone_data: Formatted string of zone data from 19 sources
+        zone_data: Formatted string of zone data from 23 sources
 
     Returns:
         The narration text (150-225 words, ready for TTS), or None if generation failed.
@@ -84,7 +84,13 @@ async def generate_narration(
                 system_instruction=system_prompt,
                 tools=[google_search_tool],
                 temperature=0.8,
-                max_output_tokens=1024,
+                # Gemini 2.5 Flash spends part of this budget on internal
+                # "thinking" and search-grounding tool calls before writing
+                # the actual narration — 1024 was letting that eat the whole
+                # budget and cut the narration off mid-sentence. This SDK
+                # version (google-genai 1.5.0) doesn't expose a separate
+                # thinking-budget knob, so the fix is just more headroom.
+                max_output_tokens=4096,
             ),
         )
 

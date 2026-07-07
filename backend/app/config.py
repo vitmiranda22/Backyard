@@ -29,7 +29,11 @@ class Settings(BaseSettings):
     SUPABASE_URL: str
     SUPABASE_ANON_KEY: str
     SUPABASE_SERVICE_ROLE_KEY: str
-    SUPABASE_JWT_SECRET: str  # Found in Supabase → Settings → API → JWT Secret
+    # Not actually used for verification (auth.py validates via the JWKS
+    # endpoint instead), and newer Supabase projects on asymmetric signing
+    # keys don't expose a shared secret at all — optional to avoid a
+    # startup crash on those projects.
+    SUPABASE_JWT_SECRET: str = ""
 
     # -------------------------------------------------------------------------
     # Gemini (AI narration)
@@ -48,6 +52,12 @@ class Settings(BaseSettings):
     R2_ACCESS_KEY_ID: str
     R2_SECRET_ACCESS_KEY: str
     R2_BUCKET_NAME: str = "backyard-audio"
+
+    # -------------------------------------------------------------------------
+    # TMDb (film/TV enrichment) — optional, free key from themoviedb.org.
+    # The city-level TMDb source is silently skipped if this is left blank.
+    # -------------------------------------------------------------------------
+    TMDB_API_KEY: str = ""
 
     # -------------------------------------------------------------------------
     # Rate limiting

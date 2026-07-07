@@ -46,9 +46,10 @@ backyard/
 │   │   │   └── health.py        ← GET /health
 │   │   ├── services/
 │   │   │   ├── geocode.py       ← Nominatim reverse geocoding
-│   │   │   ├── zone_data.py     ← Orchestrates all 19 data sources in parallel
+│   │   │   ├── zone_data.py     ← Orchestrates all 23 data sources in parallel
 │   │   │   ├── datasf.py        ← 15 DataSF datasets (SF-only)
-│   │   │   ├── global_sources.py← Wikipedia, Wikimedia, OSM, Knowledge Graph (any city)
+│   │   │   ├── city_data.py     ← NYC/Chicago Socrata (311, permits — gated by city match)
+│   │   │   ├── global_sources.py← Wikipedia, Wikimedia, OSM, Knowledge Graph, Wikidata, TMDb (any city)
 │   │   │   ├── gemini.py        ← Gemini AI + Search Grounding
 │   │   │   ├── tts.py           ← Google Cloud TTS → MP3
 │   │   │   ├── r2.py            ← Cloudflare R2 upload + signed URLs

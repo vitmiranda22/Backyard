@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "mobile",
+    "name": "Backyard",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.backyard.app"
+      "bundleIdentifier": "com.vitorsm9004.backyard",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -29,6 +32,11 @@
     },
     "plugins": [
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "34c0f2cf-1928-4ade-bc2d-1415860a1487"
+      }
+    }
   }
 }

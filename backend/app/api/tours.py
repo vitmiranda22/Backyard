@@ -10,8 +10,9 @@ The mobile app calls these in sequence as the user walks.
 """
 
 import logging
+from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.api.auth import AuthenticatedUser
 from app.models.schemas import (
@@ -21,13 +22,43 @@ from app.models.schemas import (
     SaveBlockResponse,
     EndTourRequest,
     EndTourResponse,
+    TourSummary,
+    PublishTourRequest,
+    PublishTourResponse,
+    TourDetailResponse,
+    TourBlockDetail,
+    NearbyRouteSummary,
+    RateTourRequest,
+    RateTourResponse,
     ErrorResponse,
 )
-from app.services import supabase_db
+from app.services import supabase_db, r2
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.get(
+    "/tours",
+    response_model=List[TourSummary],
+    summary="List the current user's past tours, most recent first",
+)
+async def list_tours(user_id: AuthenticatedUser):
+    tours = await supabase_db.get_tours_by_user(user_id)
+    return [
+        TourSummary(
+            tour_id=t["id"],
+            title=t.get("title") or "Untitled Tour",
+            mood=t.get("mood", "time_machine"),
+            city=t.get("city"),
+            blocks_visited=t.get("blocks_visited", 0),
+            total_distance_m=t.get("total_distance_m"),
+            duration_sec=t.get("duration_sec"),
+            created_at=t["created_at"],
+        )
+        for t in tours
+    ]
 
 
 @router.post(
@@ -207,12 +238,17 @@ async def end_tour(
     center_lat = None
     center_lng = None
     city = None
+    location = None
     if blocks:
         lats = [b["lat"] for b in blocks if b.get("lat")]
         lngs = [b["lng"] for b in blocks if b.get("lng")]
         if lats and lngs:
             center_lat = sum(lats) / len(lats)
             center_lng = sum(lngs) / len(lngs)
+            # EWKT — PostGIS parses this directly through PostgREST for a
+            # geography column. This is what makes the tour findable via
+            # nearby_tours() once it's published.
+            location = f"SRID=4326;POINT({center_lng} {center_lat})"
         city = blocks[0].get("city", "Unknown")
 
     # Update the tour record
@@ -225,6 +261,7 @@ async def end_tour(
         center_lat=center_lat,
         center_lng=center_lng,
         city=city,
+        location=location,
     )
 
     if not updated:
@@ -245,6 +282,202 @@ async def end_tour(
         duration_sec=request.duration_sec,
         mood=tour.get("mood", "time_machine"),
     )
+
+
+@router.post(
+    "/publish-tour",
+    response_model=PublishTourResponse,
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+    summary="Publish (or unpublish) a finished tour as a discoverable route",
+)
+async def publish_tour(
+    request: PublishTourRequest,
+    user_id: AuthenticatedUser,
+):
+    """
+    Flips a tour's visibility and optionally renames it. Called from the
+    Tour Complete screen — publishing is an explicit opt-in action, never
+    automatic (tours start private; see create_tour()).
+    """
+    tour = await supabase_db.get_tour(request.tour_id)
+    if not tour:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Tour not found.", "code": "tour_not_found", "retry": False},
+        )
+
+    if tour["creator_id"] != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "This tour doesn't belong to you.", "code": "forbidden", "retry": False},
+        )
+
+    updated = await supabase_db.publish_tour(
+        tour_id=request.tour_id,
+        is_public=request.is_public,
+        title=request.title,
+    )
+
+    if not updated:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Failed to update tour.", "code": "publish_failed", "retry": True},
+        )
+
+    return PublishTourResponse(
+        tour_id=request.tour_id,
+        is_public=updated.get("is_public", request.is_public),
+        title=updated.get("title", ""),
+    )
+
+
+@router.get(
+    "/routes/nearby",
+    response_model=List[NearbyRouteSummary],
+    summary="Discover public routes near a location",
+)
+async def nearby_routes(
+    user_id: AuthenticatedUser,
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+    radius_m: int = Query(5000, ge=1),
+    mood: Optional[str] = Query(None),
+    tour_type: Optional[str] = Query(None),
+    limit: int = Query(20, ge=1, le=50),
+    offset: int = Query(0, ge=0),
+):
+    rows = await supabase_db.get_nearby_tours(
+        user_lat=lat,
+        user_lng=lng,
+        radius_m=radius_m,
+        mood_filter=mood,
+        tour_type_filter=tour_type,
+        limit_count=limit,
+        offset_count=offset,
+    )
+    return [
+        NearbyRouteSummary(
+            tour_id=r["id"],
+            title=r.get("title") or "Untitled Route",
+            mood=r.get("mood", "time_machine"),
+            tour_type=r.get("tour_type", "walking"),
+            city=r.get("city"),
+            avg_rating=r.get("avg_rating", 0),
+            rating_count=r.get("rating_count", 0),
+            blocks_visited=r.get("blocks_visited", 0),
+            total_distance_m=r.get("total_distance_m"),
+            duration_sec=r.get("duration_sec"),
+            is_anonymous=r.get("is_anonymous", False),
+            content_safety_on=r.get("content_safety_on", False),
+            creator_display_name=r.get("creator_display_name"),
+            creator_avatar_url=r.get("creator_avatar_url"),
+            distance_m=r.get("distance_m", 0),
+            created_at=r["created_at"],
+        )
+        for r in rows
+    ]
+
+
+@router.get(
+    "/tours/{tour_id}",
+    response_model=TourDetailResponse,
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+    },
+    summary="Get a tour's full detail + ordered blocks, for replay",
+)
+async def get_tour_detail(tour_id: str, user_id: AuthenticatedUser):
+    tour = await supabase_db.get_tour_with_creator(tour_id)
+    if not tour:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Tour not found.", "code": "tour_not_found", "retry": False},
+        )
+
+    is_own_tour = tour["creator_id"] == user_id
+    if not tour.get("is_public") and not is_own_tour:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "This tour isn't public.", "code": "forbidden", "retry": False},
+        )
+
+    blocks = await supabase_db.get_tour_blocks(tour_id)
+    block_details = []
+    for b in blocks:
+        audio_url = r2.generate_signed_url(b["audio_r2_key"], expires_in=14400) if b.get("audio_r2_key") else None
+        block_details.append(TourBlockDetail(
+            block_id=b["id"],
+            sequence=b["sequence"],
+            street_name=b.get("street_name", ""),
+            neighborhood=b.get("neighborhood", ""),
+            lat=b["lat"],
+            lng=b["lng"],
+            narration_text=b.get("narration_text", ""),
+            audio_url=audio_url,
+            voice=b.get("voice", "neutral"),
+            mood=b.get("mood", "time_machine"),
+        ))
+
+    is_anonymous = tour.get("is_anonymous", False)
+    creator = tour.get("users") or {}
+
+    return TourDetailResponse(
+        tour_id=tour["id"],
+        title=tour.get("title") or "Untitled Route",
+        mood=tour.get("mood", "time_machine"),
+        tour_type=tour.get("tour_type", "walking"),
+        city=tour.get("city"),
+        avg_rating=tour.get("avg_rating", 0),
+        rating_count=tour.get("rating_count", 0),
+        blocks_visited=tour.get("blocks_visited", 0),
+        total_distance_m=tour.get("total_distance_m"),
+        duration_sec=tour.get("duration_sec"),
+        is_own_tour=is_own_tour,
+        is_anonymous=is_anonymous,
+        creator_display_name="Anonymous Explorer" if is_anonymous else creator.get("display_name"),
+        creator_avatar_url=None if is_anonymous else creator.get("avatar_url"),
+        created_at=tour["created_at"],
+        blocks=block_details,
+    )
+
+
+@router.post(
+    "/rate-tour",
+    response_model=RateTourResponse,
+    responses={
+        400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+    summary="Rate a route 1-5 stars",
+)
+async def rate_tour(request: RateTourRequest, user_id: AuthenticatedUser):
+    tour = await supabase_db.get_tour(request.tour_id)
+    if not tour:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Tour not found.", "code": "tour_not_found", "retry": False},
+        )
+
+    if tour["creator_id"] == user_id:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "You can't rate your own route.", "code": "cannot_rate_own_tour", "retry": False},
+        )
+
+    result = await supabase_db.rate_tour(request.tour_id, user_id, request.score)
+    if not result:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Failed to submit rating.", "code": "rate_failed", "retry": True},
+        )
+
+    return RateTourResponse(**result)
 
 
 def _generate_tour_title(mood: str, blocks: list) -> str:

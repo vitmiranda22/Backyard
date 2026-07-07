@@ -10,12 +10,14 @@ interface AudioPlayerProps {
   audioUrl: string | null;
   onFinished?: () => void;
   onSkip?: () => void;
+  onError?: () => void;
 }
 
 export default function AudioPlayer({
   audioUrl,
   onFinished,
   onSkip,
+  onError,
 }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [positionMs, setPositionMs] = useState(0);
@@ -49,7 +51,8 @@ export default function AudioPlayer({
           { uri: audioUrl! },
           { shouldPlay: true },
           (status) => {
-            if (!isCancelled && status.isLoaded) {
+            if (isCancelled) return;
+            if (status.isLoaded) {
               setPositionMs(status.positionMillis || 0);
               setDurationMs(status.durationMillis || 0);
               setIsPlaying(status.isPlaying);
@@ -58,12 +61,16 @@ export default function AudioPlayer({
               if (status.didJustFinish && onFinished) {
                 onFinished();
               }
+            } else if (status.error) {
+              console.error("Audio playback error:", status.error);
+              if (onError) onError();
             }
           }
         );
         soundRef.current = sound;
       } catch (e) {
         console.error("Failed to load audio:", e);
+        if (onError) onError();
       }
     }
 

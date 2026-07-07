@@ -1,8 +1,10 @@
 """
-Zone data fetcher — orchestrates ALL 19 data sources in parallel.
+Zone data fetcher — orchestrates ALL 23 data sources in parallel.
 
 This is the core of Week 3. For any geographic zone, we:
-1. Fire off 15 DataSF queries + 4 global queries simultaneously
+1. Fire off 15 DataSF queries + 6 global queries + 2 other-city queries
+   simultaneously (the other-city ones no-op instantly unless the geocoded
+   city matches the NYC/Chicago registry in city_data.py)
 2. Wait for all of them (with timeouts — if one fails, others continue)
 3. Bundle everything into a single JSON blob
 4. Store it in zone_data_cache (reused across all moods for 30 days)
@@ -16,7 +18,7 @@ import json
 import asyncio
 import httpx
 
-from app.services import datasf, global_sources
+from app.services import datasf, global_sources, city_data
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +31,7 @@ async def fetch_all_zone_data(
     city: str,
 ) -> dict:
     """
-    Query all 19 data sources in parallel for a geographic zone.
+    Query all 23 data sources in parallel for a geographic zone.
 
     Returns a dict with all results bundled together, plus metadata
     about which sources succeeded and which failed.
@@ -56,11 +58,16 @@ async def fetch_all_zone_data(
             "civic_art": datasf.fetch_civic_art(lat, lng, client),
             "addresses": datasf.fetch_addresses(lat, lng, client),
             "neighborhoods": datasf.fetch_neighborhoods(lat, lng, client),
-            # --- Global sources (4 sources, any city) ---
+            # --- Global sources (6 sources, any city) ---
             "wikipedia": global_sources.fetch_wikipedia(lat, lng, client),
             "wikimedia_photos": global_sources.fetch_wikimedia_commons(lat, lng, client),
             "osm_buildings": global_sources.fetch_osm_buildings(lat, lng, client),
             "knowledge_graph": global_sources.fetch_knowledge_graph(street_name, neighborhood, client),
+            "wikidata": global_sources.fetch_wikidata(lat, lng, client),
+            "tmdb_films": global_sources.fetch_tmdb_films(city, client),
+            # --- Other-city Socrata (2 sources, gated on city match — NYC/Chicago only) ---
+            "city_311": city_data.fetch_city_311(lat, lng, city, client),
+            "city_building_permits": city_data.fetch_city_building_permits(lat, lng, city, client),
         }
 
         # Run all in parallel
@@ -127,8 +134,12 @@ def format_zone_data_for_prompt(zone_data: dict) -> str:
         "neighborhoods": ("📌 NEIGHBORHOOD INFO", _format_generic),
         "wikipedia": ("📚 WIKIPEDIA ARTICLES NEARBY", _format_wikipedia),
         "wikimedia_photos": ("📷 HISTORICAL PHOTOS NEARBY", _format_generic),
-        "osm_buildings": ("🏠 BUILDING DATA (OpenStreetMap)", _format_osm),
+        "osm_buildings": ("🏠 BUILDING & STREET-LEVEL DETAIL (OpenStreetMap)", _format_osm),
         "knowledge_graph": ("🔍 KNOWLEDGE GRAPH ENTITIES", _format_kg),
+        "wikidata": ("🗂️ WIKIDATA FACTS (places, people, film locations)", _format_wikidata),
+        "tmdb_films": ("🎬 FILMS/TV ASSOCIATED WITH THIS CITY", _format_tmdb),
+        "city_311": ("📞 311 COMPLAINTS", _format_city_311),
+        "city_building_permits": ("🏗️ BUILDING PERMITS", _format_city_permits),
     }
 
     for key, (header, formatter) in formatters.items():
@@ -199,13 +210,18 @@ def _format_wikipedia(data: list) -> str:
 
 def _format_osm(data: list) -> str:
     lines = []
-    for b in data[:5]:
+    for b in data[:8]:
         name = b.get("name", "")
         building_type = b.get("building", "")
         architect = b.get("architect", "")
         start = b.get("start_date", "")
         old_name = b.get("old_name", "")
         historic = b.get("historic", "")
+        memorial = b.get("memorial", "")
+        artwork_type = b.get("artwork_type", "")
+        disused_shop = b.get("disused_shop", "")
+        amenity = b.get("amenity", "")
+        landuse = b.get("landuse", "")
         parts = []
         if name:
             parts.append(name)
@@ -219,6 +235,14 @@ def _format_osm(data: list) -> str:
             parts.append(f"formerly: {old_name}")
         if historic:
             parts.append(f"historic: {historic}")
+        if memorial:
+            parts.append(f"memorial: {memorial}")
+        if artwork_type:
+            parts.append(f"artwork: {artwork_type}")
+        if disused_shop:
+            parts.append(f"ghost sign — formerly a {disused_shop} shop")
+        if amenity == "grave_yard" or landuse == "cemetery":
+            parts.append("cemetery/graveyard nearby")
         if parts:
             lines.append(f"- {', '.join(parts)}")
     return "\n".join(lines)
@@ -233,6 +257,79 @@ def _format_kg(data: list) -> str:
         line = f"- {name}: {desc}"
         if detail:
             line += f" — {detail[:200]}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_wikidata(data: list) -> str:
+    lines = []
+    for item in data[:12]:
+        name = item.get("name", "")
+        if not name:
+            continue
+        kind = item.get("kind", "place")
+        if kind == "person":
+            relation = item.get("relation", "connected to this place")
+            place = item.get("place", "")
+            line = f"- {name} — {relation}"
+            if place:
+                line += f" ({place})"
+        elif kind == "film":
+            place = item.get("place", "")
+            line = f"- \"{name}\" — filmed at {place}" if place else f"- \"{name}\" — filmed nearby"
+        else:
+            details = []
+            if item.get("type"):
+                details.append(f"type: {item['type']}")
+            if item.get("inception"):
+                details.append(f"built: {item['inception']}")
+            if item.get("architect"):
+                details.append(f"architect: {item['architect']}")
+            line = f"- {name}"
+            if details:
+                line += f" ({', '.join(details)})"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_tmdb(data: list) -> str:
+    lines = []
+    for m in data[:5]:
+        title = m.get("title", "")
+        year = m.get("release_year", "")
+        overview = m.get("overview", "")
+        line = f"- \"{title}\" ({year})" if year else f"- \"{title}\""
+        if overview:
+            line += f" — {overview}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_city_311(data: list) -> str:
+    lines = []
+    for c in data[:8]:
+        category = c.get("complaint_type") or c.get("sr_type") or ""
+        desc = c.get("descriptor") or c.get("sr_short_code") or ""
+        date = (c.get("created_date") or "")[:10]
+        line = f"- [{date}] {category}" if date else f"- {category}"
+        if desc:
+            line += f": {desc}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_city_permits(data: list) -> str:
+    lines = []
+    for p in data[:8]:
+        permit_type = p.get("job_type") or p.get("permit_type") or ""
+        desc = p.get("work_description") or ""
+        date = (p.get("issue_date") or p.get("application_start_date") or "")[:10]
+        street = p.get("street_name") or ""
+        line = f"- [{date}] {permit_type}" if date else f"- {permit_type}"
+        if street:
+            line += f" at {street}"
+        if desc:
+            line += f" — {desc}"
         lines.append(line)
     return "\n".join(lines)
 

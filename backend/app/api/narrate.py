@@ -6,7 +6,7 @@ Full pipeline:
 2. Check narration cache → HIT? Skip to step 7
 3. Reverse geocode → street name, neighborhood, city
 4. Check zone data cache → HIT? Skip to step 6
-5. Fetch ALL 19 data sources in parallel (~2-4 seconds)
+5. Fetch ALL 23 data sources in parallel (~2-4 seconds)
 6. Feed zone data to Gemini → generate narration
 7. TTS → MP3
 8. Upload to R2 → signed URL
@@ -113,7 +113,7 @@ async def narrate_block(
                 sources_hit=sources_hit,
             )
         else:
-            # Step 5: Fetch ALL 19 sources in parallel
+            # Step 5: Fetch ALL 23 sources in parallel
             logger.info(f"Zone data cache MISS for {geo_hash} — fetching all sources...")
             result = await fetch_all_zone_data(
                 lat=request.lat,

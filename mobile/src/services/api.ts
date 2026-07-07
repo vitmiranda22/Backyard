@@ -144,6 +144,132 @@ export async function endTour(
 }
 
 // =============================================================================
+// Tour history
+// =============================================================================
+
+export interface TourSummary {
+  tour_id: string;
+  title: string;
+  mood: string;
+  city: string | null;
+  blocks_visited: number;
+  total_distance_m: number | null;
+  duration_sec: number | null;
+  created_at: string;
+}
+
+export async function getTours(): Promise<TourSummary[]> {
+  return authFetch("/tours");
+}
+
+// =============================================================================
+// Routes — publish, discover, replay, rate
+// =============================================================================
+
+export interface PublishTourResponse {
+  tour_id: string;
+  is_public: boolean;
+  title: string;
+}
+
+export async function publishTour(
+  tourId: string,
+  isPublic: boolean,
+  title?: string
+): Promise<PublishTourResponse> {
+  return authFetch("/publish-tour", {
+    method: "POST",
+    body: JSON.stringify({ tour_id: tourId, is_public: isPublic, title }),
+  });
+}
+
+export interface TourBlockDetail {
+  block_id: string;
+  sequence: number;
+  street_name: string;
+  neighborhood: string;
+  lat: number;
+  lng: number;
+  narration_text: string;
+  audio_url: string | null;
+  voice: string;
+  mood: string;
+}
+
+export interface TourDetail {
+  tour_id: string;
+  title: string;
+  mood: string;
+  tour_type: string;
+  city: string | null;
+  avg_rating: number;
+  rating_count: number;
+  blocks_visited: number;
+  total_distance_m: number | null;
+  duration_sec: number | null;
+  is_own_tour: boolean;
+  is_anonymous: boolean;
+  creator_display_name: string | null;
+  creator_avatar_url: string | null;
+  created_at: string;
+  blocks: TourBlockDetail[];
+}
+
+export async function getTourDetail(tourId: string): Promise<TourDetail> {
+  return authFetch(`/tours/${tourId}`);
+}
+
+export interface NearbyRoute {
+  tour_id: string;
+  title: string;
+  mood: string;
+  tour_type: string;
+  city: string | null;
+  avg_rating: number;
+  rating_count: number;
+  blocks_visited: number;
+  total_distance_m: number | null;
+  duration_sec: number | null;
+  is_anonymous: boolean;
+  content_safety_on: boolean;
+  creator_display_name: string | null;
+  creator_avatar_url: string | null;
+  distance_m: number;
+  created_at: string;
+}
+
+export async function getNearbyRoutes(
+  lat: number,
+  lng: number,
+  opts?: { radiusM?: number; mood?: string; tourType?: string; limit?: number; offset?: number }
+): Promise<NearbyRoute[]> {
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lng: String(lng),
+    radius_m: String(opts?.radiusM ?? 5000),
+    limit: String(opts?.limit ?? 20),
+    offset: String(opts?.offset ?? 0),
+  });
+  if (opts?.mood) params.set("mood", opts.mood);
+  if (opts?.tourType) params.set("tour_type", opts.tourType);
+  return authFetch(`/routes/nearby?${params.toString()}`);
+}
+
+export interface RateTourResponse {
+  tour_id: string;
+  score: number;
+  avg_rating: number;
+  rating_count: number;
+}
+
+export async function rateTour(tourId: string, score: number): Promise<RateTourResponse> {
+  return authFetch("/rate-tour", {
+    method: "POST",
+    body: JSON.stringify({ tour_id: tourId, score }),
+  });
+}
+
+// =============================================================================
 // Settings
 // =============================================================================
 

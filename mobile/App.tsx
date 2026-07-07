@@ -1,57 +1,124 @@
 // Backyard — Main App
 //
 // Screen flow:
-//   Login → Home (map) → Mode Picker → Active Tour → Tour Complete → Home
+//   Login → [Home / Tours / Profile tabs] → Mode Picker → Active Tour → Tour Complete → Home
+//   Tours (Discover) → Route Detail → Replay → Rate → Tours
 //   (Voice picker removed — defaults to "dramatic")
 
 import React, { useState, useEffect } from "react";
-import { StatusBar } from "react-native";
-import { restoreSession } from "./src/services/auth";
+import { StatusBar, View, ActivityIndicator } from "react-native";
+import { restoreSession, signIn } from "./src/services/auth";
+import { DEV_SKIP_LOGIN, DEV_EMAIL, DEV_PASSWORD } from "./src/config";
+import { colors } from "./src/theme";
+import { TourDetail } from "./src/services/api";
 
 import LoginScreen from "./src/screens/LoginScreen";
 import HomeScreen from "./src/screens/HomeScreen";
+import ToursScreen from "./src/screens/ToursScreen";
+import ProfileScreen from "./src/screens/ProfileScreen";
 import MoodPickerScreen from "./src/screens/MoodPickerScreen";
 import ActiveTourScreen from "./src/screens/ActiveTourScreen";
 import TourCompleteScreen from "./src/screens/TourCompleteScreen";
+import RouteDetailScreen from "./src/screens/RouteDetailScreen";
+import ReplayScreen from "./src/screens/ReplayScreen";
+import RouteRatingScreen from "./src/screens/RouteRatingScreen";
+import TabBar, { MainTab } from "./src/components/TabBar";
 
-type Screen = "login" | "home" | "mood" | "tour" | "complete";
+type Screen =
+  | "loading"
+  | "login"
+  | "main"
+  | "mood"
+  | "tour"
+  | "complete"
+  | "routeDetail"
+  | "replay"
+  | "rate";
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("login");
+  const [screen, setScreen] = useState<Screen>("loading");
+  const [activeTab, setActiveTab] = useState<MainTab>("home");
   const [selectedMood, setSelectedMood] = useState("time_machine");
   const [tourId, setTourId] = useState("");
   const [blocksVisited, setBlocksVisited] = useState(0);
   const [startTime, setStartTime] = useState(0);
 
+  // Routes/replay state
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const [replayTour, setReplayTour] = useState<TourDetail | null>(null);
+
   useEffect(() => {
     async function checkSession() {
-      const hasSession = await restoreSession();
-      if (hasSession) {
-        setScreen("home");
+      // DEV ONLY: auto sign-in with a test account so we don't have to
+      // log in every time while testing. Set DEV_SKIP_LOGIN to false in
+      // src/config.ts to restore the normal login flow.
+      if (DEV_SKIP_LOGIN) {
+        try {
+          await signIn(DEV_EMAIL, DEV_PASSWORD);
+          setScreen("main");
+          return;
+        } catch (e) {
+          console.warn("Dev auto-login failed, falling back to login screen:", e);
+        }
       }
+
+      const hasSession = await restoreSession();
+      setScreen(hasSession ? "main" : "login");
     }
     checkSession();
   }, []);
 
+  function startTourWithMood(mood: string) {
+    setSelectedMood(mood);
+    setScreen("tour");
+  }
+
+  function backToTours() {
+    setActiveTab("tours");
+    setScreen("main");
+  }
+
   return (
     <>
-      <StatusBar barStyle="light-content" backgroundColor="#0d0d1a" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
 
-      {screen === "login" && (
-        <LoginScreen onLogin={() => setScreen("home")} />
+      {screen === "loading" && (
+        <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color={colors.accent} />
+        </View>
       )}
 
-      {screen === "home" && (
-        <HomeScreen onStartTour={() => setScreen("mood")} />
+      {screen === "login" && (
+        <LoginScreen onLogin={() => setScreen("main")} />
+      )}
+
+      {screen === "main" && (
+        <View style={{ flex: 1, backgroundColor: colors.bg }}>
+          <View style={{ flex: 1 }}>
+            {activeTab === "home" && (
+              <HomeScreen
+                onStartTour={() => setScreen("mood")}
+                onQuickStart={startTourWithMood}
+              />
+            )}
+            {activeTab === "tours" && (
+              <ToursScreen
+                onSelectRoute={(id) => {
+                  setSelectedRouteId(id);
+                  setScreen("routeDetail");
+                }}
+              />
+            )}
+            {activeTab === "profile" && (
+              <ProfileScreen onSignedOut={() => setScreen("login")} />
+            )}
+          </View>
+          <TabBar active={activeTab} onChange={setActiveTab} />
+        </View>
       )}
 
       {screen === "mood" && (
-        <MoodPickerScreen
-          onSelect={(mood) => {
-            setSelectedMood(mood);
-            setScreen("tour");
-          }}
-        />
+        <MoodPickerScreen onSelect={startTourWithMood} />
       )}
 
       {screen === "tour" && (
@@ -73,8 +140,33 @@ export default function App() {
           tourId={tourId}
           blocksVisited={blocksVisited}
           startTime={startTime}
-          onDone={() => setScreen("home")}
+          onDone={() => {
+            setActiveTab("home");
+            setScreen("main");
+          }}
         />
+      )}
+
+      {screen === "routeDetail" && selectedRouteId && (
+        <RouteDetailScreen
+          tourId={selectedRouteId}
+          onStartReplay={(tour) => {
+            setReplayTour(tour);
+            setScreen("replay");
+          }}
+          onBack={backToTours}
+        />
+      )}
+
+      {screen === "replay" && replayTour && (
+        <ReplayScreen
+          tour={replayTour}
+          onReplayComplete={() => setScreen("rate")}
+        />
+      )}
+
+      {screen === "rate" && replayTour && (
+        <RouteRatingScreen tour={replayTour} onDone={backToTours} />
       )}
     </>
   );

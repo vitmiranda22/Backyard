@@ -1,0 +1,192 @@
+// Route Detail screen — shown after tapping a Discover card, before replay.
+
+import React, { useEffect, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
+import { getTourDetail, TourDetail } from "../services/api";
+import StarRating from "../components/StarRating";
+import { colors, font, radius } from "../theme";
+
+const MOOD_EMOJI: Record<string, string> = {
+  time_machine: "🕰️",
+  hidden_city: "🔮",
+  dark_side: "🕵️",
+  behind_scenes: "🎬",
+  unfiltered: "🎭",
+};
+
+interface RouteDetailScreenProps {
+  tourId: string;
+  onStartReplay: (tour: TourDetail) => void;
+  onBack: () => void;
+}
+
+export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: RouteDetailScreenProps) {
+  const [tour, setTour] = useState<TourDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getTourDetail(tourId)
+      .then(setTour)
+      .catch((e: any) => setError(e.message || "Failed to load route"));
+  }, [tourId]);
+
+  if (error) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={onBack}>
+          <Text style={styles.backBtnText}>Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!tour) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={colors.accent} />
+      </View>
+    );
+  }
+
+  const distanceKm = tour.total_distance_m ? (tour.total_distance_m / 1000).toFixed(1) : null;
+  const durationMin = tour.duration_sec ? Math.round(tour.duration_sec / 60) : null;
+  const hasAudio = tour.blocks.some((b) => b.audio_url);
+
+  return (
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <TouchableOpacity onPress={onBack}>
+          <Text style={styles.backLink}>‹ Back</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.emoji}>{MOOD_EMOJI[tour.mood] ?? "🗺️"}</Text>
+        <Text style={styles.title}>{tour.title}</Text>
+        <Text style={styles.creator}>
+          By {tour.is_anonymous ? "Anonymous Explorer" : tour.creator_display_name || "Anonymous Explorer"}
+        </Text>
+
+        {tour.rating_count > 0 && (
+          <View style={styles.ratingRow}>
+            <StarRating value={tour.avg_rating} size={18} />
+            <Text style={styles.ratingCount}>
+              {tour.avg_rating.toFixed(1)} ({tour.rating_count} rating{tour.rating_count === 1 ? "" : "s"})
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.statsRow}>
+          <Text style={styles.statText}>📍 {tour.blocks_visited} stops</Text>
+          {distanceKm && <Text style={styles.statText}>🚶 {distanceKm} km</Text>}
+          {durationMin && <Text style={styles.statText}>⏱️ {durationMin} min</Text>}
+        </View>
+
+        {!hasAudio && (
+          <Text style={styles.warning}>
+            This route's audio isn't available right now — you can still walk it and read the narration text.
+          </Text>
+        )}
+      </ScrollView>
+
+      <TouchableOpacity style={styles.startBtn} onPress={() => onStartReplay(tour)}>
+        <Text style={styles.startBtnText}>Start Replay</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  content: {
+    padding: 20,
+    alignItems: "center",
+  },
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.bg,
+    padding: 20,
+  },
+  backLink: {
+    alignSelf: "flex-start",
+    color: colors.accent,
+    fontSize: 15,
+    fontWeight: "600",
+    marginBottom: 20,
+  },
+  emoji: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
+  title: {
+    fontFamily: font.display,
+    fontSize: 24,
+    color: colors.text,
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  creator: {
+    fontSize: 13,
+    color: colors.muted,
+    marginBottom: 12,
+  },
+  ratingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
+  },
+  ratingCount: {
+    fontSize: 13,
+    color: colors.muted,
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: 16,
+    marginBottom: 16,
+  },
+  statText: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  warning: {
+    fontSize: 13,
+    color: colors.muted,
+    textAlign: "center",
+    paddingHorizontal: 10,
+  },
+  errorText: {
+    color: colors.danger,
+    fontSize: 15,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  backBtn: {
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: radius.md,
+  },
+  backBtnText: {
+    color: colors.text,
+    fontWeight: "600",
+  },
+  startBtn: {
+    backgroundColor: colors.accent,
+    padding: 16,
+    margin: 20,
+    borderRadius: radius.md,
+  },
+  startBtnText: {
+    color: colors.accentText,
+    textAlign: "center",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+});

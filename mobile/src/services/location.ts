@@ -19,6 +19,26 @@ export async function getCurrentLocation() {
   };
 }
 
+// Lightweight reverse geocode for UI labels (e.g. the Home screen greeting).
+// Calls Nominatim directly from the client — no backend round trip needed
+// just to show "You're standing on ___". Returns null on any failure.
+export async function reverseGeocode(lat: number, lng: number) {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1&zoom=16`,
+      { headers: { "User-Agent": "BackyardApp/1.0 (tour guide app; contact@backyard.app)" } }
+    );
+    const data = await res.json();
+    const addr = data.address || {};
+    const neighborhood =
+      addr.neighbourhood || addr.suburb || addr.quarter || addr.city_district || "";
+    const city = addr.city || addr.town || addr.village || addr.municipality || "";
+    return { neighborhood, city };
+  } catch {
+    return null;
+  }
+}
+
 // Start watching position — returns a subscription you can remove later
 export async function watchPosition(
   callback: (lat: number, lng: number) => void,

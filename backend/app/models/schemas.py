@@ -129,6 +129,101 @@ class EndTourResponse(BaseModel):
     mood: str
 
 
+class TourSummary(BaseModel):
+    """One entry in GET /api/tours"""
+    tour_id: str
+    title: str
+    mood: str
+    city: Optional[str] = None
+    blocks_visited: int
+    total_distance_m: Optional[int] = None
+    duration_sec: Optional[int] = None
+    created_at: str
+
+
+# =============================================================================
+# Routes — publish, discover, replay, rate
+# =============================================================================
+
+class PublishTourRequest(BaseModel):
+    """POST /api/publish-tour"""
+    tour_id: str
+    is_public: bool
+    title: Optional[str] = Field(None, max_length=200)
+
+
+class PublishTourResponse(BaseModel):
+    tour_id: str
+    is_public: bool
+    title: str
+
+
+class TourBlockDetail(BaseModel):
+    block_id: str
+    sequence: int
+    street_name: str
+    neighborhood: str
+    lat: float
+    lng: float
+    narration_text: str
+    audio_url: Optional[str] = None
+    voice: str
+    mood: str
+
+
+class TourDetailResponse(BaseModel):
+    """GET /api/tours/{tour_id} — full tour + ordered blocks, for replay."""
+    tour_id: str
+    title: str
+    mood: str
+    tour_type: str
+    city: Optional[str] = None
+    avg_rating: float
+    rating_count: int
+    blocks_visited: int
+    total_distance_m: Optional[int] = None
+    duration_sec: Optional[int] = None
+    is_own_tour: bool
+    is_anonymous: bool
+    creator_display_name: Optional[str] = None
+    creator_avatar_url: Optional[str] = None
+    created_at: str
+    blocks: List[TourBlockDetail]
+
+
+class NearbyRouteSummary(BaseModel):
+    """One entry in GET /api/routes/nearby"""
+    tour_id: str
+    title: str
+    mood: str
+    tour_type: str
+    city: Optional[str] = None
+    avg_rating: float
+    rating_count: int
+    blocks_visited: int
+    total_distance_m: Optional[int] = None
+    duration_sec: Optional[int] = None
+    is_anonymous: bool
+    content_safety_on: bool
+    creator_display_name: Optional[str] = None
+    creator_avatar_url: Optional[str] = None
+    distance_m: float
+    created_at: str
+
+
+class RateTourRequest(BaseModel):
+    """POST /api/rate-tour"""
+    tour_id: str
+    score: int = Field(..., ge=1, le=5)
+
+
+class RateTourResponse(BaseModel):
+    tour_id: str
+    score: int
+    avg_rating: float
+    rating_count: int
+
+
 # =============================================================================
 # User settings (Week 2)
 # =============================================================================

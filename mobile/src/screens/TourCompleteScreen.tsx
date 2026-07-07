@@ -1,8 +1,19 @@
-// Tour Complete screen — shows stats after ending a tour
+// Tour Complete screen — shows stats after ending YOUR OWN tour, and lets
+// you optionally publish it as a discoverable public route.
 
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
-import { endTour } from "../services/api";
+import {
+  View,
+  Text,
+  TextInput,
+  Switch,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
+import { endTour, publishTour } from "../services/api";
+import TourStatsGrid from "../components/TourStatsGrid";
+import { colors, font, radius } from "../theme";
 
 interface TourCompleteProps {
   tourId: string;
@@ -20,6 +31,8 @@ export default function TourCompleteScreen({
   const [title, setTitle] = useState("Your Tour");
   const [mood, setMood] = useState("");
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [shareAsRoute, setShareAsRoute] = useState(true);
 
   const durationSec = Math.round((Date.now() - startTime) / 1000);
   const durationMin = Math.round(durationSec / 60);
@@ -47,10 +60,23 @@ export default function TourCompleteScreen({
     }
   }, []);
 
+  async function handleSave() {
+    setSaving(true);
+    try {
+      if (tourId) {
+        await publishTour(tourId, shareAsRoute, title.trim() || undefined);
+      }
+    } catch (e: any) {
+      console.warn("Failed to publish tour:", e.message);
+    }
+    setSaving(false);
+    onDone();
+  }
+
   if (loading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#4A90D9" />
+        <ActivityIndicator size="large" color={colors.accent} />
         <Text style={styles.loadingText}>Saving your tour...</Text>
       </View>
     );
@@ -60,31 +86,36 @@ export default function TourCompleteScreen({
     <View style={styles.container}>
       <Text style={styles.emoji}>🎉</Text>
       <Text style={styles.title}>Tour Complete!</Text>
-      <Text style={styles.tourTitle}>{title}</Text>
 
-      <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>📍 {blocksVisited}</Text>
-          <Text style={styles.statLabel}>blocks narrated</Text>
+      <TextInput
+        style={styles.titleInput}
+        value={title}
+        onChangeText={setTitle}
+        placeholder="Name your tour"
+        placeholderTextColor={colors.muted}
+      />
+
+      <TourStatsGrid
+        blocksVisited={blocksVisited}
+        distanceKm={distanceKm}
+        durationMin={durationMin}
+        mood={mood}
+      />
+
+      <View style={styles.shareRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.shareTitle}>Share this as a public route?</Text>
+          <Text style={styles.shareDesc}>Others can discover and walk it themselves</Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>🚶 {distanceKm} km</Text>
-          <Text style={styles.statLabel}>walked</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>⏱️ {durationMin} min</Text>
-          <Text style={styles.statLabel}>duration</Text>
-        </View>
-        {mood ? (
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>🌙 {mood.replace("_", " ")}</Text>
-            <Text style={styles.statLabel}>mode</Text>
-          </View>
-        ) : null}
+        <Switch
+          value={shareAsRoute}
+          onValueChange={setShareAsRoute}
+          trackColor={{ false: colors.border, true: colors.accent }}
+        />
       </View>
 
-      <TouchableOpacity style={styles.doneBtn} onPress={onDone}>
-        <Text style={styles.doneBtnText}>Done</Text>
+      <TouchableOpacity style={styles.doneBtn} onPress={handleSave} disabled={saving}>
+        <Text style={styles.doneBtnText}>{saving ? "Saving..." : "Save"}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -93,7 +124,7 @@ export default function TourCompleteScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0d0d1a",
+    backgroundColor: colors.bg,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
@@ -103,54 +134,60 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 4,
+    fontFamily: font.display,
+    fontSize: 26,
+    color: colors.text,
+    marginBottom: 16,
   },
-  tourTitle: {
-    fontSize: 18,
-    color: "#4A90D9",
-    marginBottom: 30,
-    textTransform: "capitalize",
+  titleInput: {
+    width: "100%",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 12,
+    fontSize: 16,
+    color: colors.text,
+    textAlign: "center",
+    marginBottom: 20,
   },
-  statsGrid: {
+  shareRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 12,
-    marginBottom: 40,
-  },
-  statCard: {
-    backgroundColor: "#1a1a2e",
-    padding: 16,
-    borderRadius: 12,
-    minWidth: 140,
     alignItems: "center",
+    gap: 12,
+    width: "100%",
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 14,
+    marginBottom: 24,
   },
-  statValue: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#fff",
+  shareTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.text,
   },
-  statLabel: {
+  shareDesc: {
     fontSize: 12,
-    color: "#999",
-    marginTop: 4,
+    color: colors.muted,
+    marginTop: 2,
   },
   doneBtn: {
-    backgroundColor: "#4A90D9",
+    backgroundColor: colors.accent,
     paddingHorizontal: 40,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: radius.md,
+    width: "100%",
   },
   doneBtnText: {
-    color: "#fff",
+    color: colors.accentText,
     fontSize: 18,
     fontWeight: "bold",
+    textAlign: "center",
   },
   loadingText: {
-    color: "#999",
+    color: colors.muted,
     marginTop: 16,
     fontSize: 16,
   },

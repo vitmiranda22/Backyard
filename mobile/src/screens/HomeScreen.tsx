@@ -1,19 +1,38 @@
-// Home screen — map centered on user + "Start Tour" button
+// Home screen — "Dawn Air" — a real dashboard instead of a bare map.
 //
-// This is the first thing you see after login.
+// Shows where you're standing right now, a one-tap mood launcher, and your
+// most recent tour. Tapping "Start Walking Tour" goes to the full mood
+// picker; tapping a mood chip jumps straight into that mode.
 
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from "react-native";
 import MapView, { Marker } from "react-native-maps";
-import { requestLocationPermission, getCurrentLocation } from "../services/location";
+import {
+  requestLocationPermission,
+  getCurrentLocation,
+  reverseGeocode,
+} from "../services/location";
+import { getTours, TourSummary } from "../services/api";
+import { colors, font, radius } from "../theme";
+
+const MOODS = [
+  { id: "time_machine", emoji: "🕰️", label: "Time Machine" },
+  { id: "hidden_city", emoji: "🔮", label: "Hidden City" },
+  { id: "dark_side", emoji: "🕵️", label: "Dark Side", pro: true },
+  { id: "behind_scenes", emoji: "🎬", label: "Behind the Scenes", pro: true },
+  { id: "unfiltered", emoji: "🎭", label: "Unfiltered", pro: true },
+];
 
 interface HomeScreenProps {
   onStartTour: () => void;
+  onQuickStart: (mood: string) => void;
 }
 
-export default function HomeScreen({ onStartTour }: HomeScreenProps) {
+export default function HomeScreen({ onStartTour, onQuickStart }: HomeScreenProps) {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [hasPermission, setHasPermission] = useState(false);
+  const [placeLabel, setPlaceLabel] = useState<string | null>(null);
+  const [recentTour, setRecentTour] = useState<TourSummary | null>(null);
 
   useEffect(() => {
     async function init() {
@@ -23,52 +42,108 @@ export default function HomeScreen({ onStartTour }: HomeScreenProps) {
         try {
           const loc = await getCurrentLocation();
           setLocation(loc);
+          const place = await reverseGeocode(loc.lat, loc.lng);
+          if (place && (place.neighborhood || place.city)) {
+            setPlaceLabel(
+              [place.neighborhood, place.city].filter(Boolean).join(", ")
+            );
+          }
         } catch (e) {
           console.error("Failed to get location:", e);
         }
       } else {
         Alert.alert(
           "Location Required",
-          "Backyard needs your location to tell stories about where you are. Please enable it in Settings.",
+          "Backyard needs your location to tell stories about where you are. Please enable it in Settings."
         );
       }
     }
     init();
+
+    getTours()
+      .then((tours) => setRecentTour(tours[0] ?? null))
+      .catch((e) => console.warn("Failed to load recent tour:", e.message));
   }, []);
+
+  function formatStats(tour: TourSummary) {
+    const parts: string[] = [];
+    if (tour.blocks_visited) parts.push(`${tour.blocks_visited} blocks`);
+    if (tour.duration_sec) parts.push(`${Math.round(tour.duration_sec / 60)} min`);
+    return parts.join(" · ");
+  }
 
   return (
     <View style={styles.container}>
-      {/* Map */}
-      {location ? (
-        <MapView
-          style={styles.map}
-          initialRegion={{
-            latitude: location.lat,
-            longitude: location.lng,
-            latitudeDelta: 0.005,
-            longitudeDelta: 0.005,
-          }}
-          showsUserLocation
-          showsMyLocationButton
-        />
-      ) : (
-        <View style={styles.mapPlaceholder}>
-          <Text style={styles.placeholderText}>
-            {hasPermission ? "Getting your location..." : "Location permission required"}
-          </Text>
-        </View>
-      )}
+      <View style={styles.mapHero}>
+        {location ? (
+          <MapView
+            style={styles.map}
+            initialRegion={{
+              latitude: location.lat,
+              longitude: location.lng,
+              latitudeDelta: 0.006,
+              longitudeDelta: 0.006,
+            }}
+            scrollEnabled={false}
+            zoomEnabled={false}
+            pointerEvents="none"
+          >
+            <Marker coordinate={{ latitude: location.lat, longitude: location.lng }} />
+          </MapView>
+        ) : (
+          <View style={styles.mapPlaceholder}>
+            <Text style={styles.placeholderText}>
+              {hasPermission ? "Finding you..." : "Location permission required"}
+            </Text>
+          </View>
+        )}
+      </View>
 
-      {/* Start Tour button */}
-      <View style={styles.bottomBar}>
+      <ScrollView style={styles.sheet} contentContainerStyle={styles.sheetContent}>
+        <Text style={styles.eyebrow}>You're standing on</Text>
+        <Text style={styles.greeting}>{placeLabel || "Somewhere worth exploring"}</Text>
+
         <TouchableOpacity
           style={[styles.startBtn, !location && styles.startBtnDisabled]}
           onPress={onStartTour}
           disabled={!location}
         >
-          <Text style={styles.startBtnText}>🎙️ Start Walking Tour</Text>
+          <Text style={styles.startBtnText}>Start Walking Tour</Text>
         </TouchableOpacity>
-      </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.moodRow}>
+          {MOODS.map((mood) => (
+            <TouchableOpacity
+              key={mood.id}
+              style={styles.moodChip}
+              disabled={!location}
+              onPress={() => onQuickStart(mood.id)}
+            >
+              <Text style={styles.moodEmoji}>{mood.emoji}</Text>
+              <Text style={styles.moodLabel}>{mood.label}</Text>
+              {mood.pro && (
+                <View style={styles.proBadge}>
+                  <Text style={styles.proBadgeText}>PRO</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {recentTour && (
+          <View style={styles.recentCard}>
+            <View style={styles.recentIcon}>
+              <Text>{MOODS.find((m) => m.id === recentTour.mood)?.emoji ?? "🗺️"}</Text>
+            </View>
+            <View style={styles.recentInfo}>
+              <Text style={styles.recentTitle} numberOfLines={1}>
+                {recentTour.title}
+              </Text>
+              <Text style={styles.recentMeta}>{formatStats(recentTour)}</Text>
+            </View>
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -76,7 +151,10 @@ export default function HomeScreen({ onStartTour }: HomeScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0d0d1a",
+    backgroundColor: colors.bg,
+  },
+  mapHero: {
+    height: "34%",
   },
   map: {
     flex: 1,
@@ -85,34 +163,116 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: colors.surfaceAlt,
   },
   placeholderText: {
-    color: "#666",
-    fontSize: 16,
+    color: colors.muted,
+    fontSize: 15,
   },
-  bottomBar: {
-    position: "absolute",
-    bottom: 40,
-    left: 20,
-    right: 20,
+  sheet: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    marginTop: -18,
+  },
+  sheetContent: {
+    padding: 20,
+    paddingBottom: 32,
+  },
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: colors.muted,
+  },
+  greeting: {
+    fontFamily: font.display,
+    fontSize: 22,
+    color: colors.text,
+    marginTop: 4,
+    marginBottom: 18,
   },
   startBtn: {
-    backgroundColor: "#4A90D9",
-    padding: 18,
-    borderRadius: 14,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    backgroundColor: colors.accent,
+    padding: 16,
+    borderRadius: radius.md,
+    marginBottom: 18,
   },
   startBtnDisabled: {
-    backgroundColor: "#333",
+    backgroundColor: colors.border,
   },
   startBtnText: {
-    color: "#fff",
+    color: colors.accentText,
     textAlign: "center",
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  moodRow: {
+    marginBottom: 18,
+  },
+  moodChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingVertical: 9,
+    paddingHorizontal: 13,
+    marginRight: 8,
+  },
+  moodEmoji: {
+    fontSize: 15,
+  },
+  moodLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  proBadge: {
+    backgroundColor: colors.pro,
+    borderRadius: 5,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    marginLeft: 2,
+  },
+  proBadgeText: {
+    color: colors.proText,
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  recentCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 14,
+  },
+  recentIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.accent,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  recentInfo: {
+    flex: 1,
+  },
+  recentTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  recentMeta: {
+    fontSize: 12,
+    color: colors.muted,
+    marginTop: 2,
   },
 });

@@ -351,23 +351,30 @@ ALTER TABLE public.audio_files ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.zone_data_cache ENABLE ROW LEVEL SECURITY;
 
 -- USERS: own row only
-CREATE POLICY IF NOT EXISTS "users_select_own" ON public.users
+DROP POLICY IF EXISTS "users_select_own" ON public.users;
+CREATE POLICY "users_select_own" ON public.users
     FOR SELECT USING (auth.uid() = id);
-CREATE POLICY IF NOT EXISTS "users_update_own" ON public.users
+DROP POLICY IF EXISTS "users_update_own" ON public.users;
+CREATE POLICY "users_update_own" ON public.users
     FOR UPDATE USING (auth.uid() = id);
 
 -- TOURS: public tours visible to all, own tours always visible
-CREATE POLICY IF NOT EXISTS "tours_select_public" ON public.tours
+DROP POLICY IF EXISTS "tours_select_public" ON public.tours;
+CREATE POLICY "tours_select_public" ON public.tours
     FOR SELECT USING (is_public = true OR auth.uid() = creator_id);
-CREATE POLICY IF NOT EXISTS "tours_insert" ON public.tours
+DROP POLICY IF EXISTS "tours_insert" ON public.tours;
+CREATE POLICY "tours_insert" ON public.tours
     FOR INSERT WITH CHECK (auth.uid() = creator_id);
-CREATE POLICY IF NOT EXISTS "tours_update_own" ON public.tours
+DROP POLICY IF EXISTS "tours_update_own" ON public.tours;
+CREATE POLICY "tours_update_own" ON public.tours
     FOR UPDATE USING (auth.uid() = creator_id);
-CREATE POLICY IF NOT EXISTS "tours_delete_own" ON public.tours
+DROP POLICY IF EXISTS "tours_delete_own" ON public.tours;
+CREATE POLICY "tours_delete_own" ON public.tours
     FOR DELETE USING (auth.uid() = creator_id);
 
 -- TOUR BLOCKS: visible if parent tour is visible
-CREATE POLICY IF NOT EXISTS "blocks_select" ON public.tour_blocks
+DROP POLICY IF EXISTS "blocks_select" ON public.tour_blocks;
+CREATE POLICY "blocks_select" ON public.tour_blocks
     FOR SELECT USING (
         EXISTS (
             SELECT 1 FROM public.tours
@@ -375,7 +382,8 @@ CREATE POLICY IF NOT EXISTS "blocks_select" ON public.tour_blocks
             AND (tours.is_public = true OR tours.creator_id = auth.uid())
         )
     );
-CREATE POLICY IF NOT EXISTS "blocks_insert" ON public.tour_blocks
+DROP POLICY IF EXISTS "blocks_insert" ON public.tour_blocks;
+CREATE POLICY "blocks_insert" ON public.tour_blocks
     FOR INSERT WITH CHECK (
         EXISTS (
             SELECT 1 FROM public.tours
@@ -384,32 +392,43 @@ CREATE POLICY IF NOT EXISTS "blocks_insert" ON public.tour_blocks
     );
 
 -- RATINGS: all visible, own insert/delete
-CREATE POLICY IF NOT EXISTS "ratings_select" ON public.ratings FOR SELECT USING (true);
-CREATE POLICY IF NOT EXISTS "ratings_insert" ON public.ratings
+DROP POLICY IF EXISTS "ratings_select" ON public.ratings;
+CREATE POLICY "ratings_select" ON public.ratings FOR SELECT USING (true);
+DROP POLICY IF EXISTS "ratings_insert" ON public.ratings;
+CREATE POLICY "ratings_insert" ON public.ratings
     FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY IF NOT EXISTS "ratings_delete_own" ON public.ratings
+DROP POLICY IF EXISTS "ratings_delete_own" ON public.ratings;
+CREATE POLICY "ratings_delete_own" ON public.ratings
     FOR DELETE USING (auth.uid() = user_id);
 
 -- COMMENTS: all visible, own insert/delete
-CREATE POLICY IF NOT EXISTS "comments_select" ON public.comments FOR SELECT USING (true);
-CREATE POLICY IF NOT EXISTS "comments_insert" ON public.comments
+DROP POLICY IF EXISTS "comments_select" ON public.comments;
+CREATE POLICY "comments_select" ON public.comments FOR SELECT USING (true);
+DROP POLICY IF EXISTS "comments_insert" ON public.comments;
+CREATE POLICY "comments_insert" ON public.comments
     FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY IF NOT EXISTS "comments_delete_own" ON public.comments
+DROP POLICY IF EXISTS "comments_delete_own" ON public.comments;
+CREATE POLICY "comments_delete_own" ON public.comments
     FOR DELETE USING (auth.uid() = user_id);
 
 -- VIRTUAL CITIES: public read-only
-CREATE POLICY IF NOT EXISTS "cities_select" ON public.virtual_cities
+DROP POLICY IF EXISTS "cities_select" ON public.virtual_cities;
+CREATE POLICY "cities_select" ON public.virtual_cities
     FOR SELECT USING (true);
 
 -- TOUR SHARES: authenticated users can read
-CREATE POLICY IF NOT EXISTS "shares_select" ON public.tour_shares FOR SELECT USING (true);
-CREATE POLICY IF NOT EXISTS "shares_insert" ON public.tour_shares
+DROP POLICY IF EXISTS "shares_select" ON public.tour_shares;
+CREATE POLICY "shares_select" ON public.tour_shares FOR SELECT USING (true);
+DROP POLICY IF EXISTS "shares_insert" ON public.tour_shares;
+CREATE POLICY "shares_insert" ON public.tour_shares
     FOR INSERT WITH CHECK (auth.uid() = shared_by);
 
 -- CONTENT REPORTS: own reports only
-CREATE POLICY IF NOT EXISTS "reports_select_own" ON public.content_reports
+DROP POLICY IF EXISTS "reports_select_own" ON public.content_reports;
+CREATE POLICY "reports_select_own" ON public.content_reports
     FOR SELECT USING (auth.uid() = reporter_id);
-CREATE POLICY IF NOT EXISTS "reports_insert" ON public.content_reports
+DROP POLICY IF EXISTS "reports_insert" ON public.content_reports;
+CREATE POLICY "reports_insert" ON public.content_reports
     FOR INSERT WITH CHECK (auth.uid() = reporter_id);
 
 

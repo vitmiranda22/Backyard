@@ -15,6 +15,7 @@ interface NarrationCardProps {
   audioUrl: string | null;
   onAudioFinished?: () => void;
   onSkip?: () => void;
+  onAudioError?: () => void;
 }
 
 export default function NarrationCard({
@@ -25,6 +26,7 @@ export default function NarrationCard({
   audioUrl,
   onAudioFinished,
   onSkip,
+  onAudioError,
 }: NarrationCardProps) {
   if (isLoading) {
     return (
@@ -68,6 +70,7 @@ export default function NarrationCard({
         audioUrl={audioUrl}
         onFinished={onAudioFinished}
         onSkip={onSkip}
+        onError={onAudioError}
       />
     </View>
   );

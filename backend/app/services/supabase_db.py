@@ -227,7 +227,12 @@ async def create_tour(
     tour_type: str,
     content_safety: bool,
 ):
-    """Create a new tour record. Returns the tour dict or None."""
+    """
+    Create a new tour record. Returns the tour dict or None.
+
+    Starts private (is_public=False) — publishing as a discoverable route
+    is an explicit opt-in action via publish_tour(), not the default.
+    """
     try:
         client = _get_client()
         result = (
@@ -237,7 +242,7 @@ async def create_tour(
                 "mood": mood,
                 "tour_type": tour_type,
                 "content_safety_on": content_safety,
-                "is_public": True,
+                "is_public": False,
                 "is_anonymous": False,
                 "blocks_visited": 0,
             })
@@ -269,6 +274,24 @@ async def get_tour(tour_id: str):
     except Exception as e:
         logger.error(f"Failed to get tour: {e}")
         return None
+
+
+async def get_tours_by_user(creator_id: str, limit: int = 20):
+    """Get a user's tours, most recent first. Returns a list (empty on failure)."""
+    try:
+        client = _get_client()
+        result = (
+            client.table("tours")
+            .select("*")
+            .eq("creator_id", creator_id)
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return result.data if result.data else []
+    except Exception as e:
+        logger.error(f"Failed to get tours for user: {e}")
+        return []
 
 
 async def save_tour_block(
@@ -341,8 +364,15 @@ async def end_tour(
     center_lat: float = None,
     center_lng: float = None,
     city: str = None,
+    location: str = None,
 ):
-    """Finalize a tour with stats and title."""
+    """Finalize a tour with stats and title.
+
+    `location` is an EWKT string (e.g. "SRID=4326;POINT(lng lat)") — PostGIS
+    parses this directly through PostgREST, verified against the live DB.
+    Populating it is what makes the tour findable via the nearby_tours()
+    spatial query once published.
+    """
     try:
         client = _get_client()
         update_data = {
@@ -359,6 +389,8 @@ async def end_tour(
             update_data["center_lng"] = center_lng
         if city is not None:
             update_data["city"] = city
+        if location is not None:
+            update_data["location"] = location
 
         result = (
             client.table("tours")
@@ -372,6 +404,107 @@ async def end_tour(
         return None
     except Exception as e:
         logger.error(f"Failed to end tour: {e}")
+        return None
+
+
+# =============================================================================
+# Routes — publish, discover, rate (reuses ratings table + nearby_tours() SQL
+# function already defined in 001_initial_schema.sql)
+# =============================================================================
+
+async def publish_tour(tour_id: str, is_public: bool, title: str = None):
+    """Flip a tour's visibility and optionally rename it. Returns the updated row or None."""
+    try:
+        client = _get_client()
+        update_data = {"is_public": is_public}
+        if title is not None:
+            update_data["title"] = title
+
+        result = (
+            client.table("tours")
+            .update(update_data)
+            .eq("id", tour_id)
+            .execute()
+        )
+        if result.data:
+            logger.info(f"Tour {tour_id[:8]}... publish set to is_public={is_public}")
+            return result.data[0]
+        return None
+    except Exception as e:
+        logger.error(f"Failed to publish tour: {e}")
+        return None
+
+
+async def get_tour_with_creator(tour_id: str):
+    """Get a tour joined with its creator's display_name/avatar_url. Returns dict or None."""
+    try:
+        client = _get_client()
+        result = (
+            client.table("tours")
+            .select("*, users(display_name, avatar_url)")
+            .eq("id", tour_id)
+            .limit(1)
+            .execute()
+        )
+        if result.data and len(result.data) > 0:
+            return result.data[0]
+        return None
+    except Exception as e:
+        logger.error(f"Failed to get tour with creator: {e}")
+        return None
+
+
+async def get_nearby_tours(
+    user_lat: float,
+    user_lng: float,
+    radius_m: int = 5000,
+    mood_filter: str = None,
+    tour_type_filter: str = None,
+    limit_count: int = 20,
+    offset_count: int = 0,
+):
+    """Find public routes near a location via the nearby_tours() SQL function. Returns a list."""
+    try:
+        client = _get_client()
+        result = client.rpc("nearby_tours", {
+            "user_lat": user_lat,
+            "user_lng": user_lng,
+            "radius_m": radius_m,
+            "mood_filter": mood_filter,
+            "tour_type_filter": tour_type_filter,
+            "limit_count": limit_count,
+            "offset_count": offset_count,
+        }).execute()
+        return result.data if result.data else []
+    except Exception as e:
+        logger.error(f"Failed to get nearby tours: {e}")
+        return []
+
+
+async def rate_tour(tour_id: str, user_id: str, score: int):
+    """
+    Upsert a 1-5 rating for a tour. The on_rating_change trigger (see
+    001_initial_schema.sql) automatically recalculates tours.avg_rating and
+    rating_count — we just re-fetch the tour afterward to return them.
+    """
+    try:
+        client = _get_client()
+        client.table("ratings").upsert(
+            {"tour_id": tour_id, "user_id": user_id, "score": score},
+            on_conflict="tour_id,user_id",
+        ).execute()
+
+        tour = await get_tour(tour_id)
+        if tour:
+            return {
+                "tour_id": tour_id,
+                "score": score,
+                "avg_rating": tour.get("avg_rating", 0),
+                "rating_count": tour.get("rating_count", 0),
+            }
+        return None
+    except Exception as e:
+        logger.error(f"Failed to rate tour: {e}")
         return None
 
 

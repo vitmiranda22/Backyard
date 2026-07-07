@@ -41,6 +41,11 @@ export function getToken(): string | null {
   return currentToken;
 }
 
+export async function getCurrentUserEmail(): Promise<string | null> {
+  const { data } = await supabase.auth.getUser();
+  return data.user?.email ?? null;
+}
+
 export async function refreshToken() {
   const { data, error } = await supabase.auth.refreshSession();
   if (error) throw error;

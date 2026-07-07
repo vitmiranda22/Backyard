@@ -118,7 +118,10 @@ export default function App() {
       )}
 
       {screen === "mood" && (
-        <MoodPickerScreen onSelect={startTourWithMood} />
+        <MoodPickerScreen
+          onSelect={startTourWithMood}
+          onCancel={() => setScreen("main")}
+        />
       )}
 
       {screen === "tour" && (

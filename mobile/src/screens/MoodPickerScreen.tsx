@@ -47,11 +47,16 @@ const MODES = [
 
 interface MoodPickerProps {
   onSelect: (mood: string) => void;
+  onCancel: () => void;
 }
 
-export default function MoodPickerScreen({ onSelect }: MoodPickerProps) {
+export default function MoodPickerScreen({ onSelect, onCancel }: MoodPickerProps) {
   return (
     <View style={styles.container}>
+      <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
+        <Text style={styles.cancelText}>Cancel</Text>
+      </TouchableOpacity>
+
       <Text style={styles.title}>Choose your experience</Text>
       <Text style={styles.subtitle}>Same streets. Completely different stories.</Text>
 
@@ -88,7 +93,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
     padding: 20,
+    paddingTop: 60,
     justifyContent: "center",
+  },
+  cancelBtn: {
+    position: "absolute",
+    top: 56,
+    left: 20,
+    zIndex: 1,
+  },
+  cancelText: {
+    color: colors.accent,
+    fontSize: 15,
+    fontWeight: "600",
   },
   title: {
     fontFamily: font.display,

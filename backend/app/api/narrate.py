@@ -6,9 +6,12 @@ Full pipeline:
    below triggers billed OpenAI/Street View/TTS calls, so this runs
    before any of that work starts
 1. Compute geohash from GPS coordinates
-2. Resolve the zone's cached street-view photo (or fetch+cache one) —
-   runs regardless of narration cache state, since a photo is geohash-
-   scoped, not mood-scoped
+2. Kick off zone-photo resolution (cached sign, or fetch+cache from
+   Street View) as a CONCURRENT background task — it shares no data
+   dependency with narration generation (steps 3-9 below), so its
+   Street View/R2 round trip (up to ~16s on a cache miss) runs
+   alongside the narration pipeline instead of blocking it. Joined
+   in step 10, right before the response needs it.
 3. Check narration cache → HIT? Skip to step 8
 4. Reverse geocode → street name, neighborhood, city
 5. Check zone data cache → HIT? Skip to step 7
@@ -20,14 +23,15 @@ Full pipeline:
    untouched/cacheable, this is a thin tour-scoped layer added on top
 9. TTS → MP3 (a stitched block gets fresh audio under a tour-scoped R2
    key instead of the shared cache, since it's no longer generic text)
-10. Upload to R2 → signed URL
-11. Return to client
+   → Upload to R2 → signed URL
+10. Join the zone-photo task from step 2, then return to client
 
 Two cache layers:
 - Zone data cache: raw data + photo per zone (mood-agnostic, shared across moods)
 - Narration cache: AI-generated text per zone + mood + safety combo
 """
 
+import asyncio
 import logging
 import geohash2
 
@@ -49,6 +53,34 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 GEOHASH_PRECISION = 7
+
+
+async def _resolve_zone_photo(geo_hash: str, lat: float, lng: float, existing_image_r2_key: str = None):
+    """
+    Resolve (image_url, image_r2_key) for a zone — sign the already-cached
+    key if we have one, or fetch+upload+cache a fresh one from Street View.
+
+    Meant to be run as a concurrent asyncio task alongside the narration
+    pipeline in narrate_block(), since the two share no data dependency:
+    narration generation never needs the photo, and the photo never needs
+    the street name/zone data. On a cache miss this chain is two sequential
+    Street View calls plus an R2 upload (~16s worst case) — there's no
+    reason for that to block narration generation from even starting.
+    """
+    if existing_image_r2_key:
+        return r2.generate_signed_url(existing_image_r2_key), existing_image_r2_key
+
+    image_bytes = await streetview.fetch_street_view_image(lat, lng)
+    if not image_bytes:
+        return None, None
+
+    image_r2_key = r2.build_image_r2_key(geo_hash)
+    upload_ok = await r2.upload_image(image_bytes, image_r2_key)
+    if not upload_ok:
+        return None, None
+
+    await supabase_db.store_zone_image(geo_hash, image_r2_key)
+    return r2.generate_signed_url(image_r2_key), image_r2_key
 
 
 @router.post(
@@ -94,7 +126,7 @@ async def narrate_block(
         f"voice={request.voice.value} safety={'on' if request.content_safety else 'off'}"
     )
 
-    # --- Zone photo (runs regardless of narration cache state — see below) ---
+    # --- Zone photo (kicked off concurrently — see below) ---
     # Zone data (and now the photo) live in zone_data_cache, keyed only by
     # geo_hash, mood-agnostic. This lookup used to happen only inside the
     # "narration_text is None" branch further down, which meant it never ran
@@ -104,20 +136,18 @@ async def narrate_block(
     # DB round trip.
     cached_zone = await supabase_db.get_cached_zone_data(geo_hash)
 
-    image_url = None
-    image_r2_key = cached_zone.get("image_r2_key") if cached_zone else None
-    if image_r2_key:
-        image_url = r2.generate_signed_url(image_r2_key)
-    else:
-        image_bytes = await streetview.fetch_street_view_image(request.lat, request.lng)
-        if image_bytes:
-            image_r2_key = r2.build_image_r2_key(geo_hash)
-            upload_ok = await r2.upload_image(image_bytes, image_r2_key)
-            if upload_ok:
-                await supabase_db.store_zone_image(geo_hash, image_r2_key)
-                image_url = r2.generate_signed_url(image_r2_key)
-            else:
-                image_r2_key = None
+    # The actual photo fetch/upload (on a cache miss) shares no data
+    # dependency with narration generation below, so it runs as a
+    # background task instead of blocking the pipeline — joined right
+    # before the response is built, once both sides are done.
+    photo_task = asyncio.create_task(
+        _resolve_zone_photo(
+            geo_hash,
+            request.lat,
+            request.lng,
+            existing_image_r2_key=cached_zone.get("image_r2_key") if cached_zone else None,
+        )
+    )
 
     # --- Step 2: Check narration cache ---
     cached_narration = await supabase_db.get_cached_narration(
@@ -354,6 +384,11 @@ async def narrate_block(
                 logger.warning("TTS failed — returning text-only response")
 
     # --- Step 9: Return ---
+    # Join the concurrent zone-photo task — by this point the narration
+    # pipeline above has taken at least as long as the photo chain in every
+    # realistic case, so this rarely adds any wait at all.
+    image_url, image_r2_key = await photo_task
+
     return NarrateBlockResponse(
         street_name=street_name,
         neighborhood=neighborhood,

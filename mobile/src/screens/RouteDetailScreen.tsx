@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
+import MapView, { Marker, Polyline } from "react-native-maps";
 import { getTourDetail, TourDetail } from "../services/api";
 import StarRating from "../components/StarRating";
 import ZonePhoto from "../components/ZonePhoto";
@@ -19,6 +20,23 @@ interface RouteDetailScreenProps {
   tourId: string;
   onStartReplay: (tour: TourDetail) => void;
   onBack: () => void;
+}
+
+function regionForBlocks(blocks: { lat: number; lng: number }[]) {
+  const lats = blocks.map((b) => b.lat);
+  const lngs = blocks.map((b) => b.lng);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  return {
+    latitude: (minLat + maxLat) / 2,
+    longitude: (minLng + maxLng) / 2,
+    // Padded so the full path fits comfortably, with a floor so a
+    // single-stop or very short route doesn't zoom in unusably close.
+    latitudeDelta: Math.max(0.01, (maxLat - minLat) * 1.6),
+    longitudeDelta: Math.max(0.01, (maxLng - minLng) * 1.6),
+  };
 }
 
 export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: RouteDetailScreenProps) {
@@ -83,6 +101,41 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
           {distanceKm && <Text style={styles.statText}>🚶 {distanceKm} km</Text>}
           {durationMin && <Text style={styles.statText}>⏱️ {durationMin} min</Text>}
         </View>
+
+        {tour.blocks.length > 0 && (
+          <View style={styles.mapPreview}>
+            <MapView
+              style={styles.map}
+              initialRegion={regionForBlocks(tour.blocks)}
+              scrollEnabled={false}
+              zoomEnabled={false}
+              pointerEvents="none"
+            >
+              {tour.blocks.length > 1 && (
+                <Polyline
+                  coordinates={tour.blocks.map((b) => ({ latitude: b.lat, longitude: b.lng }))}
+                  strokeColor={colors.accent}
+                  strokeWidth={4}
+                />
+              )}
+              <Marker
+                coordinate={{ latitude: tour.blocks[0].lat, longitude: tour.blocks[0].lng }}
+                pinColor={colors.accent}
+                title="Start"
+              />
+              {tour.blocks.length > 1 && (
+                <Marker
+                  coordinate={{
+                    latitude: tour.blocks[tour.blocks.length - 1].lat,
+                    longitude: tour.blocks[tour.blocks.length - 1].lng,
+                  }}
+                  pinColor={colors.pro}
+                  title="End of route"
+                />
+              )}
+            </MapView>
+          </View>
+        )}
 
         {!hasAudio && (
           <Text style={styles.warning}>
@@ -182,6 +235,16 @@ const styles = StyleSheet.create({
   statText: {
     fontSize: 14,
     color: colors.text,
+  },
+  mapPreview: {
+    width: "100%",
+    height: 180,
+    borderRadius: radius.md,
+    overflow: "hidden",
+    marginBottom: 16,
+  },
+  map: {
+    flex: 1,
   },
   warning: {
     fontSize: 13,

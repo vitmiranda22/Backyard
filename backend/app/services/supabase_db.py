@@ -538,8 +538,15 @@ async def get_nearby_tours(
     tour_type_filter: str = None,
     limit_count: int = 20,
     offset_count: int = 0,
+    sort_by: str = "distance",
 ):
-    """Find public routes near a location via the nearby_tours() SQL function. Returns a list."""
+    """
+    Find public routes near a location via the nearby_tours() SQL function.
+
+    sort_by: "distance" (default — closest first, what Discover uses) or
+    "rating" (highest avg_rating first, ties broken by rating_count — what
+    the home screen's map pins use). Returns a list.
+    """
     try:
         client = _get_client()
         result = client.rpc("nearby_tours", {
@@ -550,6 +557,7 @@ async def get_nearby_tours(
             "tour_type_filter": tour_type_filter,
             "limit_count": limit_count,
             "offset_count": offset_count,
+            "sort_by": sort_by,
         }).execute()
         return result.data if result.data else []
     except Exception as e:

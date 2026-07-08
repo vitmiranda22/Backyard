@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-GEOHASH_PRECISION = 7  # must match backend/app/api/narrate.py
+GEOHASH_PRECISION = 8  # must match backend/app/api/narrate.py
 
 
 def _expected_r2_keys(tour_id: str, lat: float, lng: float, mood: str, voice: str, content_safety: bool):
@@ -390,6 +390,7 @@ async def nearby_routes(
     tour_type: Optional[str] = Query(None),
     limit: int = Query(20, ge=1, le=50),
     offset: int = Query(0, ge=0),
+    sort_by: str = Query("distance", pattern="^(distance|rating)$"),
 ):
     rows = await supabase_db.get_nearby_tours(
         user_lat=lat,
@@ -399,6 +400,7 @@ async def nearby_routes(
         tour_type_filter=tour_type,
         limit_count=limit,
         offset_count=offset,
+        sort_by=sort_by,
     )
     return [
         NearbyRouteSummary(
@@ -418,6 +420,8 @@ async def nearby_routes(
             creator_avatar_url=r.get("creator_avatar_url"),
             distance_m=r.get("distance_m", 0),
             created_at=r["created_at"],
+            lat=r.get("lat", 0.0),
+            lng=r.get("lng", 0.0),
         )
         for r in rows
     ]

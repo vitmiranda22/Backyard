@@ -67,8 +67,14 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------------
     # Rate limiting
     # -------------------------------------------------------------------------
-    DAILY_NARRATION_LIMIT: int = 50
-    MINUTE_NARRATION_LIMIT: int = 5
+    # Raised alongside the geohash precision bump (7->8): smaller ~19-38m
+    # zones mean a normal walk crosses roughly 5x more zone boundaries than
+    # before, so the same limits would rate-limit a normal user mid-walk.
+    # MINUTE stays more conservative than the 5x daily bump on purpose — it's
+    # the main defense against rapid scripted abuse, and walking speed itself
+    # didn't change.
+    DAILY_NARRATION_LIMIT: int = 250
+    MINUTE_NARRATION_LIMIT: int = 15
 
     # -------------------------------------------------------------------------
     # App settings

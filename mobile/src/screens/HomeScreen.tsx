@@ -1,8 +1,6 @@
-// Home screen — "Dawn Air" — a real dashboard instead of a bare map.
-//
-// Shows where you're standing right now, a one-tap mood launcher, and your
-// most recent tour. Tapping "Start Walking Tour" goes to the full mood
-// picker; tapping a mood chip jumps straight into that mode.
+// Home screen — "Dawn Air" — map-first: an interactive map showing nearby
+// community routes (top-rated pins) front and center, with a compact sheet
+// below for starting your own tour.
 
 import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from "react-native";
@@ -12,7 +10,7 @@ import {
   getCurrentLocation,
   reverseGeocode,
 } from "../services/location";
-import { getTours, TourSummary } from "../services/api";
+import { getTours, getNearbyRoutes, TourSummary, NearbyRoute } from "../services/api";
 import { colors, font, radius } from "../theme";
 
 const MOODS = [
@@ -26,13 +24,15 @@ const MOODS = [
 interface HomeScreenProps {
   onStartTour: () => void;
   onQuickStart: (mood: string) => void;
+  onSelectRoute: (tourId: string) => void;
 }
 
-export default function HomeScreen({ onStartTour, onQuickStart }: HomeScreenProps) {
+export default function HomeScreen({ onStartTour, onQuickStart, onSelectRoute }: HomeScreenProps) {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [hasPermission, setHasPermission] = useState(false);
   const [placeLabel, setPlaceLabel] = useState<string | null>(null);
   const [recentTour, setRecentTour] = useState<TourSummary | null>(null);
+  const [nearbyRoutes, setNearbyRoutes] = useState<NearbyRoute[]>([]);
 
   useEffect(() => {
     async function init() {
@@ -48,6 +48,10 @@ export default function HomeScreen({ onStartTour, onQuickStart }: HomeScreenProp
               [place.neighborhood, place.city].filter(Boolean).join(", ")
             );
           }
+          // Most-voted nearby routes, shown as pins right on the home map.
+          getNearbyRoutes(loc.lat, loc.lng, { sortBy: "rating", limit: 10 })
+            .then(setNearbyRoutes)
+            .catch((e) => console.warn("Failed to load nearby routes:", e.message));
         } catch (e) {
           console.error("Failed to get location:", e);
         }
@@ -81,14 +85,25 @@ export default function HomeScreen({ onStartTour, onQuickStart }: HomeScreenProp
             initialRegion={{
               latitude: location.lat,
               longitude: location.lng,
-              latitudeDelta: 0.006,
-              longitudeDelta: 0.006,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
             }}
-            scrollEnabled={false}
-            zoomEnabled={false}
-            pointerEvents="none"
+            showsUserLocation
           >
-            <Marker coordinate={{ latitude: location.lat, longitude: location.lng }} />
+            {nearbyRoutes.map((route) => (
+              <Marker
+                key={route.tour_id}
+                coordinate={{ latitude: route.lat, longitude: route.lng }}
+                pinColor={colors.pro}
+                title={route.title}
+                description={
+                  route.rating_count > 0
+                    ? `★ ${route.avg_rating.toFixed(1)} (${route.rating_count})`
+                    : "Not yet rated"
+                }
+                onCalloutPress={() => onSelectRoute(route.tour_id)}
+              />
+            ))}
           </MapView>
         ) : (
           <View style={styles.mapPlaceholder}>
@@ -154,7 +169,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   mapHero: {
-    height: "34%",
+    height: "65%",
   },
   map: {
     flex: 1,
@@ -189,16 +204,16 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontFamily: font.display,
-    fontSize: 22,
+    fontSize: 20,
     color: colors.text,
     marginTop: 4,
-    marginBottom: 18,
+    marginBottom: 14,
   },
   startBtn: {
     backgroundColor: colors.accent,
-    padding: 16,
+    padding: 15,
     borderRadius: radius.md,
-    marginBottom: 18,
+    marginBottom: 14,
   },
   startBtnDisabled: {
     backgroundColor: colors.border,
@@ -210,7 +225,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   moodRow: {
-    marginBottom: 18,
+    marginBottom: 14,
   },
   moodChip: {
     flexDirection: "row",

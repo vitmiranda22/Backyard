@@ -120,6 +120,10 @@ export default function App() {
               <HomeScreen
                 onStartTour={() => setScreen("mood")}
                 onQuickStart={startTourWithMood}
+                onSelectRoute={(id) => {
+                  setSelectedRouteId(id);
+                  setScreen("routeDetail");
+                }}
               />
             )}
             {activeTab === "tours" && (

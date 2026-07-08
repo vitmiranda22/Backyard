@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-GEOHASH_PRECISION = 7
+GEOHASH_PRECISION = 8  # ~19-38m zones (must match tours.py and mobile/src/config.ts)
 
 
 async def _resolve_zone_photo(geo_hash: str, lat: float, lng: float, existing_image_r2_key: str = None):

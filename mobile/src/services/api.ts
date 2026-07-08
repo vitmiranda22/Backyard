@@ -254,12 +254,21 @@ export interface NearbyRoute {
   creator_avatar_url: string | null;
   distance_m: number;
   created_at: string;
+  lat: number;
+  lng: number;
 }
 
 export async function getNearbyRoutes(
   lat: number,
   lng: number,
-  opts?: { radiusM?: number; mood?: string; tourType?: string; limit?: number; offset?: number }
+  opts?: {
+    radiusM?: number;
+    mood?: string;
+    tourType?: string;
+    limit?: number;
+    offset?: number;
+    sortBy?: "distance" | "rating";
+  }
 ): Promise<NearbyRoute[]> {
   const params = new URLSearchParams({
     lat: String(lat),
@@ -267,6 +276,7 @@ export async function getNearbyRoutes(
     radius_m: String(opts?.radiusM ?? 5000),
     limit: String(opts?.limit ?? 20),
     offset: String(opts?.offset ?? 0),
+    sort_by: opts?.sortBy ?? "distance",
   });
   if (opts?.mood) params.set("mood", opts.mood);
   if (opts?.tourType) params.set("tour_type", opts.tourType);

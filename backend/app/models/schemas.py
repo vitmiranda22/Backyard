@@ -227,6 +227,8 @@ class NearbyRouteSummary(BaseModel):
     creator_avatar_url: Optional[str] = None
     distance_m: float
     created_at: str
+    lat: float
+    lng: float
 
 
 class RateTourRequest(BaseModel):

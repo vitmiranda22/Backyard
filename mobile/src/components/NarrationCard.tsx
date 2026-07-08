@@ -4,8 +4,9 @@
 // Has loading and error states.
 
 import React from "react";
-import { View, Text, Image, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
 import AudioPlayer from "./AudioPlayer";
+import ZonePhoto from "./ZonePhoto";
 import { colors, radius } from "../theme";
 
 interface NarrationCardProps {
@@ -66,10 +67,8 @@ export default function NarrationCard({
 
   return (
     <View style={styles.card}>
-      {/* Photo of the spot being discussed, when we have one */}
-      {imageUrl && (
-        <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
-      )}
+      {/* Photo of the spot being discussed, when we have one — tap to enlarge */}
+      {imageUrl && <ZonePhoto uri={imageUrl} thumbnailStyle={styles.image} />}
 
       <View style={styles.content}>
         {/* Street name header */}

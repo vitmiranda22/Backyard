@@ -1,9 +1,10 @@
 // Route Detail screen — shown after tapping a Discover card, before replay.
 
 import React, { useEffect, useState } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
 import { getTourDetail, TourDetail } from "../services/api";
 import StarRating from "../components/StarRating";
+import ZonePhoto from "../components/ZonePhoto";
 import { colors, font, radius } from "../theme";
 
 const MOOD_EMOJI: Record<string, string> = {
@@ -95,11 +96,7 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
             {tour.blocks.map((block) => (
               <View key={block.block_id} style={styles.logCard}>
                 {block.image_url && (
-                  <Image
-                    source={{ uri: block.image_url }}
-                    style={styles.logImage}
-                    resizeMode="cover"
-                  />
+                  <ZonePhoto uri={block.image_url} thumbnailStyle={styles.logImage} />
                 )}
                 <View style={styles.logCardBody}>
                   <Text style={styles.logStreet}>

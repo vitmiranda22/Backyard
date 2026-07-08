@@ -186,6 +186,7 @@ export default function App() {
         <ReplayScreen
           tour={replayTour}
           onReplayComplete={() => setScreen("rate")}
+          onExit={backToTours}
         />
       )}
 

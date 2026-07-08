@@ -15,9 +15,10 @@ import { colors, radius } from "../theme";
 interface ReplayScreenProps {
   tour: TourDetail;
   onReplayComplete: (tourId: string) => void;
+  onExit: () => void;
 }
 
-export default function ReplayScreen({ tour, onReplayComplete }: ReplayScreenProps) {
+export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayScreenProps) {
   const [blocks, setBlocks] = useState<TourBlockDetail[]>(tour.blocks);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [targetIndex, setTargetIndex] = useState(0);
@@ -144,6 +145,9 @@ export default function ReplayScreen({ tour, onReplayComplete }: ReplayScreenPro
       </View>
 
       <View style={styles.statsBar}>
+        <TouchableOpacity onPress={onExit}>
+          <Text style={styles.exitLink}>‹ Exit</Text>
+        </TouchableOpacity>
         <Text style={styles.statsText}>
           📍 {Math.min(targetIndex + 1, blocks.length)} of {blocks.length}
         </Text>
@@ -203,9 +207,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 10,
+    gap: 12,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  exitLink: {
+    color: colors.accent,
+    fontSize: 15,
+    fontWeight: "600",
   },
   statsText: {
     color: colors.text,

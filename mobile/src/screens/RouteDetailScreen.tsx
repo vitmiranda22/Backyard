@@ -55,11 +55,13 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <View style={styles.header}>
         <TouchableOpacity onPress={onBack}>
           <Text style={styles.backLink}>‹ Back</Text>
         </TouchableOpacity>
+      </View>
 
+      <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.emoji}>{MOOD_EMOJI[tour.mood] ?? "🗺️"}</Text>
         <Text style={styles.title}>{tour.title}</Text>
         <Text style={styles.creator}>
@@ -124,6 +126,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 12,
+    backgroundColor: colors.bg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
   content: {
     padding: 20,
     alignItems: "center",
@@ -140,7 +150,6 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 15,
     fontWeight: "600",
-    marginBottom: 20,
   },
   emoji: {
     fontSize: 48,

@@ -32,6 +32,40 @@ def _get_client() -> Client:
 
 
 # =============================================================================
+# Rate limiting
+# =============================================================================
+
+async def check_rate_limit(user_id: str, minute_limit: int, daily_limit: int) -> tuple:
+    """
+    Atomically check-and-increment a user's narration rate limit.
+
+    The check and increment happen in one Postgres function call (a single
+    transaction with a row lock), so concurrent requests from the same user
+    can't race past the limit — see check_and_increment_rate_limit() in
+    migrations/005_rate_limiting.sql.
+
+    Returns:
+        (allowed, reason). If the RPC call itself fails (DB hiccup), fails
+        OPEN (allowed=True) — a rate limiter shouldn't take down narration
+        entirely if its own bookkeeping table has a problem.
+    """
+    try:
+        client = _get_client()
+        result = client.rpc("check_and_increment_rate_limit", {
+            "p_user_id": user_id,
+            "p_minute_limit": minute_limit,
+            "p_daily_limit": daily_limit,
+        }).execute()
+        if result.data:
+            row = result.data[0]
+            return row["allowed"], row["reason"]
+        return True, ""
+    except Exception as e:
+        logger.error(f"Rate limit check failed for {user_id}: {e}")
+        return True, ""
+
+
+# =============================================================================
 # Narration cache operations (Week 1)
 # =============================================================================
 

@@ -57,11 +57,15 @@ async def get_current_user_id(request: Request) -> str:
         jwks_client = _get_jwks_client()
         signing_key = jwks_client.get_signing_key_from_jwt(token)
 
-        # Decode and verify the token
+        # Decode and verify the token. Pinned to ES256 only — the signing
+        # key comes from a JWKS endpoint (asymmetric keys), so also
+        # accepting HS256 here would open the door to an algorithm-
+        # confusion attack (an attacker crafting a token with alg=HS256
+        # and trying to get the public EC key treated as an HMAC secret).
         payload = pyjwt.decode(
             token,
             signing_key.key,
-            algorithms=["ES256", "HS256"],
+            algorithms=["ES256"],
             audience="authenticated",
         )
 

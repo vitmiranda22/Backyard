@@ -8,6 +8,8 @@ Nominatim is free with no API key. The only rule: be polite.
 We rate-limit ourselves to 1 request/second and always send a User-Agent.
 """
 
+import asyncio
+import time
 import httpx
 import logging
 
@@ -17,6 +19,27 @@ logger = logging.getLogger(__name__)
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
 USER_AGENT = "BackyardApp/1.0 (tour guide app; contact@backyard.app)"
 REQUEST_TIMEOUT = 5.0  # seconds
+
+# Nominatim's usage policy caps us at 1 request/second — this used to be a
+# comment with no code behind it. A flood of concurrent narrate-block calls
+# (whether legitimate traffic or someone hammering the endpoint) would blow
+# past that limit from this single server IP and risk an outright ban,
+# which would break reverse geocoding — and therefore most of the narration
+# pipeline — for every user, not just whoever caused it. This lock+delay
+# pattern serializes all outbound Nominatim calls to at most 1/second
+# across every concurrent request this process is handling.
+_last_request_at = 0.0
+_throttle_lock = asyncio.Lock()
+MIN_REQUEST_INTERVAL = 1.0  # seconds
+
+
+async def _throttle():
+    global _last_request_at
+    async with _throttle_lock:
+        wait = MIN_REQUEST_INTERVAL - (time.monotonic() - _last_request_at)
+        if wait > 0:
+            await asyncio.sleep(wait)
+        _last_request_at = time.monotonic()
 
 
 class GeocodingResult:
@@ -55,6 +78,7 @@ async def reverse_geocode(lat: float, lng: float):
     }
 
     try:
+        await _throttle()
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 NOMINATIM_URL,

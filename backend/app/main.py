@@ -76,12 +76,17 @@ app = FastAPI(
 # CORS — allow the mobile app to talk to us
 # =============================================================================
 
-# In development, we allow everything. In production, you'd restrict this
-# to your actual domain.
+# This API's only client is the mobile app, which authenticates with a
+# Bearer token (not cookies), so there's no browser-credentialed request to
+# protect against here — CORS mainly matters for browser clients riding a
+# victim's session. allow_credentials is off specifically because pairing
+# it with a wildcard origin is the one genuinely risky combination (and
+# browsers reject it outright per spec anyway); origins stay open since
+# there's no cookie-based session for a malicious site to piggyback on.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: restrict in production
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

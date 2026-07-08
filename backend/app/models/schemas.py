@@ -109,7 +109,15 @@ class SaveBlockRequest(BaseModel):
     street_name: str = Field(..., max_length=200)
     neighborhood: str = Field(default="Unknown", max_length=200)
     city: str = Field(default="Unknown", max_length=200)
-    narration_text: str = Field(..., description="The AI-generated narration text")
+    narration_text: str = Field(
+        ...,
+        # Core narration is hard-capped at 5000 chars (openai_service.py),
+        # plus a tour-continuity transition can be prepended on top of that
+        # (narrate.py's connector step, ~1-2 sentences) — leave headroom
+        # above 5000 so a legitimate stitched block never gets rejected.
+        max_length=5500,
+        description="The AI-generated narration text",
+    )
     audio_r2_key: Optional[str] = Field(None, description="R2 key for the audio file")
     image_r2_key: Optional[str] = Field(None, description="R2 key for the zone photo")
     voice: Optional[Voice] = None

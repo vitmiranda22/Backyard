@@ -2,6 +2,9 @@
 POST /narrate-block — The core endpoint of Backyard.
 
 Full pipeline:
+0. Check + increment the caller's rate limit — every fresh narration
+   below triggers billed OpenAI/Street View/TTS calls, so this runs
+   before any of that work starts
 1. Compute geohash from GPS coordinates
 2. Resolve the zone's cached street-view photo (or fetch+cache one) —
    runs regardless of narration cache state, since a photo is geohash-
@@ -11,10 +14,10 @@ Full pipeline:
 5. Check zone data cache → HIT? Skip to step 7
 6. Fetch ALL 23 data sources in parallel (~2-4 seconds)
 7. Feed zone data to OpenAI → generate narration
-8. If part of an active tour (tour_id given), stitch in a short transition
-   connecting this block to the tour's running story so far — the core
-   narration_text above stays untouched/cacheable, this is a thin
-   tour-scoped layer added on top (see the cross-block continuity step)
+8. If part of an active tour (tour_id given, and it belongs to this
+   user), stitch in a short transition connecting this block to the
+   tour's running story so far — the core narration_text above stays
+   untouched/cacheable, this is a thin tour-scoped layer added on top
 9. TTS → MP3 (a stitched block gets fresh audio under a tour-scoped R2
    key instead of the shared cache, since it's no longer generic text)
 10. Upload to R2 → signed URL
@@ -31,6 +34,7 @@ import geohash2
 from fastapi import APIRouter, HTTPException
 
 from app.api.auth import AuthenticatedUser
+from app.config import settings
 from app.models.schemas import (
     NarrateBlockRequest,
     NarrateBlockResponse,
@@ -61,6 +65,26 @@ async def narrate_block(
     request: NarrateBlockRequest,
     user_id: AuthenticatedUser,
 ):
+    # --- Step 0: Rate limit ---
+    # Every fresh (non-cached) narration triggers billed OpenAI/Street
+    # View/TTS calls, so this has to be checked before any of that work
+    # starts, not just logged/measured after the fact.
+    allowed, reason = await supabase_db.check_rate_limit(
+        user_id,
+        minute_limit=settings.MINUTE_NARRATION_LIMIT,
+        daily_limit=settings.DAILY_NARRATION_LIMIT,
+    )
+    if not allowed:
+        retry_message = (
+            "Too many requests — slow down a bit and try again in a moment."
+            if reason == "minute_limit_exceeded"
+            else "You've hit today's narration limit. Try again tomorrow."
+        )
+        raise HTTPException(
+            status_code=429,
+            detail={"error": retry_message, "code": reason, "retry": reason == "minute_limit_exceeded"},
+        )
+
     # --- Step 1: Compute geohash ---
     geo_hash = geohash2.encode(request.lat, request.lng, precision=GEOHASH_PRECISION)
     logger.info(
@@ -226,24 +250,34 @@ async def narrate_block(
 
     if request.tour_id:
         tour = await supabase_db.get_tour(request.tour_id)
-        prior_summary = tour.get("narrative_summary") if tour else None
+        # A tour_id that doesn't belong to this user (foreign, stale, or
+        # guessed) is treated the same as no tour_id at all — narration
+        # still succeeds, it just isn't stitched into anyone else's story.
+        # Without this check, any authenticated user could pass another
+        # user's tour_id to read fragments of their narrative back in the
+        # connector text, overwrite that tour's running summary, or cause
+        # audio to be generated under the victim's tour-scoped storage key.
+        owns_tour = bool(tour) and tour.get("creator_id") == user_id
 
-        if prior_summary:
-            connector_text, updated_summary = await openai_service.generate_connector(
-                prior_summary=prior_summary,
-                mood=request.mood.value,
-                current_narration=narration_text,
-            )
-            if connector_text:
-                final_narration_text = f"{connector_text} {narration_text}"
-                connector_added = True
-        else:
-            # First block of this tour — nothing to connect to yet. Seed the
-            # summary from this block's own text so block 2 has something to
-            # build on.
-            updated_summary = narration_text[:200]
+        if owns_tour:
+            prior_summary = tour.get("narrative_summary")
 
-        await supabase_db.update_tour_narrative_summary(request.tour_id, updated_summary)
+            if prior_summary:
+                connector_text, updated_summary = await openai_service.generate_connector(
+                    prior_summary=prior_summary,
+                    mood=request.mood.value,
+                    current_narration=narration_text,
+                )
+                if connector_text:
+                    final_narration_text = f"{connector_text} {narration_text}"
+                    connector_added = True
+            else:
+                # First block of this tour — nothing to connect to yet. Seed
+                # the summary from this block's own text so block 2 has
+                # something to build on.
+                updated_summary = narration_text[:200]
+
+            await supabase_db.update_tour_narrative_summary(request.tour_id, updated_summary)
 
     # --- Step 7-8: Handle audio ---
     audio_url = None

@@ -10,6 +10,7 @@ The mobile app calls these in sequence as the user walks.
 """
 
 import logging
+import geohash2
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
@@ -37,6 +38,24 @@ from app.services import supabase_db, r2
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+GEOHASH_PRECISION = 7  # must match backend/app/api/narrate.py
+
+
+def _expected_r2_keys(tour_id: str, lat: float, lng: float, mood: str, voice: str, content_safety: bool):
+    """
+    Recompute the R2 keys narrate-block would have generated for this exact
+    block, so save-block can confirm a client-supplied audio_r2_key/
+    image_r2_key actually points at real Backyard-issued storage for this
+    location/tour rather than an arbitrary client-supplied string.
+    """
+    geo_hash = geohash2.encode(lat, lng, precision=GEOHASH_PRECISION)
+    valid_audio_keys = {
+        r2.build_r2_key(geo_hash, mood, content_safety, voice),
+        r2.build_tour_r2_key(tour_id, geo_hash, content_safety, voice),
+    }
+    valid_image_key = r2.build_image_r2_key(geo_hash)
+    return valid_audio_keys, valid_image_key
 
 
 @router.get(
@@ -152,6 +171,27 @@ async def save_block(
             },
         )
 
+    # Confirm any client-supplied storage keys actually point at real
+    # Backyard-issued audio/image for this exact location/tour, rather than
+    # trusting an arbitrary string. Doesn't reject the save outright on a
+    # mismatch — just drops the bogus key, since audio/image are optional
+    # (the block itself is still worth recording without them).
+    voice_value = request.voice.value if request.voice else "neutral"
+    valid_audio_keys, valid_image_key = _expected_r2_keys(
+        tour_id=request.tour_id,
+        lat=request.lat,
+        lng=request.lng,
+        mood=request.mood.value,
+        voice=voice_value,
+        content_safety=tour.get("content_safety_on", False),
+    )
+    audio_r2_key = request.audio_r2_key if request.audio_r2_key in valid_audio_keys else None
+    image_r2_key = request.image_r2_key if request.image_r2_key == valid_image_key else None
+    if request.audio_r2_key and not audio_r2_key:
+        logger.warning(f"Rejected mismatched audio_r2_key on save-block for tour {request.tour_id[:8]}...")
+    if request.image_r2_key and not image_r2_key:
+        logger.warning(f"Rejected mismatched image_r2_key on save-block for tour {request.tour_id[:8]}...")
+
     block = await supabase_db.save_tour_block(
         tour_id=request.tour_id,
         sequence=request.sequence,
@@ -161,11 +201,11 @@ async def save_block(
         lat=request.lat,
         lng=request.lng,
         narration_text=request.narration_text,
-        audio_r2_key=request.audio_r2_key,
-        voice=request.voice.value if request.voice else "neutral",
+        audio_r2_key=audio_r2_key,
+        voice=voice_value,
         mood=request.mood.value,
         trigger_type=request.trigger_type.value,
-        image_r2_key=request.image_r2_key,
+        image_r2_key=image_r2_key,
     )
 
     if not block:

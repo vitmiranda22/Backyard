@@ -5,10 +5,13 @@
 // This file just sends requests and returns responses.
 
 import { API_URL } from "../config";
-import { getToken } from "./auth";
+import { getToken, refreshToken } from "./auth";
 
-// Helper: make an authenticated request
-async function authFetch(path: string, options: RequestInit = {}) {
+// Helper: make an authenticated request. Retries once on a 401 after
+// forcing a token refresh — a backstop for the rare case where our token
+// went stale despite auth.ts's onAuthStateChange listener (e.g. a request
+// that was already in flight when the session refreshed).
+async function authFetch(path: string, options: RequestInit = {}, isRetry = false): Promise<any> {
   const token = getToken();
   if (!token) {
     throw new Error("Not authenticated. Please sign in.");
@@ -22,6 +25,15 @@ async function authFetch(path: string, options: RequestInit = {}) {
       ...options.headers,
     },
   });
+
+  if (response.status === 401 && !isRetry) {
+    try {
+      await refreshToken();
+      return authFetch(path, options, true);
+    } catch {
+      // Fall through to the normal error handling below.
+    }
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({

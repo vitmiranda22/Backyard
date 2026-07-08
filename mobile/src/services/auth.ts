@@ -11,6 +11,16 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Store the current session token in memory
 let currentToken: string | null = null;
 
+// Supabase's client auto-refreshes its OWN session in the background, but
+// that refresh doesn't touch our separate `currentToken` variable unless we
+// listen for it — without this, currentToken goes stale after the JWT's
+// ~1hr expiry and every API call starts failing with 401s, even though
+// Supabase itself still thinks the session is fine. This keeps the two in
+// sync for every relevant event (sign in, token refresh, sign out).
+supabase.auth.onAuthStateChange((_event, session) => {
+  currentToken = session?.access_token ?? null;
+});
+
 export async function signUp(email: string, password: string) {
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw error;

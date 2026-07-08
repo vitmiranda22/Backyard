@@ -1,5 +1,12 @@
 # Backyard — MVP Technical Blueprint v4.0
 
+> **Historical planning document, not current architecture.** Written before
+> implementation started (Feb 2026). The actual build diverged in real ways:
+> a FastAPI backend instead of Supabase Edge Functions, OpenAI instead of
+> Gemini, 23 zone-data sources instead of 19, plus the Routes/Replay and
+> zone-photo features this doc predates entirely. See
+> [README.md](../README.md) for the current architecture.
+
 **App Name (working title):** Backyard
 **One-liner:** AI-powered guided tours anywhere in the world — every street has a story.
 **Date:** February 5, 2026

@@ -7,7 +7,12 @@ street you're walking on. Pick a mode (Time Machine, Hidden City, Dark Side,
 Behind the Scenes, Unfiltered), put in your earbuds, and start walking. The app
 generates a unique narration for every ~150m zone you enter, pulling from city
 open data, Wikipedia, OpenStreetMap, and real-time web search — then reads it
-to you in a high-quality AI voice.
+to you in a high-quality AI voice, alongside a real street-level photo of the
+spot being discussed. Blocks within a tour build on each other rather than
+playing as unrelated clips. Finish a tour and you can publish it as a public
+**Route** — other users can discover and physically re-walk it later, with the
+exact original narration/audio triggering by GPS proximity at zero extra
+generation cost.
 
 ## Architecture
 
@@ -16,11 +21,12 @@ to you in a high-quality AI voice.
 │   React Native App  │  ───►  │   FastAPI Backend     │
 │   (iOS / Android)   │  JSON  │   (Python)            │
 │                     │  ◄───  │                       │
-│ • Mapbox map        │        │ • /narrate-block      │
-│ • Audio player      │        │ • Gemini AI + Search  │
-│ • Mood/voice picker │        │ • Google Cloud TTS    │
-│ • Tour UI           │        │ • Cloudflare R2       │
-└─────────────────────┘        │ • Supabase Postgres   │
+│ • Native map        │        │ • /narrate-block      │
+│ • Audio player      │        │ • OpenAI + web_search │
+│ • Mood picker       │        │ • Google Street View  │
+│ • Tour / Routes UI  │        │ • Google Cloud TTS    │
+└─────────────────────┘        │ • Cloudflare R2       │
+                               │ • Supabase Postgres   │
                                └──────────────────────┘
 ```
 
@@ -50,14 +56,15 @@ backyard/
 │   │   │   ├── datasf.py        ← 15 DataSF datasets (SF-only)
 │   │   │   ├── city_data.py     ← NYC/Chicago Socrata (311, permits — gated by city match)
 │   │   │   ├── global_sources.py← Wikipedia, Wikimedia, OSM, Knowledge Graph, Wikidata, TMDb (any city)
-│   │   │   ├── gemini.py        ← Gemini AI + Search Grounding
+│   │   │   ├── openai_service.py← OpenAI narration + web_search grounding
+│   │   │   ├── streetview.py    ← Google Street View Static photo per zone
 │   │   │   ├── tts.py           ← Google Cloud TTS → MP3
 │   │   │   ├── r2.py            ← Cloudflare R2 upload + signed URLs
 │   │   │   └── supabase_db.py   ← Database queries (cache, tours, etc.)
 │   │   ├── models/
 │   │   │   └── schemas.py       ← Pydantic models for request/response validation
 │   │   └── core/
-│   │       └── prompts.py       ← Gemini system prompts per mode
+│   │       └── prompts.py       ← System prompts per mode (provider-agnostic)
 │   ├── migrations/               ← SQL migrations, run in order against Supabase
 │   ├── requirements.txt
 │   ├── .env.example
@@ -75,7 +82,7 @@ backyard/
 ### 1. Set up APIs (45 minutes, one-time)
 
 Follow [docs/API_SETUP_GUIDE.md](docs/API_SETUP_GUIDE.md) to create accounts and
-get your keys for Supabase, Gemini, Google TTS, Cloudflare R2, and Mapbox.
+get your keys for Supabase, OpenAI, Google Street View, Google TTS, and Cloudflare R2.
 
 ### 2. Run the backend
 

@@ -11,9 +11,14 @@ Full pipeline:
 5. Check zone data cache → HIT? Skip to step 7
 6. Fetch ALL 23 data sources in parallel (~2-4 seconds)
 7. Feed zone data to OpenAI → generate narration
-8. TTS → MP3
-9. Upload to R2 → signed URL
-10. Return to client
+8. If part of an active tour (tour_id given), stitch in a short transition
+   connecting this block to the tour's running story so far — the core
+   narration_text above stays untouched/cacheable, this is a thin
+   tour-scoped layer added on top (see the cross-block continuity step)
+9. TTS → MP3 (a stitched block gets fresh audio under a tour-scoped R2
+   key instead of the shared cache, since it's no longer generic text)
+10. Upload to R2 → signed URL
+11. Return to client
 
 Two cache layers:
 - Zone data cache: raw data + photo per zone (mood-agnostic, shared across moods)

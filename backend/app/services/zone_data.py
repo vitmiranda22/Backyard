@@ -14,7 +14,6 @@ different moods from the same underlying data.
 """
 
 import logging
-import json
 import asyncio
 import httpx
 

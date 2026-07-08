@@ -64,7 +64,6 @@ async def store_narration(
     mood: str,
     content_safety: bool,
     narration_text: str,
-    data_highlights: dict = None,
 ):
     """Store a freshly generated narration in the cache (expires in 30 days)."""
     expires_at = datetime.now(timezone.utc) + timedelta(days=30)
@@ -77,7 +76,6 @@ async def store_narration(
                 "mood": mood,
                 "content_safety": content_safety,
                 "narration_text": narration_text,
-                "data_highlights": data_highlights,
                 "expires_at": expires_at.isoformat(),
             })
             .execute()

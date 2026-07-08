@@ -1,5 +1,11 @@
 # Week 1 Walkthrough — Foundation + Magic Moment
 
+> **Historical document.** Written for the original Week 1 milestone. Mood
+> names ("Haunted"), the AI provider (Gemini), and the voice picker described
+> below are all out of date — see [README.md](../README.md) and
+> [API_SETUP_GUIDE.md](API_SETUP_GUIDE.md) for the current setup. Kept for
+> reference on how the project got started, not as an accurate how-to.
+
 ## Goal
 
 By the end of this week, you should be able to:

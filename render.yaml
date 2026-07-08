@@ -15,9 +15,11 @@ services:
         sync: false
       - key: SUPABASE_JWT_SECRET
         sync: false
-      - key: GEMINI_API_KEY
+      - key: OPENAI_API_KEY
         sync: false
       - key: GOOGLE_TTS_API_KEY
+        sync: false
+      - key: GOOGLE_STREETVIEW_API_KEY
         sync: false
       - key: R2_ACCOUNT_ID
         sync: false
@@ -26,6 +28,8 @@ services:
       - key: R2_SECRET_ACCESS_KEY
         sync: false
       - key: R2_BUCKET_NAME
+        sync: false
+      - key: TMDB_API_KEY
         sync: false
       - key: DAILY_NARRATION_LIMIT
         value: "50"

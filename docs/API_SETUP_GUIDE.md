@@ -43,19 +43,40 @@ Go to **Database → Extensions** → search "postgis" → toggle ON.
 
 ---
 
-## 2. Gemini API Key (AI narration engine)
+## 2. OpenAI API Key (AI narration engine)
 
-1. Go to https://aistudio.google.com/apikey
-2. Click **Create API Key** → copy it (looks like `AIzaSy...`).
-3. Test it: go to https://aistudio.google.com, pick Gemini 2.5 Flash,
-   enable Search Grounding, and ask it to narrate a street. If it works
-   with real facts and citations, you're good.
-
-**Free tier:** 500 grounded searches/day. With caching, that's plenty.
+1. Go to https://platform.openai.com/api-keys → sign up or log in.
+2. Add a payment method under **Settings → Billing** — a $5 minimum charge
+   unlocks Tier 1 rate limits (500 requests/min) and access to `gpt-4.1-mini`.
+   The true no-payment free tier only allows GPT-3.5 Turbo at 3 requests/min,
+   which isn't enough to actually use this app.
+3. Click **Create new secret key** → copy it (looks like `sk-...`).
+4. Narrations use the Responses API's built-in `web_search` tool for live
+   facts — no separate search API/key needed, it's part of the OpenAI call.
 
 ---
 
-## 3. Google Cloud Text-to-Speech
+## 3. Google Street View Static API (zone photos)
+
+Shows a real street-level photo of the spot each narration discusses.
+
+1. Go to https://console.cloud.google.com — use the same project as step 4
+   (Google Cloud TTS) if you want, or a new one.
+2. **APIs & Services → Library** → search "Street View Static API" → **Enable**.
+3. Make sure billing is active on the project (see step 4 below for why).
+4. **APIs & Services → Credentials** → **Create Credentials → API Key** → copy it.
+5. Click the key → "API restrictions" → "Restrict key" → pick
+   "Street View Static API" only → Save. Use a **separate** key from your
+   TTS key — don't reuse one restricted to a different API.
+
+**Cost:** ~$0.007/photo, with a free monthly quota. The metadata endpoint
+(checking whether a location has coverage before fetching) is always free.
+Every photo is cached forever per ~150m zone once fetched, so this is a
+one-time cost per location, not per request.
+
+---
+
+## 4. Google Cloud Text-to-Speech
 
 1. Go to https://console.cloud.google.com
 2. Create a project (or use the one from step 2).
@@ -72,7 +93,7 @@ A 90-second narration is ~2,000 characters. That's ~500 narrations/month for fre
 
 ---
 
-## 4. Cloudflare R2 (Audio storage)
+## 5. Cloudflare R2 (Audio + photo storage)
 
 1. Go to https://dash.cloudflare.com → sign up or log in.
 2. Left sidebar → **R2 Object Storage** → **Create Bucket**.
@@ -85,16 +106,8 @@ A 90-second narration is ~2,000 characters. That's ~500 narrations/month for fre
    - Secret Access Key → `R2_SECRET_ACCESS_KEY`
 7. Note your Account ID from the R2 overview page → `R2_ACCOUNT_ID`.
 
-**Free tier:** 10GB storage, zero egress fees. That's ~6,600 audio files.
-
----
-
-## 5. Mapbox (Maps)
-
-1. Go to https://www.mapbox.com → create account.
-2. Go to **Account → Tokens** → copy your **Default public token** (`pk.eyJ...`).
-
-That's it. **Free tier:** 50k map loads/month.
+**Free tier:** 10GB storage, zero egress fees. Stores both generated audio
+and cached zone photos.
 
 ---
 
@@ -104,7 +117,10 @@ That's it. **Free tier:** 50k map loads/month.
 max 1 request/second and include a User-Agent header.
 
 **DataSF** (SF open data): Free, no key, no account, no rate limits.
-We'll integrate this in Week 3.
+
+The mobile app's map (`react-native-maps`) uses the platform's native map
+provider (Apple Maps on iOS, Google Maps on Android) — no separate maps API
+key needed.
 
 ---
 
@@ -118,8 +134,11 @@ SUPABASE_URL=https://xxxx.supabase.co
 SUPABASE_ANON_KEY=eyJhbGci...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGci...
 
-# Gemini
-GEMINI_API_KEY=AIzaSy...
+# OpenAI
+OPENAI_API_KEY=sk-...
+
+# Google Street View Static API
+GOOGLE_STREETVIEW_API_KEY=AIzaSy...
 
 # Google Cloud TTS
 GOOGLE_TTS_API_KEY=AIzaSy...
@@ -130,16 +149,16 @@ R2_ACCESS_KEY_ID=your_access_key
 R2_SECRET_ACCESS_KEY=your_secret_key
 R2_BUCKET_NAME=backyard-audio
 
-# Mapbox (used by mobile app, but good to have here too)
-MAPBOX_PUBLIC_TOKEN=pk.eyJ...
+# TMDb (optional — leave blank to skip; free key at themoviedb.org)
+TMDB_API_KEY=
 ```
 
 ## Checklist
 
 - [ ] Supabase project live, PostGIS enabled, Google OAuth configured
-- [ ] Gemini API key works (tested in playground with Search Grounding)
+- [ ] OpenAI API key works, billing enabled (Tier 1 unlocked)
+- [ ] Street View Static API enabled, key created and restricted to it
 - [ ] Google Cloud TTS enabled, API key created and restricted
 - [ ] Cloudflare R2 bucket created, API token saved
-- [ ] Mapbox token copied
 - [ ] `backend/.env` filled in with all keys
 - [ ] `.env` is in `.gitignore`

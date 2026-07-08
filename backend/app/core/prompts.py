@@ -401,6 +401,6 @@ def build_prompt(
     ]
 
     if zone_data:
-        parts.append(_ZONE_DATA_SECTION.format(mode=mood, zone_data=zone_data))
+        parts.append(_ZONE_DATA_SECTION.format(zone_data=zone_data))
 
     return "\n".join(parts)

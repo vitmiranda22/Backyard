@@ -51,10 +51,8 @@ export function useZoneTracker() {
   }, []);
 
   return {
-    currentZone,
     checkZone,
     commitZone,
     reset,
-    visitedCount: visitedZones.current.size,
   };
 }

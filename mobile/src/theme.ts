@@ -7,7 +7,6 @@ import { Platform } from "react-native";
 
 export const colors = {
   bg: "#EEF1FB",
-  bgAlt: "#F8F9FD",
   surface: "#FFFFFF",
   surfaceAlt: "#F3F4F9",
   border: "#E3E5F1",
@@ -32,5 +31,3 @@ export const radius = {
   lg: 22,
   pill: 999,
 };
-
-export const spacing = (n: number) => n * 4;

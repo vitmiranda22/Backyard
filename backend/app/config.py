@@ -36,9 +36,9 @@ class Settings(BaseSettings):
     SUPABASE_JWT_SECRET: str = ""
 
     # -------------------------------------------------------------------------
-    # Gemini (AI narration)
+    # OpenAI (AI narration)
     # -------------------------------------------------------------------------
-    GEMINI_API_KEY: str
+    OPENAI_API_KEY: str
 
     # -------------------------------------------------------------------------
     # Google Cloud Text-to-Speech

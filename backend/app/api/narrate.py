@@ -7,7 +7,7 @@ Full pipeline:
 3. Reverse geocode → street name, neighborhood, city
 4. Check zone data cache → HIT? Skip to step 6
 5. Fetch ALL 23 data sources in parallel (~2-4 seconds)
-6. Feed zone data to Gemini → generate narration
+6. Feed zone data to OpenAI → generate narration
 7. TTS → MP3
 8. Upload to R2 → signed URL
 9. Return to client
@@ -29,7 +29,7 @@ from app.models.schemas import (
     ErrorResponse,
     ZoneDataUsed,
 )
-from app.services import geocode, gemini, tts, r2, supabase_db
+from app.services import geocode, openai_service, tts, r2, supabase_db
 from app.services.zone_data import fetch_all_zone_data, format_zone_data_for_prompt
 
 logger = logging.getLogger(__name__)
@@ -152,8 +152,8 @@ async def narrate_block(
                 f"{len(sources_failed)} failed"
             )
 
-        # Step 6: Call Gemini with zone data
-        narration_text = await gemini.generate_narration(
+        # Step 6: Call OpenAI with zone data
+        narration_text = await openai_service.generate_narration(
             street=street_name,
             neighborhood=neighborhood,
             city=city,
@@ -196,7 +196,7 @@ async def narrate_block(
         prior_summary = tour.get("narrative_summary") if tour else None
 
         if prior_summary:
-            connector_text, updated_summary = await gemini.generate_connector(
+            connector_text, updated_summary = await openai_service.generate_connector(
                 prior_summary=prior_summary,
                 mood=request.mood.value,
                 current_narration=narration_text,

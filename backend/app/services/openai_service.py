@@ -1,26 +1,42 @@
 """
-Gemini AI narration generation service.
+OpenAI narration generation service.
 
-Takes a location, mood, and zone data, then asks Gemini 2.5 Flash
-(with Google Search Grounding) to generate a compelling narration.
+Takes a location, mood, and zone data, then asks gpt-4.1-mini (with the
+Responses API's built-in web_search tool) to generate a compelling narration.
 
-Zone data from 23 sources is fed directly into the prompt so Gemini
+Zone data from 23 sources is fed directly into the prompt so the model
 uses REAL facts about the location instead of generic filler.
 """
 
 import logging
-from google import genai
-from google.genai.types import Tool, GoogleSearch, GenerateContentConfig
+import re
+from openai import OpenAI
 
 from app.config import settings
 from app.core.prompts import build_prompt, build_connector_prompt
 
 logger = logging.getLogger(__name__)
 
-client = genai.Client(api_key=settings.GEMINI_API_KEY)
+client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
-MODEL = "gemini-2.5-flash"
-TIMEOUT_SECONDS = 15
+MODEL = "gpt-4.1-mini"
+
+
+def _strip_citations(text: str) -> str:
+    """
+    Remove any markdown-style citations/links the model included despite
+    being told not to — a habit it can pick up from the web_search tool's
+    citation style (e.g. "([redfin.com](https://...))"). This is spoken
+    narration, not a written article with footnotes. Defense in depth
+    alongside the prompt instruction, since prompt compliance alone isn't
+    guaranteed.
+    """
+    # A citation fully wrapped in its own parens, e.g. "([redfin.com](https://...))"
+    text = re.sub(r"\(\[[^\]]*\]\(https?://[^\)]+\)\)", "", text)
+    # A bare markdown link, e.g. "[redfin.com](https://...)" — keep the link text
+    text = re.sub(r"\[([^\]]*)\]\(https?://[^\)]+\)", r"\1", text)
+    # Collapse any doubled-up whitespace left behind by the removal
+    return re.sub(r"[ \t]{2,}", " ", text).strip()
 
 
 async def generate_narration(
@@ -63,66 +79,67 @@ async def generate_narration(
         f"You MUST use at least 3 specific facts from the zone data provided. "
         f"Do NOT start with a rhetorical question. "
         f"Start with a specific year, detail, or observation. "
-        f"Use Google Search to find additional real facts about this exact location. "
+        f"Use web search to find additional real facts about this exact location. "
+        f"This is a spoken audio script — never include citations, footnotes, "
+        f"source names, or markdown links like [text](url) anywhere in your "
+        f"response, even when using web search. Write the fact directly as "
+        f"spoken narration with no attribution attached. "
         f"60-90 seconds of spoken audio."
     )
 
     try:
-        google_search_tool = Tool(google_search=GoogleSearch())
-
-        # DEBUG: Log what we're sending to Gemini
-        logger.info(f"=== GEMINI CALL ===")
+        logger.info(f"=== OPENAI CALL ===")
         logger.info(f"PROMPT FIRST 300 CHARS: {system_prompt[:300]}")
         logger.info(f"ZONE DATA IN PROMPT: {'YES' if zone_data and len(zone_data) > 50 else 'NO/EMPTY'}")
         logger.info(f"ZONE DATA LENGTH: {len(zone_data) if zone_data else 0} chars")
         logger.info(f"USER MESSAGE: {user_message}")
 
-        response = client.models.generate_content(
+        response = client.responses.create(
             model=MODEL,
-            contents=user_message,
-            config=GenerateContentConfig(
-                system_instruction=system_prompt,
-                tools=[google_search_tool],
-                temperature=0.8,
-                # Gemini 2.5 Flash spends part of this budget on internal
-                # "thinking" and search-grounding tool calls before writing
-                # the actual narration, and how much varies call to call —
-                # this isn't a one-time constant to tune once. 1024 got cut
-                # off, then 4096 started getting cut off too once the prompt
-                # grew a NARRATIVE ARC requirement (more instruction to
-                # reason through = more thinking overhead on average). This
-                # SDK version (google-genai 1.5.0) only exposes
-                # ThinkingConfig.include_thoughts, not an actual thinking
-                # budget knob, so the only lever is headroom — if this keeps
-                # recurring as prompts grow, raise it again.
-                max_output_tokens=8192,
-            ),
+            instructions=system_prompt,
+            input=user_message,
+            tools=[{"type": "web_search"}],
+            temperature=0.8,
+            # Same class of issue Gemini had: some of this budget goes to
+            # tool-call/reasoning overhead before the model writes the
+            # actual narration, and that overhead varies call to call.
+            # Unused budget costs nothing, so be generous rather than
+            # re-tuning this later.
+            max_output_tokens=8192,
         )
 
-        if response.candidates and response.candidates[0].finish_reason == "MAX_TOKENS":
+        if response.status == "incomplete" and response.incomplete_details and \
+                response.incomplete_details.reason == "max_output_tokens":
             logger.warning(
-                f"Gemini narration for {street} ({mood}) hit MAX_TOKENS — "
+                f"OpenAI narration for {street} ({mood}) hit max_output_tokens — "
                 f"output was truncated mid-generation. Consider raising "
                 f"max_output_tokens further."
             )
 
         narration = None
         try:
-            narration = response.text
+            narration = response.output_text
         except Exception:
             pass
 
-        if not narration and response.candidates:
-            parts = response.candidates[0].content.parts
-            text_parts = [p.text for p in parts if hasattr(p, 'text') and p.text]
+        if not narration and response.output:
+            text_parts = []
+            for item in response.output:
+                if getattr(item, "type", None) == "message":
+                    for part in getattr(item, "content", []):
+                        if getattr(part, "text", None):
+                            text_parts.append(part.text)
             if text_parts:
                 narration = " ".join(text_parts)
 
-        logger.info(f"Gemini narration length: {len(narration) if narration else 0} chars")
-        logger.info(f"Gemini narration preview: {narration[:300] if narration else 'EMPTY'}...")
+        if narration:
+            narration = _strip_citations(narration)
+
+        logger.info(f"OpenAI narration length: {len(narration) if narration else 0} chars")
+        logger.info(f"OpenAI narration preview: {narration[:300] if narration else 'EMPTY'}...")
 
         if not narration or len(narration) < 20:
-            logger.warning(f"Gemini returned empty or too-short narration for {street}")
+            logger.warning(f"OpenAI returned empty or too-short narration for {street}")
             return None
 
         if len(narration) > 5000:
@@ -131,7 +148,7 @@ async def generate_narration(
         return narration
 
     except Exception as e:
-        logger.error(f"Gemini generation failed for {street}: {e}")
+        logger.error(f"OpenAI generation failed for {street}: {e}")
         import traceback
         logger.error(traceback.format_exc())
         return None
@@ -146,7 +163,7 @@ async def generate_connector(
     Generate a short transition line connecting this block to the tour's
     running story, plus an updated rolling summary for the next block.
 
-    Deliberately no search grounding and a small token budget — this is a
+    Deliberately no search tool and a small-ish token budget — this is a
     cheap, tour-scoped call, not a replacement for the main narration call.
 
     Returns:
@@ -164,30 +181,26 @@ async def generate_connector(
     fallback_summary = current_narration[:200]
 
     try:
-        response = client.models.generate_content(
+        response = client.responses.create(
             model=MODEL,
-            contents=prompt,
-            config=GenerateContentConfig(
-                temperature=0.8,
-                # Same headroom issue as the main narration call — Gemini 2.5
-                # Flash spends part of this budget on internal "thinking"
-                # before writing output, independent of how short the final
-                # text is, and that thinking budget varies call to call.
-                # 300 got eaten entirely; 1024 still clipped some responses
-                # mid-word. Unused budget costs nothing, so be generous.
-                max_output_tokens=2048,
-            ),
+            input=prompt,
+            temperature=0.8,
+            max_output_tokens=2048,
         )
 
         text = None
         try:
-            text = response.text
+            text = response.output_text
         except Exception:
             pass
 
-        if not text and response.candidates:
-            parts = response.candidates[0].content.parts
-            text_parts = [p.text for p in parts if hasattr(p, "text") and p.text]
+        if not text and response.output:
+            text_parts = []
+            for item in response.output:
+                if getattr(item, "type", None) == "message":
+                    for part in getattr(item, "content", []):
+                        if getattr(part, "text", None):
+                            text_parts.append(part.text)
             if text_parts:
                 text = "".join(text_parts)
 

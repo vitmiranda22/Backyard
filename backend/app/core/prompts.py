@@ -1,5 +1,5 @@
 """
-System prompts for Gemini AI narration generation.
+System prompts for AI narration generation.
 
 These prompts are the voice of Backyard. They determine whether someone
 listens for 30 seconds or walks for an hour.
@@ -366,7 +366,7 @@ def build_prompt(
     zone_data: str = None,
 ) -> str:
     """
-    Build the complete system prompt for Gemini.
+    Build the complete system prompt for the narration model.
 
     Args:
         street: "710 Ashbury Street"

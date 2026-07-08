@@ -109,9 +109,9 @@ async def fetch_all_zone_data(
 
 def format_zone_data_for_prompt(zone_data: dict) -> str:
     """
-    Convert the raw zone data dict into a readable string for the Gemini prompt.
+    Convert the raw zone data dict into a readable string for the narration prompt.
 
-    We don't dump raw JSON — we format it so Gemini can actually read it.
+    We don't dump raw JSON — we format it so the model can actually read it.
     Empty sources are skipped entirely.
     """
     sections = []

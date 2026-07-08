@@ -165,6 +165,7 @@ async def save_block(
         voice=request.voice.value if request.voice else "neutral",
         mood=request.mood.value,
         trigger_type=request.trigger_type.value,
+        image_r2_key=request.image_r2_key,
     )
 
     if not block:
@@ -410,6 +411,7 @@ async def get_tour_detail(tour_id: str, user_id: AuthenticatedUser):
     block_details = []
     for b in blocks:
         audio_url = r2.generate_signed_url(b["audio_r2_key"], expires_in=14400) if b.get("audio_r2_key") else None
+        image_url = r2.generate_signed_url(b["image_r2_key"], expires_in=14400) if b.get("image_r2_key") else None
         block_details.append(TourBlockDetail(
             block_id=b["id"],
             sequence=b["sequence"],
@@ -419,6 +421,7 @@ async def get_tour_detail(tour_id: str, user_id: AuthenticatedUser):
             lng=b["lng"],
             narration_text=b.get("narration_text", ""),
             audio_url=audio_url,
+            image_url=image_url,
             voice=b.get("voice", "neutral"),
             mood=b.get("mood", "time_machine"),
         ))

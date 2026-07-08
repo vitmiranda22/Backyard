@@ -72,6 +72,8 @@ class NarrateBlockResponse(BaseModel):
     audio_url: Optional[str] = None
     audio_r2_key: Optional[str] = None
     audio_duration_ms: Optional[int] = None
+    image_url: Optional[str] = None
+    image_r2_key: Optional[str] = None
     mood: Mood
     content_safety_applied: bool
     cached: bool
@@ -109,6 +111,7 @@ class SaveBlockRequest(BaseModel):
     city: str = Field(default="Unknown", max_length=200)
     narration_text: str = Field(..., description="The AI-generated narration text")
     audio_r2_key: Optional[str] = Field(None, description="R2 key for the audio file")
+    image_r2_key: Optional[str] = Field(None, description="R2 key for the zone photo")
     voice: Optional[Voice] = None
     mood: Mood = Field(...)
     trigger_type: TriggerType = Field(default=TriggerType.AUTO)
@@ -173,6 +176,7 @@ class TourBlockDetail(BaseModel):
     lng: float
     narration_text: str
     audio_url: Optional[str] = None
+    image_url: Optional[str] = None
     voice: str
     mood: str
 

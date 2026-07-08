@@ -216,6 +216,37 @@ async def store_zone_data(
         return None
 
 
+async def store_zone_image(geo_hash: str, image_r2_key: str):
+    """
+    Persist a zone's cached street-view photo key.
+
+    Only touches geo_hash/image_r2_key/expires_at on conflict — a partial
+    upsert like this can't wipe raw_data/sources_queried on an existing
+    row. expires_at is included (same 30-day window as store_zone_data)
+    so this also works standalone if this is the very first time we've
+    ever seen this geohash (zone_data_cache.expires_at is NOT NULL).
+    """
+    expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+    try:
+        client = _get_client()
+        result = (
+            client.table("zone_data_cache")
+            .upsert({
+                "geo_hash": geo_hash,
+                "image_r2_key": image_r2_key,
+                "expires_at": expires_at.isoformat(),
+            })
+            .execute()
+        )
+        if result.data:
+            logger.info(f"Stored zone image: {geo_hash}")
+            return result.data[0]
+        return None
+    except Exception as e:
+        logger.error(f"Failed to store zone image: {e}")
+        return None
+
+
 # =============================================================================
 # Tour session management (Week 2)
 # =============================================================================
@@ -318,6 +349,7 @@ async def save_tour_block(
     voice: str,
     mood: str,
     trigger_type: str,
+    image_r2_key: str = None,
 ):
     """Save a narrated block as part of an active tour."""
     try:
@@ -337,6 +369,7 @@ async def save_tour_block(
                 "voice": voice,
                 "mood": mood,
                 "trigger_type": trigger_type,
+                "image_r2_key": image_r2_key,
             })
             .execute()
         )

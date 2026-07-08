@@ -159,6 +159,7 @@ export default function ReplayScreen({ tour, onReplayComplete }: ReplayScreenPro
           streetName={activeBlock.street_name}
           narrationText={activeBlock.narration_text}
           audioUrl={activeBlock.audio_url}
+          imageUrl={activeBlock.image_url}
           onAudioFinished={advanceToNext}
           onSkip={advanceToNext}
           onAudioError={handleAudioError}

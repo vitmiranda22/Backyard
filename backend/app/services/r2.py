@@ -91,6 +91,46 @@ def build_tour_r2_key(tour_id: str, geo_hash: str, content_safety: bool, voice: 
     return f"audio/tours/{tour_id}/{geo_hash}/{safety_str}/{voice}.mp3"
 
 
+def build_image_r2_key(geo_hash: str) -> str:
+    """
+    Build the R2 object key for a zone's street-level photo.
+
+    One photo per geohash, mood-agnostic — shared across every user/tour
+    that ever visits this cell, same caching model as zone_data_cache.
+
+    Returns:
+        R2 object key, e.g. "images/9q8yyk8.jpg"
+    """
+    return f"images/{geo_hash}.jpg"
+
+
+async def upload_image(image_bytes: bytes, r2_key: str) -> bool:
+    """
+    Upload a JPEG street-view photo to R2.
+
+    Args:
+        image_bytes: The raw JPEG data from the Street View Static API.
+        r2_key: The object key (from build_image_r2_key).
+
+    Returns:
+        True if upload succeeded, False otherwise.
+    """
+    try:
+        client = _get_s3_client()
+        client.put_object(
+            Bucket=settings.R2_BUCKET_NAME,
+            Key=r2_key,
+            Body=image_bytes,
+            ContentType="image/jpeg",
+        )
+        logger.info(f"Uploaded image to R2: {r2_key} ({len(image_bytes)} bytes)")
+        return True
+
+    except Exception as e:
+        logger.error(f"R2 image upload failed for {r2_key}: {e}")
+        return False
+
+
 async def upload_audio(audio_bytes: bytes, r2_key: str) -> bool:
     """
     Upload an MP3 file to R2.

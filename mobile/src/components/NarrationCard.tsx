@@ -4,7 +4,7 @@
 // Has loading and error states.
 
 import React from "react";
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, Image, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
 import AudioPlayer from "./AudioPlayer";
 import { colors, radius } from "../theme";
 
@@ -14,6 +14,7 @@ interface NarrationCardProps {
   streetName: string | null;
   narrationText: string | null;
   audioUrl: string | null;
+  imageUrl?: string | null;
   onAudioFinished?: () => void;
   onSkip?: () => void;
   onAudioError?: () => void;
@@ -25,6 +26,7 @@ export default function NarrationCard({
   streetName,
   narrationText,
   audioUrl,
+  imageUrl,
   onAudioFinished,
   onSkip,
   onAudioError,
@@ -32,8 +34,10 @@ export default function NarrationCard({
   if (isLoading) {
     return (
       <View style={styles.card}>
-        <ActivityIndicator size="small" color={colors.accent} />
-        <Text style={styles.loadingText}>Finding stories about this block...</Text>
+        <View style={styles.content}>
+          <ActivityIndicator size="small" color={colors.accent} />
+          <Text style={styles.loadingText}>Finding stories about this block...</Text>
+        </View>
       </View>
     );
   }
@@ -41,7 +45,9 @@ export default function NarrationCard({
   if (error) {
     return (
       <View style={styles.card}>
-        <Text style={styles.errorText}>{error}</Text>
+        <View style={styles.content}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
       </View>
     );
   }
@@ -49,30 +55,39 @@ export default function NarrationCard({
   if (!narrationText) {
     return (
       <View style={styles.card}>
-        <Text style={styles.emptyText}>
-          Walk around to hear stories about your surroundings...
-        </Text>
+        <View style={styles.content}>
+          <Text style={styles.emptyText}>
+            Walk around to hear stories about your surroundings...
+          </Text>
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.card}>
-      {/* Street name header */}
-      <Text style={styles.streetName}>📍 {streetName}</Text>
+      {/* Photo of the spot being discussed, when we have one */}
+      {imageUrl && (
+        <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
+      )}
 
-      {/* Narration text - scrollable */}
-      <ScrollView style={styles.textScroll} nestedScrollEnabled>
-        <Text style={styles.narrationText}>{narrationText}</Text>
-      </ScrollView>
+      <View style={styles.content}>
+        {/* Street name header */}
+        <Text style={styles.streetName}>📍 {streetName}</Text>
 
-      {/* Audio controls */}
-      <AudioPlayer
-        audioUrl={audioUrl}
-        onFinished={onAudioFinished}
-        onSkip={onSkip}
-        onError={onAudioError}
-      />
+        {/* Narration text - scrollable */}
+        <ScrollView style={styles.textScroll} nestedScrollEnabled>
+          <Text style={styles.narrationText}>{narrationText}</Text>
+        </ScrollView>
+
+        {/* Audio controls */}
+        <AudioPlayer
+          audioUrl={audioUrl}
+          onFinished={onAudioFinished}
+          onSkip={onSkip}
+          onError={onAudioError}
+        />
+      </View>
     </View>
   );
 }
@@ -85,8 +100,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderBottomWidth: 0,
+    overflow: "hidden",
+    maxHeight: 460,
+  },
+  image: {
+    width: "100%",
+    height: 140,
+    backgroundColor: colors.surfaceAlt,
+  },
+  content: {
     padding: 16,
-    maxHeight: 320,
   },
   streetName: {
     fontSize: 16,

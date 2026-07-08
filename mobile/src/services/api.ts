@@ -45,6 +45,8 @@ export interface NarrationResponse {
   audio_url: string | null;
   audio_r2_key: string | null;
   audio_duration_ms: number | null;
+  image_url: string | null;
+  image_r2_key: string | null;
   mood: string;
   content_safety_applied: boolean;
   cached: boolean;
@@ -111,6 +113,7 @@ export async function saveBlock(params: {
   city: string;
   narration_text: string;
   audio_r2_key?: string;
+  image_r2_key?: string;
   voice: string;
   mood: string;
   trigger_type: string;
@@ -194,6 +197,7 @@ export interface TourBlockDetail {
   lng: number;
   narration_text: string;
   audio_url: string | null;
+  image_url: string | null;
   voice: string;
   mood: string;
 }

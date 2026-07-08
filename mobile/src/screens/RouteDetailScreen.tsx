@@ -1,7 +1,7 @@
 // Route Detail screen — shown after tapping a Discover card, before replay.
 
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
 import { getTourDetail, TourDetail } from "../services/api";
 import StarRating from "../components/StarRating";
 import { colors, font, radius } from "../theme";
@@ -92,11 +92,20 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
             <Text style={styles.logHeader}>Your walk log</Text>
             {tour.blocks.map((block) => (
               <View key={block.block_id} style={styles.logCard}>
-                <Text style={styles.logStreet}>
-                  📍 {block.street_name}
-                  {block.neighborhood ? `, ${block.neighborhood}` : ""}
-                </Text>
-                <Text style={styles.logText}>{block.narration_text}</Text>
+                {block.image_url && (
+                  <Image
+                    source={{ uri: block.image_url }}
+                    style={styles.logImage}
+                    resizeMode="cover"
+                  />
+                )}
+                <View style={styles.logCardBody}>
+                  <Text style={styles.logStreet}>
+                    📍 {block.street_name}
+                    {block.neighborhood ? `, ${block.neighborhood}` : ""}
+                  </Text>
+                  <Text style={styles.logText}>{block.narration_text}</Text>
+                </View>
               </View>
             ))}
           </View>
@@ -191,8 +200,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
-    padding: 14,
+    overflow: "hidden",
     marginBottom: 10,
+  },
+  logImage: {
+    width: "100%",
+    height: 120,
+    backgroundColor: colors.surfaceAlt,
+  },
+  logCardBody: {
+    padding: 14,
   },
   logStreet: {
     fontSize: 14,

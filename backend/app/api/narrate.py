@@ -3,17 +3,20 @@ POST /narrate-block — The core endpoint of Backyard.
 
 Full pipeline:
 1. Compute geohash from GPS coordinates
-2. Check narration cache → HIT? Skip to step 7
-3. Reverse geocode → street name, neighborhood, city
-4. Check zone data cache → HIT? Skip to step 6
-5. Fetch ALL 23 data sources in parallel (~2-4 seconds)
-6. Feed zone data to OpenAI → generate narration
-7. TTS → MP3
-8. Upload to R2 → signed URL
-9. Return to client
+2. Resolve the zone's cached street-view photo (or fetch+cache one) —
+   runs regardless of narration cache state, since a photo is geohash-
+   scoped, not mood-scoped
+3. Check narration cache → HIT? Skip to step 8
+4. Reverse geocode → street name, neighborhood, city
+5. Check zone data cache → HIT? Skip to step 7
+6. Fetch ALL 23 data sources in parallel (~2-4 seconds)
+7. Feed zone data to OpenAI → generate narration
+8. TTS → MP3
+9. Upload to R2 → signed URL
+10. Return to client
 
 Two cache layers:
-- Zone data cache: raw data per zone (mood-agnostic, shared across moods)
+- Zone data cache: raw data + photo per zone (mood-agnostic, shared across moods)
 - Narration cache: AI-generated text per zone + mood + safety combo
 """
 
@@ -29,7 +32,7 @@ from app.models.schemas import (
     ErrorResponse,
     ZoneDataUsed,
 )
-from app.services import geocode, openai_service, tts, r2, supabase_db
+from app.services import geocode, openai_service, tts, r2, supabase_db, streetview
 from app.services.zone_data import fetch_all_zone_data, format_zone_data_for_prompt
 
 logger = logging.getLogger(__name__)
@@ -61,6 +64,31 @@ async def narrate_block(
         f"geohash={geo_hash} mood={request.mood.value} "
         f"voice={request.voice.value} safety={'on' if request.content_safety else 'off'}"
     )
+
+    # --- Zone photo (runs regardless of narration cache state — see below) ---
+    # Zone data (and now the photo) live in zone_data_cache, keyed only by
+    # geo_hash, mood-agnostic. This lookup used to happen only inside the
+    # "narration_text is None" branch further down, which meant it never ran
+    # at all on a narration cache HIT — a photo would never come back for an
+    # already-cached location. Doing it once, unconditionally, here fixes
+    # that and lets the branch below reuse the same row instead of a second
+    # DB round trip.
+    cached_zone = await supabase_db.get_cached_zone_data(geo_hash)
+
+    image_url = None
+    image_r2_key = cached_zone.get("image_r2_key") if cached_zone else None
+    if image_r2_key:
+        image_url = r2.generate_signed_url(image_r2_key)
+    else:
+        image_bytes = await streetview.fetch_street_view_image(request.lat, request.lng)
+        if image_bytes:
+            image_r2_key = r2.build_image_r2_key(geo_hash)
+            upload_ok = await r2.upload_image(image_bytes, image_r2_key)
+            if upload_ok:
+                await supabase_db.store_zone_image(geo_hash, image_r2_key)
+                image_url = r2.generate_signed_url(image_r2_key)
+            else:
+                image_r2_key = None
 
     # --- Step 2: Check narration cache ---
     cached_narration = await supabase_db.get_cached_narration(
@@ -98,9 +126,9 @@ async def narrate_block(
 
     # --- Step 4-6: Generate narration if not cached ---
     if narration_text is None:
-        # Step 4: Check zone data cache
+        # Step 4: Check zone data cache (reuses the lookup done above for
+        # the zone photo — same geo_hash, same row, no need to fetch twice)
         zone_data_str = None
-        cached_zone = await supabase_db.get_cached_zone_data(geo_hash)
 
         if cached_zone:
             # Zone data cache HIT — use stored data
@@ -295,6 +323,8 @@ async def narrate_block(
         audio_url=audio_url,
         audio_r2_key=r2_key if audio_url else None,
         audio_duration_ms=audio_duration_ms,
+        image_url=image_url,
+        image_r2_key=image_r2_key,
         mood=request.mood,
         content_safety_applied=request.content_safety,
         cached=was_cached,

@@ -34,6 +34,7 @@ export default function ActiveTourScreen({
   const [streetName, setStreetName] = useState<string | null>(null);
   const [narrationText, setNarrationText] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [blocksVisited, setBlocksVisited] = useState(0);
   const [path, setPath] = useState<{ latitude: number; longitude: number }[]>([]);
 
@@ -128,6 +129,7 @@ export default function ActiveTourScreen({
       setStreetName(result.street_name);
       setNarrationText(result.narration_text);
       setAudioUrl(result.audio_url);
+      setImageUrl(result.image_url);
 
       sequenceRef.current += 1;
       setBlocksVisited(sequenceRef.current);
@@ -146,6 +148,7 @@ export default function ActiveTourScreen({
             city: result.city,
             narration_text: result.narration_text,
             audio_r2_key: result.audio_r2_key || undefined,
+            image_r2_key: result.image_r2_key || undefined,
             voice,
             mood,
             trigger_type: triggerType,
@@ -214,9 +217,11 @@ export default function ActiveTourScreen({
         streetName={streetName}
         narrationText={narrationText}
         audioUrl={audioUrl}
+        imageUrl={imageUrl}
         onSkip={() => {
           setNarrationText(null);
           setAudioUrl(null);
+          setImageUrl(null);
           setStreetName(null);
         }}
       />

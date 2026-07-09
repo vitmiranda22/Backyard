@@ -306,6 +306,7 @@ export interface UserSettings {
   content_safety: boolean;
   anonymous_default: boolean;
   display_name: string;
+  is_premium: boolean;
 }
 
 export async function getSettings(): Promise<UserSettings> {

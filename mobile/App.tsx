@@ -3,7 +3,7 @@
 // Screen flow:
 //   Login → [Home / Tours / Profile tabs] → Mode Picker → Active Tour → Tour Complete → Home
 //   Tours (Discover) → Route Detail → Replay → Rate → Tours
-//   (Voice picker removed — defaults to "dramatic")
+//   Profile → Voice Picker / Paywall
 
 import React, { useState, useEffect } from "react";
 import { StatusBar, View, ActivityIndicator } from "react-native";
@@ -11,7 +11,7 @@ import * as Updates from "expo-updates";
 import { restoreSession, signIn } from "./src/services/auth";
 import { DEV_SKIP_LOGIN, DEV_EMAIL, DEV_PASSWORD } from "./src/config";
 import { colors } from "./src/theme";
-import { TourDetail } from "./src/services/api";
+import { TourDetail, getSettings } from "./src/services/api";
 
 import LoginScreen from "./src/screens/LoginScreen";
 import HomeScreen from "./src/screens/HomeScreen";
@@ -23,6 +23,8 @@ import TourCompleteScreen from "./src/screens/TourCompleteScreen";
 import RouteDetailScreen from "./src/screens/RouteDetailScreen";
 import ReplayScreen from "./src/screens/ReplayScreen";
 import RouteRatingScreen from "./src/screens/RouteRatingScreen";
+import PaywallScreen from "./src/screens/PaywallScreen";
+import VoicePickerScreen from "./src/screens/VoicePickerScreen";
 import TabBar, { MainTab } from "./src/components/TabBar";
 
 type Screen =
@@ -34,7 +36,9 @@ type Screen =
   | "complete"
   | "routeDetail"
   | "replay"
-  | "rate";
+  | "rate"
+  | "paywall"
+  | "voicePicker";
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("loading");
@@ -47,6 +51,27 @@ export default function App() {
   // Routes/replay state
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [replayTour, setReplayTour] = useState<TourDetail | null>(null);
+
+  // Premium entitlement + voice preference — fetched once after login,
+  // refreshed whenever the user returns from the Paywall or Voice Picker.
+  const [isPremium, setIsPremium] = useState(false);
+  const [preferredVoice, setPreferredVoice] = useState("neutral");
+  const [screenBeforePaywall, setScreenBeforePaywall] = useState<Screen>("main");
+
+  async function refreshSettings() {
+    try {
+      const settings = await getSettings();
+      setIsPremium(settings.is_premium);
+      setPreferredVoice(settings.preferred_voice);
+    } catch (e: any) {
+      console.warn("Failed to load settings:", e.message);
+    }
+  }
+
+  function requirePremium() {
+    setScreenBeforePaywall(screen);
+    setScreen("paywall");
+  }
 
   useEffect(() => {
     // Without this, a published EAS Update only downloads on this launch and
@@ -77,6 +102,7 @@ export default function App() {
         try {
           await signIn(DEV_EMAIL, DEV_PASSWORD);
           setScreen("main");
+          refreshSettings();
           return;
         } catch (e) {
           console.warn("Dev auto-login failed, falling back to login screen:", e);
@@ -85,6 +111,7 @@ export default function App() {
 
       const hasSession = await restoreSession();
       setScreen(hasSession ? "main" : "login");
+      if (hasSession) refreshSettings();
     }
     checkSession();
   }, []);
@@ -110,7 +137,12 @@ export default function App() {
       )}
 
       {screen === "login" && (
-        <LoginScreen onLogin={() => setScreen("main")} />
+        <LoginScreen
+          onLogin={() => {
+            setScreen("main");
+            refreshSettings();
+          }}
+        />
       )}
 
       {screen === "main" && (
@@ -124,6 +156,8 @@ export default function App() {
                   setSelectedRouteId(id);
                   setScreen("routeDetail");
                 }}
+                isPremium={isPremium}
+                onRequirePremium={requirePremium}
               />
             )}
             {activeTab === "tours" && (
@@ -135,7 +169,12 @@ export default function App() {
               />
             )}
             {activeTab === "profile" && (
-              <ProfileScreen onSignedOut={() => setScreen("login")} />
+              <ProfileScreen
+                onSignedOut={() => setScreen("login")}
+                isPremium={isPremium}
+                onOpenVoicePicker={() => setScreen("voicePicker")}
+                onOpenPaywall={requirePremium}
+              />
             )}
           </View>
           <TabBar active={activeTab} onChange={setActiveTab} />
@@ -146,13 +185,15 @@ export default function App() {
         <MoodPickerScreen
           onSelect={startTourWithMood}
           onCancel={() => setScreen("main")}
+          isPremium={isPremium}
+          onRequirePremium={requirePremium}
         />
       )}
 
       {screen === "tour" && (
         <ActiveTourScreen
           mood={selectedMood}
-          voice="dramatic"
+          voice={preferredVoice}
           contentSafety={false}
           onEndTour={(id, blocks, start) => {
             setTourId(id);
@@ -196,6 +237,27 @@ export default function App() {
 
       {screen === "rate" && replayTour && (
         <RouteRatingScreen tour={replayTour} onDone={backToTours} />
+      )}
+
+      {screen === "paywall" && (
+        <PaywallScreen
+          onClose={() => {
+            setScreen(screenBeforePaywall);
+            refreshSettings();
+          }}
+        />
+      )}
+
+      {screen === "voicePicker" && (
+        <VoicePickerScreen
+          isPremium={isPremium}
+          onOpenPaywall={requirePremium}
+          onBack={() => {
+            setActiveTab("profile");
+            setScreen("main");
+            refreshSettings();
+          }}
+        />
       )}
     </>
   );

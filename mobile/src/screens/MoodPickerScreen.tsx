@@ -1,7 +1,7 @@
 // Mode picker — choose your experience before starting a tour
 //
-// 2 free modes + 3 premium modes
-// Premium modes show a lock badge (for now all are unlocked — paywall comes later)
+// 2 free modes + 3 premium modes. Tapping a premium mode without an
+// active subscription opens the paywall instead of starting a tour.
 
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
@@ -48,9 +48,11 @@ const MODES = [
 interface MoodPickerProps {
   onSelect: (mood: string) => void;
   onCancel: () => void;
+  isPremium: boolean;
+  onRequirePremium: () => void;
 }
 
-export default function MoodPickerScreen({ onSelect, onCancel }: MoodPickerProps) {
+export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequirePremium }: MoodPickerProps) {
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
@@ -64,7 +66,7 @@ export default function MoodPickerScreen({ onSelect, onCancel }: MoodPickerProps
         <TouchableOpacity
           key={mode.id}
           style={styles.modeCard}
-          onPress={() => onSelect(mode.id)}
+          onPress={() => (mode.premium && !isPremium ? onRequirePremium() : onSelect(mode.id))}
         >
           <Text style={styles.emoji}>{mode.emoji}</Text>
           <View style={styles.modeInfo}>

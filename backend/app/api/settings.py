@@ -50,6 +50,7 @@ async def get_settings(user_id: AuthenticatedUser):
         content_safety=user.get("content_safety", False),
         anonymous_default=user.get("anonymous_default", False),
         display_name=user.get("display_name", ""),
+        is_premium=user.get("is_premium", False),
     )
 
 
@@ -104,4 +105,5 @@ async def update_settings(
         content_safety=updated.get("content_safety", False),
         anonymous_default=updated.get("anonymous_default", False),
         display_name=updated.get("display_name", ""),
+        is_premium=updated.get("is_premium", False),
     )

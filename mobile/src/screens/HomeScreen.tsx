@@ -25,9 +25,17 @@ interface HomeScreenProps {
   onStartTour: () => void;
   onQuickStart: (mood: string) => void;
   onSelectRoute: (tourId: string) => void;
+  isPremium: boolean;
+  onRequirePremium: () => void;
 }
 
-export default function HomeScreen({ onStartTour, onQuickStart, onSelectRoute }: HomeScreenProps) {
+export default function HomeScreen({
+  onStartTour,
+  onQuickStart,
+  onSelectRoute,
+  isPremium,
+  onRequirePremium,
+}: HomeScreenProps) {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [hasPermission, setHasPermission] = useState(false);
   const [placeLabel, setPlaceLabel] = useState<string | null>(null);
@@ -132,7 +140,7 @@ export default function HomeScreen({ onStartTour, onQuickStart, onSelectRoute }:
               key={mood.id}
               style={styles.moodChip}
               disabled={!location}
-              onPress={() => onQuickStart(mood.id)}
+              onPress={() => (mood.pro && !isPremium ? onRequirePremium() : onQuickStart(mood.id))}
             >
               <Text style={styles.moodEmoji}>{mood.emoji}</Text>
               <Text style={styles.moodLabel}>{mood.label}</Text>

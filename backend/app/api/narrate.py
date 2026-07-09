@@ -38,7 +38,7 @@ import geohash2
 from fastapi import APIRouter, HTTPException
 
 from app.api.auth import AuthenticatedUser
-from app.config import settings
+from app.config import settings, PREMIUM_MOODS, PREMIUM_VOICES
 from app.models.schemas import (
     NarrateBlockRequest,
     NarrateBlockResponse,
@@ -116,6 +116,22 @@ async def narrate_block(
             status_code=429,
             detail={"error": retry_message, "code": reason, "retry": reason == "minute_limit_exceeded"},
         )
+
+    # --- Step 0.5: Premium entitlement check ---
+    # Defense-in-depth: the client gates premium moods/voices behind a
+    # paywall before it ever gets here, so this only fires for a stale
+    # client or a direct API call. Reject outright rather than silently
+    # substituting a different mood/voice the user didn't ask for.
+    if request.mood.value in PREMIUM_MOODS or request.voice.value in PREMIUM_VOICES:
+        if not await supabase_db.get_user_premium_status(user_id):
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": "This mood or voice is a premium feature. Upgrade to unlock it.",
+                    "code": "premium_required",
+                    "retry": False,
+                },
+            )
 
     # --- Step 1: Compute geohash ---
     geo_hash = geohash2.encode(request.lat, request.lng, precision=GEOHASH_PRECISION)

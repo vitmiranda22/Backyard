@@ -6,7 +6,19 @@ import { getCurrentUserEmail, signOut } from "../services/auth";
 import { getSettings, updateSettings } from "../services/api";
 import { colors, font, radius } from "../theme";
 
-export default function ProfileScreen({ onSignedOut }: { onSignedOut: () => void }) {
+interface ProfileScreenProps {
+  onSignedOut: () => void;
+  isPremium: boolean;
+  onOpenVoicePicker: () => void;
+  onOpenPaywall: () => void;
+}
+
+export default function ProfileScreen({
+  onSignedOut,
+  isPremium,
+  onOpenVoicePicker,
+  onOpenPaywall,
+}: ProfileScreenProps) {
   const [email, setEmail] = useState<string | null>(null);
   const [contentSafety, setContentSafety] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -54,6 +66,34 @@ export default function ProfileScreen({ onSignedOut }: { onSignedOut: () => void
         <Text style={styles.label}>Signed in as</Text>
         <Text style={styles.email}>{email || "Unknown"}</Text>
       </View>
+
+      {isPremium ? (
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowTitle}>Premium member</Text>
+              <Text style={styles.rowDesc}>All moods and voices unlocked</Text>
+            </View>
+            <View style={styles.premiumBadge}>
+              <Text style={styles.premiumBadgeText}>PRO</Text>
+            </View>
+          </View>
+        </View>
+      ) : (
+        <TouchableOpacity style={styles.upgradeBtn} onPress={onOpenPaywall}>
+          <Text style={styles.upgradeBtnText}>Upgrade to Premium</Text>
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity style={styles.card} onPress={onOpenVoicePicker}>
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowTitle}>Narration voice</Text>
+            <Text style={styles.rowDesc}>Choose which voice reads your tours</Text>
+          </View>
+          <Text style={styles.chevron}>›</Text>
+        </View>
+      </TouchableOpacity>
 
       <View style={styles.card}>
         <View style={styles.row}>
@@ -129,6 +169,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.muted,
     marginTop: 2,
+  },
+  premiumBadge: {
+    backgroundColor: colors.pro,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+  },
+  premiumBadgeText: {
+    color: colors.proText,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  upgradeBtn: {
+    backgroundColor: colors.pro,
+    padding: 15,
+    borderRadius: radius.md,
+    marginBottom: 14,
+  },
+  upgradeBtnText: {
+    color: colors.proText,
+    textAlign: "center",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  chevron: {
+    fontSize: 22,
+    color: colors.muted,
   },
   signOutBtn: {
     marginTop: 10,

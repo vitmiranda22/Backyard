@@ -253,6 +253,10 @@ class UserSettingsResponse(BaseModel):
     content_safety: bool = False
     anonymous_default: bool = False
     display_name: str = ""
+    # Read-only — never accepted on UpdateSettingsRequest. A user must not
+    # be able to grant themselves premium by PATCHing their own settings;
+    # this flag is only ever written server-side.
+    is_premium: bool = False
 
 
 class UpdateSettingsRequest(BaseModel):

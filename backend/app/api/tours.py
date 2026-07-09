@@ -33,6 +33,7 @@ from app.models.schemas import (
     RateTourResponse,
     ErrorResponse,
 )
+from app.config import PREMIUM_MOODS, PREMIUM_VOICES
 from app.services import supabase_db, r2
 
 logger = logging.getLogger(__name__)
@@ -99,6 +100,19 @@ async def start_tour(
         f"mood={request.mood.value} voice={request.voice.value} "
         f"type={request.tour_type.value}"
     )
+
+    # Defense-in-depth: the client gates premium moods/voices behind a
+    # paywall before it ever gets here — see narrate.py's matching check.
+    if request.mood.value in PREMIUM_MOODS or request.voice.value in PREMIUM_VOICES:
+        if not await supabase_db.get_user_premium_status(user_id):
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": "This mood or voice is a premium feature. Upgrade to unlock it.",
+                    "code": "premium_required",
+                    "retry": False,
+                },
+            )
 
     tour = await supabase_db.create_tour(
         creator_id=user_id,

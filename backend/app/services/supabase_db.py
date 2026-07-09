@@ -602,7 +602,7 @@ async def get_user_settings(user_id: str):
         client = _get_client()
         result = (
             client.table("users")
-            .select("preferred_voice, content_safety, anonymous_default, display_name")
+            .select("preferred_voice, content_safety, anonymous_default, display_name, is_premium")
             .eq("id", user_id)
             .limit(1)
             .execute()
@@ -613,6 +613,30 @@ async def get_user_settings(user_id: str):
     except Exception as e:
         logger.error(f"Failed to get user settings: {e}")
         return None
+
+
+async def get_user_premium_status(user_id: str) -> bool:
+    """
+    Whether the user currently has an active premium entitlement.
+
+    Fails closed (False) on any error or missing row — deny premium
+    access on uncertainty rather than risk granting it.
+    """
+    try:
+        client = _get_client()
+        result = (
+            client.table("users")
+            .select("is_premium")
+            .eq("id", user_id)
+            .limit(1)
+            .execute()
+        )
+        if result.data and len(result.data) > 0:
+            return bool(result.data[0].get("is_premium"))
+        return False
+    except Exception as e:
+        logger.error(f"Failed to get premium status: {e}")
+        return False
 
 
 async def update_user_settings(user_id: str, updates: dict):

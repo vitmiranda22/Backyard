@@ -92,3 +92,13 @@ class Settings(BaseSettings):
 # Singleton instance. Import this everywhere:
 #   from app.config import settings
 settings = Settings()
+
+
+# -------------------------------------------------------------------------
+# Premium tier boundary
+# -------------------------------------------------------------------------
+# Single source of truth for which moods/voices require an active premium
+# entitlement — imported by both narrate.py and tours.py so the two
+# enforcement points can't drift out of sync.
+PREMIUM_MOODS = {"dark_side", "behind_scenes", "unfiltered"}
+PREMIUM_VOICES = {"dramatic", "warm"}

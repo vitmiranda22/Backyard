@@ -231,6 +231,8 @@ export interface TourDetail {
   creator_avatar_url: string | null;
   created_at: string;
   blocks: TourBlockDetail[];
+  like_count: number;
+  liked_by_me: boolean;
 }
 
 export async function getTourDetail(tourId: string): Promise<TourDetail> {
@@ -298,6 +300,54 @@ export async function rateTour(tourId: string, score: number): Promise<RateTourR
 }
 
 // =============================================================================
+// Data richness signal
+// =============================================================================
+
+export interface RichnessInfo {
+  tier: "full" | "partial" | "global";
+  city: string;
+  message: string;
+}
+
+export async function getRichness(lat: number, lng: number): Promise<RichnessInfo> {
+  return authFetch(`/richness?lat=${lat}&lng=${lng}`);
+}
+
+// =============================================================================
+// Social — comments and likes
+// =============================================================================
+
+export interface Comment {
+  comment_id: string;
+  tour_id: string;
+  body: string;
+  is_anonymous: boolean;
+  display_name: string | null;
+  created_at: string;
+}
+
+export async function getComments(tourId: string): Promise<Comment[]> {
+  return authFetch(`/tours/${tourId}/comments`);
+}
+
+export async function postComment(tourId: string, body: string, isAnonymous = false): Promise<Comment> {
+  return authFetch(`/tours/${tourId}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ body, is_anonymous: isAnonymous }),
+  });
+}
+
+export interface LikeResult {
+  tour_id: string;
+  liked: boolean;
+  like_count: number;
+}
+
+export async function toggleLike(tourId: string): Promise<LikeResult> {
+  return authFetch(`/tours/${tourId}/like`, { method: "POST" });
+}
+
+// =============================================================================
 // Settings
 // =============================================================================
 
@@ -320,4 +370,27 @@ export async function updateSettings(
     method: "PATCH",
     body: JSON.stringify(updates),
   });
+}
+
+export async function deleteAccount(): Promise<void> {
+  await authFetch("/user/account", { method: "DELETE" });
+}
+
+export interface UserStats {
+  tours_completed: number;
+  total_distance_m: number;
+  cities_visited: number;
+}
+
+export async function getUserStats(): Promise<UserStats> {
+  return authFetch("/user/stats");
+}
+
+export interface VoiceSample {
+  voice: string;
+  audio_url: string;
+}
+
+export async function getVoiceSample(voice: string): Promise<VoiceSample> {
+  return authFetch(`/voices/sample?voice=${voice}`);
 }

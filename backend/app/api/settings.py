@@ -1,25 +1,40 @@
 """
 User settings endpoints.
 
-  GET   /api/user/settings  — Get current user preferences
-  PATCH /api/user/settings  — Update user preferences
+  GET    /api/user/settings  — Get current user preferences
+  PATCH  /api/user/settings  — Update user preferences
+  DELETE /api/user/account   — Permanently delete the account
+  GET    /api/user/stats     — Aggregate stats for gamification badges
+  GET    /api/voices/sample  — Preview clip for a narration voice
 """
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.api.auth import AuthenticatedUser
 from app.models.schemas import (
     UserSettingsResponse,
     UpdateSettingsRequest,
+    UserStatsResponse,
+    VoiceSampleResponse,
+    Voice,
     ErrorResponse,
 )
-from app.services import supabase_db
+from app.services import supabase_db, tts, r2
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Fixed, non-personal phrases — synthesized once per voice and cached
+# forever in voice_samples, so previewing a voice costs nothing after
+# the first request.
+SAMPLE_PHRASES = {
+    "neutral": "This is the Neutral voice. Clear and balanced narration.",
+    "dramatic": "This is the Dramatic voice. Bold, cinematic delivery.",
+    "warm": "This is the Warm voice. A friendly, conversational tone.",
+}
 
 
 @router.get(
@@ -107,3 +122,65 @@ async def update_settings(
         display_name=updated.get("display_name", ""),
         is_premium=updated.get("is_premium", False),
     )
+
+
+@router.delete(
+    "/user/account",
+    responses={500: {"model": ErrorResponse}},
+    summary="Permanently delete the current user's account and all their data",
+)
+async def delete_account(user_id: AuthenticatedUser):
+    """
+    Deletes the auth.users row. Every foreign key in the schema cascades
+    from there (tours, ratings, comments, likes, shares, reports, rate
+    limits), so this alone removes all of a user's data — irreversible.
+    """
+    ok = await supabase_db.delete_user_account(user_id)
+    if not ok:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Failed to delete account. Please try again or contact support.",
+                "code": "account_delete_failed",
+                "retry": True,
+            },
+        )
+    return {"deleted": True}
+
+
+@router.get(
+    "/user/stats",
+    response_model=UserStatsResponse,
+    summary="Aggregate stats for the current user, used for gamification badges",
+)
+async def get_user_stats(user_id: AuthenticatedUser):
+    stats = await supabase_db.get_user_stats(user_id)
+    return UserStatsResponse(**stats)
+
+
+@router.get(
+    "/voices/sample",
+    response_model=VoiceSampleResponse,
+    responses={500: {"model": ErrorResponse}},
+    summary="Get a short preview clip for a narration voice",
+)
+async def get_voice_sample(user_id: AuthenticatedUser, voice: Voice = Query(...)):
+    r2_key = await supabase_db.get_voice_sample_key(voice.value)
+
+    if not r2_key:
+        phrase = SAMPLE_PHRASES.get(voice.value, SAMPLE_PHRASES["neutral"])
+        audio_bytes = await tts.synthesize_speech(text=phrase, voice=voice.value)
+        if not audio_bytes:
+            raise HTTPException(
+                status_code=500,
+                detail={"error": "Couldn't generate a voice sample right now.", "code": "sample_failed", "retry": True},
+            )
+        r2_key = f"voice-samples/{voice.value}.mp3"
+        if not await r2.upload_audio(audio_bytes, r2_key):
+            raise HTTPException(
+                status_code=500,
+                detail={"error": "Couldn't generate a voice sample right now.", "code": "sample_failed", "retry": True},
+            )
+        await supabase_db.store_voice_sample_key(voice.value, r2_key)
+
+    return VoiceSampleResponse(voice=voice.value, audio_url=r2.generate_signed_url(r2_key))

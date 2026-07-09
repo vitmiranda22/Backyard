@@ -656,3 +656,181 @@ async def update_user_settings(user_id: str, updates: dict):
     except Exception as e:
         logger.error(f"Failed to update user settings: {e}")
         return None
+
+
+async def delete_user_account(user_id: str) -> bool:
+    """
+    Permanently deletes the user's auth record. Every foreign key in the
+    schema (tours, ratings, comments, tour_likes, tour_shares,
+    content_reports, user_rate_limits) cascades from auth.users, so this
+    alone removes all of a user's data cleanly — no separate cleanup needed.
+    """
+    try:
+        client = _get_client()
+        client.auth.admin.delete_user(user_id)
+        logger.info(f"Deleted account for user {user_id[:8]}...")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to delete user account: {e}")
+        return False
+
+
+async def get_user_stats(user_id: str) -> dict:
+    """
+    Aggregate stats for gamification badges, computed from existing tour
+    rows rather than a separate stats table. Only counts tours that were
+    actually walked (blocks_visited > 0), so an abandoned tour that never
+    got past start-tour doesn't inflate the count.
+    """
+    try:
+        client = _get_client()
+        result = (
+            client.table("tours")
+            .select("total_distance_m, city, blocks_visited")
+            .eq("creator_id", user_id)
+            .gt("blocks_visited", 0)
+            .execute()
+        )
+        rows = result.data if result.data else []
+        return {
+            "tours_completed": len(rows),
+            "total_distance_m": sum(r.get("total_distance_m") or 0 for r in rows),
+            "cities_visited": len({r["city"] for r in rows if r.get("city")}),
+        }
+    except Exception as e:
+        logger.error(f"Failed to get user stats: {e}")
+        return {"tours_completed": 0, "total_distance_m": 0, "cities_visited": 0}
+
+
+# =============================================================================
+# Social — comments and likes
+# =============================================================================
+
+async def get_comments(tour_id: str):
+    """Get all comments on a tour, oldest first, with commenter display name."""
+    try:
+        client = _get_client()
+        result = (
+            client.table("comments")
+            .select("*, users(display_name)")
+            .eq("tour_id", tour_id)
+            .order("created_at")
+            .execute()
+        )
+        return result.data if result.data else []
+    except Exception as e:
+        logger.error(f"Failed to get comments: {e}")
+        return []
+
+
+async def create_comment(tour_id: str, user_id: str, body: str, is_anonymous: bool = False):
+    """Post a comment. Returns the created row or None."""
+    try:
+        client = _get_client()
+        result = (
+            client.table("comments")
+            .insert({
+                "tour_id": tour_id,
+                "user_id": user_id,
+                "body": body,
+                "is_anonymous": is_anonymous,
+            })
+            .execute()
+        )
+        return result.data[0] if result.data else None
+    except Exception as e:
+        logger.error(f"Failed to create comment: {e}")
+        return None
+
+
+async def get_like_status(tour_id: str, user_id: str):
+    """Returns (like_count: int, liked_by_me: bool) without mutating anything."""
+    try:
+        client = _get_client()
+        count_result = (
+            client.table("tour_likes")
+            .select("tour_id", count="exact")
+            .eq("tour_id", tour_id)
+            .execute()
+        )
+        mine = (
+            client.table("tour_likes")
+            .select("tour_id")
+            .eq("tour_id", tour_id)
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        return (count_result.count or 0), bool(mine.data)
+    except Exception as e:
+        logger.error(f"Failed to get like status: {e}")
+        return 0, False
+
+
+async def toggle_like(tour_id: str, user_id: str):
+    """
+    Toggle a like: insert if not already liked, delete if already liked.
+    Returns (liked: bool, like_count: int) reflecting the state after the
+    change.
+    """
+    try:
+        client = _get_client()
+        existing = (
+            client.table("tour_likes")
+            .select("tour_id")
+            .eq("tour_id", tour_id)
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        if existing.data:
+            client.table("tour_likes").delete().eq("tour_id", tour_id).eq("user_id", user_id).execute()
+            liked = False
+        else:
+            client.table("tour_likes").insert({"tour_id": tour_id, "user_id": user_id}).execute()
+            liked = True
+
+        count_result = (
+            client.table("tour_likes")
+            .select("tour_id", count="exact")
+            .eq("tour_id", tour_id)
+            .execute()
+        )
+        return liked, (count_result.count or 0)
+    except Exception as e:
+        logger.error(f"Failed to toggle like: {e}")
+        return False, 0
+
+
+# =============================================================================
+# Voice preview samples
+# =============================================================================
+
+async def get_voice_sample_key(voice: str):
+    """Returns the cached R2 key for a voice's sample clip, or None if it hasn't been generated yet."""
+    try:
+        client = _get_client()
+        result = (
+            client.table("voice_samples")
+            .select("r2_key")
+            .eq("voice", voice)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0]["r2_key"] if result.data else None
+    except Exception as e:
+        logger.error(f"Failed to get voice sample: {e}")
+        return None
+
+
+async def store_voice_sample_key(voice: str, r2_key: str) -> bool:
+    try:
+        client = _get_client()
+        client.table("voice_samples").upsert(
+            {"voice": voice, "r2_key": r2_key},
+            on_conflict="voice",
+        ).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to store voice sample: {e}")
+        return False

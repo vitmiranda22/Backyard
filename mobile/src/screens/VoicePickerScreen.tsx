@@ -2,9 +2,10 @@
 // Dramatic and Warm are premium; tapping either while on the free tier
 // opens the paywall instead of selecting it.
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
-import { getSettings, updateSettings } from "../services/api";
+import { Audio } from "expo-av";
+import { getSettings, updateSettings, getVoiceSample } from "../services/api";
 import { colors, font, radius } from "../theme";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
@@ -25,6 +26,8 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
   const [current, setCurrent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [previewing, setPreviewing] = useState<string | null>(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
 
   useEffect(() => {
     getSettings()
@@ -34,7 +37,34 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
         showToast("Couldn't load your voice setting.");
       })
       .finally(() => setLoading(false));
+
+    return () => {
+      soundRef.current?.unloadAsync();
+    };
   }, []);
+
+  async function handlePreview(voiceId: string) {
+    tap();
+    if (soundRef.current) {
+      await soundRef.current.unloadAsync();
+      soundRef.current = null;
+    }
+    setPreviewing(voiceId);
+    try {
+      const sample = await getVoiceSample(voiceId);
+      const { sound } = await Audio.Sound.createAsync({ uri: sample.audio_url }, { shouldPlay: true });
+      soundRef.current = sound;
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          setPreviewing(null);
+        }
+      });
+    } catch (e: any) {
+      console.warn("Failed to preview voice:", e.message);
+      showToast("Couldn't play a preview right now.");
+      setPreviewing(null);
+    }
+  }
 
   async function handleSelect(voiceId: string, premium: boolean) {
     tap();
@@ -95,6 +125,16 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
               </View>
               <Text style={styles.desc}>{voice.desc}</Text>
             </View>
+            <TouchableOpacity
+              style={styles.previewBtn}
+              onPress={() => handlePreview(voice.id)}
+              disabled={previewing === voice.id}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel={`Preview ${voice.label} voice`}
+            >
+              <Text style={styles.previewBtnText}>{previewing === voice.id ? "…" : "▶"}</Text>
+            </TouchableOpacity>
             {selected && <Text style={styles.check}>✓</Text>}
           </TouchableOpacity>
         );
@@ -191,5 +231,20 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontWeight: "700",
     marginLeft: 8,
+  },
+  previewBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 8,
+  },
+  previewBtnText: {
+    fontSize: 12,
+    color: colors.text,
   },
 });

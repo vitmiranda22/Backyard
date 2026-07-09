@@ -3,9 +3,12 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Share } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
-import { getTourDetail, TourDetail } from "../services/api";
+import { getTourDetail, TourDetail, toggleLike } from "../services/api";
 import StarRating from "../components/StarRating";
 import ZonePhoto from "../components/ZonePhoto";
+import CommentsSection from "../components/CommentsSection";
+import { showToast } from "../services/toast";
+import { tap } from "../services/haptics";
 import { colors, font, radius } from "../theme";
 
 const MOOD_EMOJI: Record<string, string> = {
@@ -42,12 +45,30 @@ function regionForBlocks(blocks: { lat: number; lng: number }[]) {
 export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: RouteDetailScreenProps) {
   const [tour, setTour] = useState<TourDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
 
   useEffect(() => {
     getTourDetail(tourId)
-      .then(setTour)
+      .then((t) => {
+        setTour(t);
+        setLiked(t.liked_by_me);
+        setLikeCount(t.like_count);
+      })
       .catch((e: any) => setError(e.message || "Failed to load route"));
   }, [tourId]);
+
+  async function handleToggleLike() {
+    tap();
+    try {
+      const result = await toggleLike(tourId);
+      setLiked(result.liked);
+      setLikeCount(result.like_count);
+    } catch (e: any) {
+      console.warn("Failed to toggle like:", e.message);
+      showToast("Couldn't update your like.");
+    }
+  }
 
   if (error) {
     return (
@@ -108,6 +129,15 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
             </Text>
           </View>
         )}
+
+        <TouchableOpacity
+          style={styles.likeBtn}
+          onPress={handleToggleLike}
+          accessibilityRole="button"
+          accessibilityLabel={liked ? "Unlike this route" : "Like this route"}
+        >
+          <Text style={styles.likeBtnText}>{liked ? "❤️" : "🤍"} {likeCount}</Text>
+        </TouchableOpacity>
 
         <View style={styles.statsRow}>
           <Text style={styles.statText}>📍 {tour.blocks_visited} stops</Text>
@@ -175,6 +205,8 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
             ))}
           </View>
         )}
+
+        <CommentsSection tourId={tourId} />
       </ScrollView>
 
       <TouchableOpacity style={styles.startBtn} onPress={() => onStartReplay(tour)}>
@@ -247,6 +279,14 @@ const styles = StyleSheet.create({
   ratingCount: {
     fontSize: 13,
     color: colors.muted,
+  },
+  likeBtn: {
+    marginBottom: 16,
+  },
+  likeBtnText: {
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: "600",
   },
   statsRow: {
     flexDirection: "row",

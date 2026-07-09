@@ -1,9 +1,10 @@
 // Profile screen — account info, content safety toggle, sign out.
 
 import React, { useEffect, useState } from "react";
-import { View, Text, Switch, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, Switch, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import { getCurrentUserEmail, signOut } from "../services/auth";
-import { getSettings, updateSettings } from "../services/api";
+import { getSettings, updateSettings, getUserStats, deleteAccount } from "../services/api";
+import { getEarnedBadges, Badge } from "../services/badges";
 import { colors, font, radius } from "../theme";
 import { showToast } from "../services/toast";
 
@@ -23,15 +24,19 @@ export default function ProfileScreen({
   const [email, setEmail] = useState<string | null>(null);
   const [contentSafety, setContentSafety] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [badges, setBadges] = useState<Badge[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function load() {
-      const [userEmail, settings] = await Promise.all([
+      const [userEmail, settings, stats] = await Promise.all([
         getCurrentUserEmail().catch(() => null),
         getSettings().catch(() => null),
+        getUserStats().catch(() => null),
       ]);
       setEmail(userEmail);
       if (settings) setContentSafety(settings.content_safety);
+      if (stats) setBadges(getEarnedBadges(stats));
       setLoading(false);
     }
     load();
@@ -50,6 +55,43 @@ export default function ProfileScreen({
   async function handleSignOut() {
     await signOut();
     onSignedOut();
+  }
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      "Delete account?",
+      "This permanently deletes your account, tours, ratings, and comments. This can't be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              "Are you sure?",
+              "Last chance — this really can't be undone.",
+              [
+                { text: "Cancel", style: "cancel" },
+                { text: "Delete my account", style: "destructive", onPress: confirmDeleteAccount },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  }
+
+  async function confirmDeleteAccount() {
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      await signOut();
+      onSignedOut();
+    } catch (e: any) {
+      console.warn("Failed to delete account:", e.message);
+      showToast("Couldn't delete your account — try again in a moment.");
+      setDeleting(false);
+    }
   }
 
   if (loading) {
@@ -122,6 +164,20 @@ export default function ProfileScreen({
         </View>
       </View>
 
+      {badges.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.label}>Badges</Text>
+          <View style={styles.badgeRow}>
+            {badges.map((b) => (
+              <View key={b.id} style={styles.badgeChip}>
+                <Text style={styles.badgeEmoji}>{b.emoji}</Text>
+                <Text style={styles.badgeLabel}>{b.label}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
       <TouchableOpacity
         style={styles.signOutBtn}
         onPress={handleSignOut}
@@ -129,6 +185,16 @@ export default function ProfileScreen({
         accessibilityLabel="Sign out"
       >
         <Text style={styles.signOutText}>Sign Out</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.deleteBtn}
+        onPress={handleDeleteAccount}
+        disabled={deleting}
+        accessibilityRole="button"
+        accessibilityLabel="Delete account"
+      >
+        <Text style={styles.deleteText}>{deleting ? "Deleting..." : "Delete Account"}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -227,5 +293,39 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 15,
     fontWeight: "700",
+  },
+  badgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 10,
+  },
+  badgeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  badgeEmoji: {
+    fontSize: 14,
+  },
+  badgeLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  deleteBtn: {
+    marginTop: 10,
+    padding: 12,
+  },
+  deleteText: {
+    color: colors.muted,
+    textAlign: "center",
+    fontSize: 13,
   },
 });

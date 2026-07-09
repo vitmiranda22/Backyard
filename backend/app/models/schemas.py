@@ -207,6 +207,8 @@ class TourDetailResponse(BaseModel):
     creator_avatar_url: Optional[str] = None
     created_at: str
     blocks: List[TourBlockDetail]
+    like_count: int = 0
+    liked_by_me: bool = False
 
 
 class NearbyRouteSummary(BaseModel):
@@ -265,6 +267,56 @@ class UpdateSettingsRequest(BaseModel):
     content_safety: Optional[bool] = None
     anonymous_default: Optional[bool] = None
     display_name: Optional[str] = Field(None, max_length=50)
+
+
+class UserStatsResponse(BaseModel):
+    """GET /api/user/stats — used to compute gamification badges client-side"""
+    tours_completed: int = 0
+    total_distance_m: int = 0
+    cities_visited: int = 0
+
+
+class VoiceSampleResponse(BaseModel):
+    """GET /api/voices/sample"""
+    voice: str
+    audio_url: str
+
+
+# =============================================================================
+# Data richness signal
+# =============================================================================
+
+class RichnessResponse(BaseModel):
+    """GET /api/richness"""
+    tier: str
+    city: str
+    message: str
+
+
+# =============================================================================
+# Social — comments and likes
+# =============================================================================
+
+class CreateCommentRequest(BaseModel):
+    """POST /api/tours/{tour_id}/comments"""
+    body: str = Field(..., min_length=1, max_length=500)
+    is_anonymous: bool = False
+
+
+class CommentResponse(BaseModel):
+    comment_id: str
+    tour_id: str
+    body: str
+    is_anonymous: bool
+    display_name: Optional[str] = None
+    created_at: str
+
+
+class LikeResponse(BaseModel):
+    """POST /api/tours/{tour_id}/like"""
+    tour_id: str
+    liked: bool
+    like_count: int
 
 
 # =============================================================================

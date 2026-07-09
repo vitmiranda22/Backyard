@@ -8,6 +8,7 @@
 import React, { useState, useEffect } from "react";
 import { StatusBar, View, ActivityIndicator, Linking } from "react-native";
 import * as Updates from "expo-updates";
+import * as SecureStore from "expo-secure-store";
 import { restoreSession, signIn } from "./src/services/auth";
 import { DEV_SKIP_LOGIN, DEV_EMAIL, DEV_PASSWORD } from "./src/config";
 import { colors } from "./src/theme";
@@ -15,6 +16,7 @@ import { TourDetail, getSettings } from "./src/services/api";
 import { initSentry } from "./src/services/sentry";
 
 import LoginScreen from "./src/screens/LoginScreen";
+import OnboardingScreen from "./src/screens/OnboardingScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import ToursScreen from "./src/screens/ToursScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
@@ -29,6 +31,8 @@ import VoicePickerScreen from "./src/screens/VoicePickerScreen";
 import TabBar, { MainTab } from "./src/components/TabBar";
 import ToastHost from "./src/components/Toast";
 
+const ONBOARDING_KEY = "onboarding_complete";
+
 initSentry();
 
 // Parses backyard://route/<tourId> deep links (from Share) into a tourId,
@@ -41,6 +45,7 @@ function parseRouteDeepLink(url: string): string | null {
 type Screen =
   | "loading"
   | "login"
+  | "onboarding"
   | "main"
   | "mood"
   | "tour"
@@ -83,6 +88,16 @@ export default function App() {
   function requirePremium() {
     setScreenBeforePaywall(screen);
     setScreen("paywall");
+  }
+
+  async function goToMainOrOnboarding() {
+    const seen = await SecureStore.getItemAsync(ONBOARDING_KEY).catch(() => null);
+    setScreen(seen ? "main" : "onboarding");
+  }
+
+  function finishOnboarding() {
+    SecureStore.setItemAsync(ONBOARDING_KEY, "true").catch(() => {});
+    setScreen("main");
   }
 
   useEffect(() => {
@@ -136,7 +151,7 @@ export default function App() {
       if (DEV_SKIP_LOGIN) {
         try {
           await signIn(DEV_EMAIL, DEV_PASSWORD);
-          setScreen("main");
+          goToMainOrOnboarding();
           refreshSettings();
           return;
         } catch (e) {
@@ -145,8 +160,12 @@ export default function App() {
       }
 
       const hasSession = await restoreSession();
-      setScreen(hasSession ? "main" : "login");
-      if (hasSession) refreshSettings();
+      if (hasSession) {
+        goToMainOrOnboarding();
+        refreshSettings();
+      } else {
+        setScreen("login");
+      }
     }
     checkSession();
   }, []);
@@ -175,11 +194,13 @@ export default function App() {
       {screen === "login" && (
         <LoginScreen
           onLogin={() => {
-            setScreen("main");
+            goToMainOrOnboarding();
             refreshSettings();
           }}
         />
       )}
+
+      {screen === "onboarding" && <OnboardingScreen onDone={finishOnboarding} />}
 
       {screen === "main" && (
         <View style={{ flex: 1, backgroundColor: colors.bg }}>

@@ -16,6 +16,7 @@ import { colors, radius } from "../theme";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
 import { scheduleUnfinishedTourReminder, cancelReminder } from "../services/notifications";
+import { cacheAudio } from "../services/audioCache";
 
 interface ActiveTourProps {
   mood: string;
@@ -137,6 +138,20 @@ export default function ActiveTourScreen({
 
       sequenceRef.current += 1;
       setBlocksVisited(sequenceRef.current);
+      const thisSequence = sequenceRef.current;
+
+      // Cache this block's audio to disk once it's done loading, so a
+      // signal drop right after doesn't interrupt what's already playing.
+      // Not pre-caching future blocks — they don't exist yet (live
+      // generation). Guarded against a race where the user has already
+      // moved to a new block by the time this resolves.
+      if (result.audio_url) {
+        cacheAudio(result.audio_url, `${tourIdRef.current || "notour"}-${thisSequence}`).then((localUri) => {
+          if (localUri && sequenceRef.current === thisSequence) {
+            setAudioUrl(localUri);
+          }
+        });
+      }
 
       // Save block to tour
       const currentTourId = tourIdRef.current;

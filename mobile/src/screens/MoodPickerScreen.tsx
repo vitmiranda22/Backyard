@@ -3,10 +3,12 @@
 // 2 free modes + 3 premium modes. Tapping a premium mode without an
 // active subscription opens the paywall instead of starting a tour.
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { colors, font, radius } from "../theme";
 import { tap } from "../services/haptics";
+import { getCurrentLocation } from "../services/location";
+import { getRichness, RichnessInfo } from "../services/api";
 
 const MODES = [
   {
@@ -54,6 +56,18 @@ interface MoodPickerProps {
 }
 
 export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequirePremium }: MoodPickerProps) {
+  const [richness, setRichness] = useState<RichnessInfo | null>(null);
+
+  useEffect(() => {
+    getCurrentLocation()
+      .then((loc) => getRichness(loc.lat, loc.lng))
+      .then(setRichness)
+      .catch(() => {
+        // Silent — the richness caption is a nice-to-have, not worth a
+        // toast or blocking mood selection if location isn't available yet.
+      });
+  }, []);
+
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} accessibilityRole="button" accessibilityLabel="Cancel">
@@ -62,6 +76,9 @@ export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequ
 
       <Text style={styles.title}>Choose your experience</Text>
       <Text style={styles.subtitle}>Same streets. Completely different stories.</Text>
+      {richness && richness.tier !== "full" && (
+        <Text style={styles.richnessCaption}>{richness.message}</Text>
+      )}
 
       {MODES.map((mode) => (
         <TouchableOpacity
@@ -127,6 +144,14 @@ const styles = StyleSheet.create({
     color: colors.muted,
     textAlign: "center",
     marginBottom: 24,
+  },
+  richnessCaption: {
+    fontSize: 12,
+    color: colors.muted,
+    textAlign: "center",
+    marginTop: -14,
+    marginBottom: 20,
+    paddingHorizontal: 20,
   },
   modeCard: {
     flexDirection: "row",

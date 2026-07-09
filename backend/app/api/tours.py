@@ -31,10 +31,15 @@ from app.models.schemas import (
     NearbyRouteSummary,
     RateTourRequest,
     RateTourResponse,
+    RichnessResponse,
+    CreateCommentRequest,
+    CommentResponse,
+    LikeResponse,
     ErrorResponse,
 )
 from app.config import PREMIUM_MOODS, PREMIUM_VOICES
-from app.services import supabase_db, r2
+from app.services import supabase_db, r2, richness
+from app.services.geocode import reverse_geocode
 
 logger = logging.getLogger(__name__)
 
@@ -486,6 +491,7 @@ async def get_tour_detail(tour_id: str, user_id: AuthenticatedUser):
 
     is_anonymous = tour.get("is_anonymous", False)
     creator = tour.get("users") or {}
+    like_count, liked_by_me = await supabase_db.get_like_status(tour_id, user_id)
 
     return TourDetailResponse(
         tour_id=tour["id"],
@@ -504,6 +510,8 @@ async def get_tour_detail(tour_id: str, user_id: AuthenticatedUser):
         creator_avatar_url=None if is_anonymous else creator.get("avatar_url"),
         created_at=tour["created_at"],
         blocks=block_details,
+        like_count=like_count,
+        liked_by_me=liked_by_me,
     )
 
 
@@ -539,6 +547,97 @@ async def rate_tour(request: RateTourRequest, user_id: AuthenticatedUser):
         )
 
     return RateTourResponse(**result)
+
+
+@router.get(
+    "/richness",
+    response_model=RichnessResponse,
+    summary="How much local data detail is available near this location",
+)
+async def get_richness(
+    user_id: AuthenticatedUser,
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+):
+    geo_result = await reverse_geocode(lat, lng)
+    city = geo_result.city if geo_result else ""
+    tier = richness.get_richness_tier(city)
+    return RichnessResponse(
+        tier=tier,
+        city=city,
+        message=richness.get_richness_message(tier),
+    )
+
+
+@router.get(
+    "/tours/{tour_id}/comments",
+    response_model=List[CommentResponse],
+    summary="List comments on a route",
+)
+async def list_comments(tour_id: str, user_id: AuthenticatedUser):
+    comments = await supabase_db.get_comments(tour_id)
+    return [
+        CommentResponse(
+            comment_id=c["id"],
+            tour_id=c["tour_id"],
+            body=c["body"],
+            is_anonymous=c.get("is_anonymous", False),
+            display_name=(
+                "Anonymous" if c.get("is_anonymous") else (c.get("users") or {}).get("display_name")
+            ),
+            created_at=c["created_at"],
+        )
+        for c in comments
+    ]
+
+
+@router.post(
+    "/tours/{tour_id}/comments",
+    response_model=CommentResponse,
+    responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+    summary="Post a comment on a route",
+)
+async def post_comment(tour_id: str, request: CreateCommentRequest, user_id: AuthenticatedUser):
+    tour = await supabase_db.get_tour(tour_id)
+    if not tour:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Tour not found.", "code": "tour_not_found", "retry": False},
+        )
+
+    comment = await supabase_db.create_comment(tour_id, user_id, request.body, request.is_anonymous)
+    if not comment:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Failed to post comment.", "code": "comment_failed", "retry": True},
+        )
+
+    return CommentResponse(
+        comment_id=comment["id"],
+        tour_id=tour_id,
+        body=comment["body"],
+        is_anonymous=comment.get("is_anonymous", False),
+        display_name=None,
+        created_at=comment["created_at"],
+    )
+
+
+@router.post(
+    "/tours/{tour_id}/like",
+    response_model=LikeResponse,
+    responses={404: {"model": ErrorResponse}},
+    summary="Toggle a like on a route",
+)
+async def toggle_like(tour_id: str, user_id: AuthenticatedUser):
+    tour = await supabase_db.get_tour(tour_id)
+    if not tour:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Tour not found.", "code": "tour_not_found", "retry": False},
+        )
+
+    liked, like_count = await supabase_db.toggle_like(tour_id, user_id)
+    return LikeResponse(tour_id=tour_id, liked=liked, like_count=like_count)
 
 
 def _generate_tour_title(mood: str, blocks: list) -> str:

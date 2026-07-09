@@ -34,8 +34,7 @@
     },
     "plugins": [
       "expo-secure-store",
-      "@sentry/react-native/expo",
-      "@sentry/react-native"
+      "@sentry/react-native/expo"
     ],
     "extra": {
       "eas": {

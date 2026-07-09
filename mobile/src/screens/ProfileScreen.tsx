@@ -5,6 +5,7 @@ import { View, Text, Switch, TouchableOpacity, StyleSheet, ActivityIndicator } f
 import { getCurrentUserEmail, signOut } from "../services/auth";
 import { getSettings, updateSettings } from "../services/api";
 import { colors, font, radius } from "../theme";
+import { showToast } from "../services/toast";
 
 interface ProfileScreenProps {
   onSignedOut: () => void;
@@ -42,6 +43,7 @@ export default function ProfileScreen({
       await updateSettings({ content_safety: value });
     } catch (e: any) {
       console.warn("Failed to update settings:", e.message);
+      showToast("Couldn't save that setting.");
     }
   }
 
@@ -80,12 +82,22 @@ export default function ProfileScreen({
           </View>
         </View>
       ) : (
-        <TouchableOpacity style={styles.upgradeBtn} onPress={onOpenPaywall}>
+        <TouchableOpacity
+          style={styles.upgradeBtn}
+          onPress={onOpenPaywall}
+          accessibilityRole="button"
+          accessibilityLabel="Upgrade to Premium"
+        >
           <Text style={styles.upgradeBtnText}>Upgrade to Premium</Text>
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity style={styles.card} onPress={onOpenVoicePicker}>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={onOpenVoicePicker}
+        accessibilityRole="button"
+        accessibilityLabel="Narration voice settings"
+      >
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
             <Text style={styles.rowTitle}>Narration voice</Text>
@@ -105,11 +117,17 @@ export default function ProfileScreen({
             value={contentSafety}
             onValueChange={toggleContentSafety}
             trackColor={{ false: colors.border, true: colors.accent }}
+            accessibilityLabel="Mature content toggle"
           />
         </View>
       </View>
 
-      <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
+      <TouchableOpacity
+        style={styles.signOutBtn}
+        onPress={handleSignOut}
+        accessibilityRole="button"
+        accessibilityLabel="Sign out"
+      >
         <Text style={styles.signOutText}>Sign Out</Text>
       </TouchableOpacity>
     </View>

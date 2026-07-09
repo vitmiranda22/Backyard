@@ -6,6 +6,8 @@ import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { getSettings, updateSettings } from "../services/api";
 import { colors, font, radius } from "../theme";
+import { showToast } from "../services/toast";
+import { tap } from "../services/haptics";
 
 const VOICES = [
   { id: "neutral", emoji: "🎙️", label: "Neutral", desc: "Clear and balanced narration", premium: false },
@@ -27,11 +29,15 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
   useEffect(() => {
     getSettings()
       .then((s) => setCurrent(s.preferred_voice))
-      .catch((e) => console.warn("Failed to load voice setting:", e.message))
+      .catch((e) => {
+        console.warn("Failed to load voice setting:", e.message);
+        showToast("Couldn't load your voice setting.");
+      })
       .finally(() => setLoading(false));
   }, []);
 
   async function handleSelect(voiceId: string, premium: boolean) {
+    tap();
     if (premium && !isPremium) {
       onOpenPaywall();
       return;
@@ -42,6 +48,7 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
       await updateSettings({ preferred_voice: voiceId });
     } catch (e: any) {
       console.warn("Failed to update voice:", e.message);
+      showToast("Couldn't save your voice choice.");
     } finally {
       setSaving(false);
     }
@@ -57,7 +64,7 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.backBtn} onPress={onBack}>
+      <TouchableOpacity style={styles.backBtn} onPress={onBack} accessibilityRole="button" accessibilityLabel="Back">
         <Text style={styles.backText}>‹ Back</Text>
       </TouchableOpacity>
 
@@ -73,6 +80,8 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
             style={[styles.card, selected && styles.cardSelected]}
             onPress={() => handleSelect(voice.id, voice.premium)}
             disabled={saving}
+            accessibilityRole="button"
+            accessibilityLabel={`${voice.label} voice${locked ? ", premium" : ""}${selected ? ", selected" : ""}`}
           >
             <Text style={styles.emoji}>{voice.emoji}</Text>
             <View style={styles.info}>

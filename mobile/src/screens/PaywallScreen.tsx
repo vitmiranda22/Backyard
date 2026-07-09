@@ -26,7 +26,13 @@ export default function PaywallScreen({ onClose }: PaywallScreenProps) {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+      <TouchableOpacity
+        style={styles.closeBtn}
+        onPress={onClose}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+      >
         <Text style={styles.closeText}>✕</Text>
       </TouchableOpacity>
 
@@ -43,16 +49,26 @@ export default function PaywallScreen({ onClose }: PaywallScreenProps) {
         ))}
       </View>
 
-      <TouchableOpacity style={styles.planBtn} onPress={() => handleUpgrade("monthly")}>
+      <TouchableOpacity
+        style={styles.planBtn}
+        onPress={() => handleUpgrade("monthly")}
+        accessibilityRole="button"
+        accessibilityLabel="Upgrade monthly, $4.99 per month"
+      >
         <Text style={styles.planBtnText}>$4.99 / month</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.planBtnOutline} onPress={() => handleUpgrade("annual")}>
+      <TouchableOpacity
+        style={styles.planBtnOutline}
+        onPress={() => handleUpgrade("annual")}
+        accessibilityRole="button"
+        accessibilityLabel="Upgrade yearly, $39.99 per year, save 33%"
+      >
         <Text style={styles.planBtnOutlineText}>$39.99 / year</Text>
         <Text style={styles.planBtnSub}>Save 33%</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={onClose}>
+      <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Not now">
         <Text style={styles.notNow}>Not now</Text>
       </TouchableOpacity>
     </View>

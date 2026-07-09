@@ -1,7 +1,7 @@
 // Route Detail screen — shown after tapping a Discover card, before replay.
 
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Share } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import { getTourDetail, TourDetail } from "../services/api";
 import StarRating from "../components/StarRating";
@@ -72,11 +72,24 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
   const durationMin = tour.duration_sec ? Math.round(tour.duration_sec / 60) : null;
   const hasAudio = tour.blocks.some((b) => b.audio_url);
 
+  async function handleShare() {
+    try {
+      await Share.share({
+        message: `Check out "${tour!.title}" on Backyard: backyard://route/${tourId}`,
+      });
+    } catch (e) {
+      console.warn("Share failed:", e);
+    }
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack}>
+        <TouchableOpacity onPress={onBack} accessibilityRole="button" accessibilityLabel="Back">
           <Text style={styles.backLink}>‹ Back</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handleShare} accessibilityRole="button" accessibilityLabel="Share this route">
+          <Text style={styles.shareLink}>Share</Text>
         </TouchableOpacity>
       </View>
 
@@ -177,6 +190,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 50,
     paddingBottom: 12,
@@ -198,6 +214,11 @@ const styles = StyleSheet.create({
   backLink: {
     alignSelf: "flex-start",
     color: colors.accent,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  shareLink: {
+    color: colors.pro,
     fontSize: 15,
     fontWeight: "600",
   },

@@ -3,6 +3,7 @@
     "name": "Backyard",
     "slug": "mobile",
     "version": "1.0.0",
+    "scheme": "backyard",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -31,7 +32,9 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      "@sentry/react-native/expo",
+      "@sentry/react-native"
     ],
     "extra": {
       "eas": {

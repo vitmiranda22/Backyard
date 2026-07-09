@@ -82,6 +82,12 @@ class Settings(BaseSettings):
     # Set to "development" for verbose logging, "production" to quiet down
     ENVIRONMENT: str = "development"
 
+    # -------------------------------------------------------------------------
+    # Crash reporting — scaffolded, inactive until a Sentry account exists.
+    # A blank DSN is a no-op (see main.py's lifespan startup).
+    # -------------------------------------------------------------------------
+    SENTRY_DSN: str = ""
+
     class Config:
         env_file = ".env"
         # If a .env file doesn't exist, that's fine — vars might come from

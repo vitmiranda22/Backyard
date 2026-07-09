@@ -16,14 +16,23 @@ The auto-generated docs are at:
 """
 
 import logging
+import os
 from contextlib import asynccontextmanager
 
+import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 
 from app.api import health, narrate, tours, settings as settings_api
 from app.config import settings
+
+# Crash reporting — sentry_sdk.init() with a blank DSN is a harmless no-op,
+# so this is safe to call unconditionally (see app/config.py's SENTRY_DSN).
+if settings.SENTRY_DSN:
+    sentry_sdk.init(dsn=settings.SENTRY_DSN, traces_sample_rate=1.0)
+
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
 
 # =============================================================================
@@ -138,6 +147,20 @@ app.include_router(tours.router, prefix="/api", tags=["Tours"])
 
 # User settings — requires auth
 app.include_router(settings_api.router, prefix="/api", tags=["Settings"])
+
+
+# =============================================================================
+# Privacy policy / terms of service — static pages, no auth required
+# =============================================================================
+
+@app.get("/privacy", include_in_schema=False)
+async def privacy_policy():
+    return FileResponse(os.path.join(STATIC_DIR, "privacy.html"))
+
+
+@app.get("/terms", include_in_schema=False)
+async def terms_of_service():
+    return FileResponse(os.path.join(STATIC_DIR, "terms.html"))
 
 
 # =============================================================================

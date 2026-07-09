@@ -12,6 +12,8 @@ import {
 } from "../services/location";
 import { getTours, getNearbyRoutes, TourSummary, NearbyRoute } from "../services/api";
 import { colors, font, radius } from "../theme";
+import { showToast } from "../services/toast";
+import { tap } from "../services/haptics";
 
 const MOODS = [
   { id: "time_machine", emoji: "🕰️", label: "Time Machine" },
@@ -40,7 +42,9 @@ export default function HomeScreen({
   const [hasPermission, setHasPermission] = useState(false);
   const [placeLabel, setPlaceLabel] = useState<string | null>(null);
   const [recentTour, setRecentTour] = useState<TourSummary | null>(null);
+  const [toursLoaded, setToursLoaded] = useState(false);
   const [nearbyRoutes, setNearbyRoutes] = useState<NearbyRoute[]>([]);
+  const [routesLoaded, setRoutesLoaded] = useState(false);
 
   useEffect(() => {
     async function init() {
@@ -59,7 +63,11 @@ export default function HomeScreen({
           // Most-voted nearby routes, shown as pins right on the home map.
           getNearbyRoutes(loc.lat, loc.lng, { sortBy: "rating", limit: 10 })
             .then(setNearbyRoutes)
-            .catch((e) => console.warn("Failed to load nearby routes:", e.message));
+            .catch((e) => {
+              console.warn("Failed to load nearby routes:", e.message);
+              showToast("Couldn't load nearby routes.");
+            })
+            .finally(() => setRoutesLoaded(true));
         } catch (e) {
           console.error("Failed to get location:", e);
         }
@@ -74,7 +82,11 @@ export default function HomeScreen({
 
     getTours()
       .then((tours) => setRecentTour(tours[0] ?? null))
-      .catch((e) => console.warn("Failed to load recent tour:", e.message));
+      .catch((e) => {
+        console.warn("Failed to load recent tour:", e.message);
+        showToast("Couldn't load your recent tour.");
+      })
+      .finally(() => setToursLoaded(true));
   }, []);
 
   function formatStats(tour: TourSummary) {
@@ -128,11 +140,20 @@ export default function HomeScreen({
 
         <TouchableOpacity
           style={[styles.startBtn, !location && styles.startBtnDisabled]}
-          onPress={onStartTour}
+          onPress={() => {
+            tap();
+            onStartTour();
+          }}
           disabled={!location}
+          accessibilityRole="button"
+          accessibilityLabel="Start walking tour"
         >
           <Text style={styles.startBtnText}>Start Walking Tour</Text>
         </TouchableOpacity>
+
+        {routesLoaded && nearbyRoutes.length === 0 && (
+          <Text style={styles.noRoutesText}>No routes nearby yet — be the first to share one!</Text>
+        )}
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.moodRow}>
           {MOODS.map((mood) => (
@@ -140,7 +161,12 @@ export default function HomeScreen({
               key={mood.id}
               style={styles.moodChip}
               disabled={!location}
-              onPress={() => (mood.pro && !isPremium ? onRequirePremium() : onQuickStart(mood.id))}
+              onPress={() => {
+                tap();
+                mood.pro && !isPremium ? onRequirePremium() : onQuickStart(mood.id);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`${mood.label}, ${mood.pro ? "premium" : "free"}`}
             >
               <Text style={styles.moodEmoji}>{mood.emoji}</Text>
               <Text style={styles.moodLabel}>{mood.label}</Text>
@@ -153,7 +179,7 @@ export default function HomeScreen({
           ))}
         </ScrollView>
 
-        {recentTour && (
+        {recentTour ? (
           <View style={styles.recentCard}>
             <View style={styles.recentIcon}>
               <Text>{MOODS.find((m) => m.id === recentTour.mood)?.emoji ?? "🗺️"}</Text>
@@ -165,6 +191,12 @@ export default function HomeScreen({
               <Text style={styles.recentMeta}>{formatStats(recentTour)}</Text>
             </View>
           </View>
+        ) : (
+          toursLoaded && (
+            <View style={styles.emptyRecentCard}>
+              <Text style={styles.emptyRecentText}>Your walks will show up here.</Text>
+            </View>
+          )
         )}
       </ScrollView>
     </View>
@@ -297,5 +329,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.muted,
     marginTop: 2,
+  },
+  noRoutesText: {
+    fontSize: 12,
+    color: colors.muted,
+    marginBottom: 14,
+  },
+  emptyRecentCard: {
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 14,
+  },
+  emptyRecentText: {
+    fontSize: 13,
+    color: colors.muted,
+    textAlign: "center",
   },
 });

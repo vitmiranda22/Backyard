@@ -26,3 +26,7 @@ export const REPLAY_PROXIMITY_M = 35;
 export const DEV_SKIP_LOGIN = true;
 export const DEV_EMAIL = "devtest@backyard.app";
 export const DEV_PASSWORD = "BackyardDev123!";
+
+// Crash reporting — scaffolded, inactive until you create a Sentry project
+// and paste its DSN here. A blank value is a no-op (see src/services/sentry.ts).
+export const SENTRY_DSN = "";

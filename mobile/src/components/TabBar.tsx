@@ -6,6 +6,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { colors } from "../theme";
+import { tap } from "../services/haptics";
 
 export type MainTab = "home" | "tours" | "profile";
 
@@ -30,9 +31,13 @@ export default function TabBar({
           <TouchableOpacity
             key={tab.id}
             style={styles.tab}
-            onPress={() => onChange(tab.id)}
+            onPress={() => {
+              tap();
+              onChange(tab.id);
+            }}
             accessibilityRole="tab"
             accessibilityState={{ selected: isActive }}
+            accessibilityLabel={`${tab.label} tab`}
           >
             <Text style={[styles.icon, isActive && styles.iconActive]}>{tab.icon}</Text>
             <Text style={[styles.label, isActive && styles.labelActive]}>{tab.label}</Text>

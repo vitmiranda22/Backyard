@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backyard — Privacy Policy</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 680px; margin: 0 auto; padding: 40px 20px 80px; color: #1B1E27; line-height: 1.6; }
+  h1 { font-size: 26px; margin-bottom: 4px; }
+  .updated { color: #6B7280; font-size: 13px; margin-bottom: 32px; }
+  h2 { font-size: 18px; margin-top: 32px; }
+  p, li { font-size: 14.5px; }
+  a { color: #FF6B4A; }
+</style>
+</head>
+<body>
+<h1>Backyard Privacy Policy</h1>
+<p class="updated">Last updated: July 2026</p>
+
+<p>Backyard ("we," "us") is an AI-narrated walking tour app. This page explains what information we collect, why, and how it's handled.</p>
+
+<h2>Location</h2>
+<p>Backyard uses your device's location only while you have an active tour open, to figure out which street or landmark to narrate next. We do not track your location in the background, and we do not store a persistent "home" or "last known" location tied to your account. GPS coordinates for the stops you visit during a tour are saved as part of that tour's record (so you can view your route afterward, and so others can walk a route you choose to publish).</p>
+
+<h2>Account information</h2>
+<p>Creating an account requires an email address and password, handled by our authentication provider (Supabase). We also store a display name, your narration preferences (mood, voice, content settings), and whether your account has an active premium subscription.</p>
+
+<h2>Tours and narration</h2>
+<p>When you take a tour, we send your location and mood preference to OpenAI to generate narration text, and to Google Cloud Text-to-Speech to turn it into audio. We also use the Google Street View Static API to fetch a photo of the location. None of these providers receive your account identity — only the coordinates and preferences needed to generate that specific piece of content. Generated narration, audio, and photos may be cached and reused for other users requesting the same location and mood, since the content itself isn't personal to you.</p>
+
+<h2>Published routes</h2>
+<p>If you choose to publish a tour as a public route, its title, stops, narration, and audio become visible to other users, along with your display name (or "Anonymous Explorer" if you've enabled anonymous publishing). You can control this per-tour when you save it.</p>
+
+<h2>Storage</h2>
+<p>Account and tour data is stored with Supabase (PostgreSQL). Audio and photo files are stored with Cloudflare R2. Both are standard infrastructure providers, not data buyers.</p>
+
+<h2>What we don't do</h2>
+<ul>
+  <li>We don't sell your data to third parties.</li>
+  <li>We don't track your location outside an active tour.</li>
+  <li>We don't show ads or share data with ad networks.</li>
+</ul>
+
+<h2>Your choices</h2>
+<p>You can update your display name, voice, and content preferences at any time from the app's Profile screen. To request deletion of your account and associated data, contact us at the address below.</p>
+
+<h2>Contact</h2>
+<p>Questions about this policy or your data: <a href="mailto:privacy@backyard.app">privacy@backyard.app</a></p>
+
+<p><a href="/terms">Terms of Service</a></p>
+</body>
+</html>

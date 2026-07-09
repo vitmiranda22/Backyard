@@ -6,12 +6,13 @@
 //   Profile → Voice Picker / Paywall
 
 import React, { useState, useEffect } from "react";
-import { StatusBar, View, ActivityIndicator } from "react-native";
+import { StatusBar, View, ActivityIndicator, Linking } from "react-native";
 import * as Updates from "expo-updates";
 import { restoreSession, signIn } from "./src/services/auth";
 import { DEV_SKIP_LOGIN, DEV_EMAIL, DEV_PASSWORD } from "./src/config";
 import { colors } from "./src/theme";
 import { TourDetail, getSettings } from "./src/services/api";
+import { initSentry } from "./src/services/sentry";
 
 import LoginScreen from "./src/screens/LoginScreen";
 import HomeScreen from "./src/screens/HomeScreen";
@@ -26,6 +27,16 @@ import RouteRatingScreen from "./src/screens/RouteRatingScreen";
 import PaywallScreen from "./src/screens/PaywallScreen";
 import VoicePickerScreen from "./src/screens/VoicePickerScreen";
 import TabBar, { MainTab } from "./src/components/TabBar";
+import ToastHost from "./src/components/Toast";
+
+initSentry();
+
+// Parses backyard://route/<tourId> deep links (from Share) into a tourId,
+// or null if the URL doesn't match that shape.
+function parseRouteDeepLink(url: string): string | null {
+  const match = url.match(/^backyard:\/\/route\/([^/?#]+)/);
+  return match ? match[1] : null;
+}
 
 type Screen =
   | "loading"
@@ -51,6 +62,7 @@ export default function App() {
   // Routes/replay state
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [replayTour, setReplayTour] = useState<TourDetail | null>(null);
+  const [pendingRouteId, setPendingRouteId] = useState<string | null>(null);
 
   // Premium entitlement + voice preference — fetched once after login,
   // refreshed whenever the user returns from the Paywall or Voice Picker.
@@ -94,6 +106,29 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // A shared link (backyard://route/<id>) opening the app cold or warm —
+    // stashed until the session check below lands somewhere past login.
+    Linking.getInitialURL().then((url) => {
+      if (!url) return;
+      const id = parseRouteDeepLink(url);
+      if (id) setPendingRouteId(id);
+    });
+    const sub = Linking.addEventListener("url", ({ url }) => {
+      const id = parseRouteDeepLink(url);
+      if (id) setPendingRouteId(id);
+    });
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    if (pendingRouteId && screen !== "loading" && screen !== "login") {
+      setSelectedRouteId(pendingRouteId);
+      setScreen("routeDetail");
+      setPendingRouteId(null);
+    }
+  }, [pendingRouteId, screen]);
+
+  useEffect(() => {
     async function checkSession() {
       // DEV ONLY: auto sign-in with a test account so we don't have to
       // log in every time while testing. Set DEV_SKIP_LOGIN to false in
@@ -129,6 +164,7 @@ export default function App() {
   return (
     <>
       <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
+      <ToastHost />
 
       {screen === "loading" && (
         <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: "center", alignItems: "center" }}>

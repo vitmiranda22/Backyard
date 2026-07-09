@@ -6,6 +6,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { colors, font, radius } from "../theme";
+import { tap } from "../services/haptics";
 
 const MODES = [
   {
@@ -55,7 +56,7 @@ interface MoodPickerProps {
 export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequirePremium }: MoodPickerProps) {
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
+      <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} accessibilityRole="button" accessibilityLabel="Cancel">
         <Text style={styles.cancelText}>Cancel</Text>
       </TouchableOpacity>
 
@@ -66,7 +67,12 @@ export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequ
         <TouchableOpacity
           key={mode.id}
           style={styles.modeCard}
-          onPress={() => (mode.premium && !isPremium ? onRequirePremium() : onSelect(mode.id))}
+          onPress={() => {
+            tap();
+            mode.premium && !isPremium ? onRequirePremium() : onSelect(mode.id);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={`${mode.label}, ${mode.premium ? "premium" : "free"}`}
         >
           <Text style={styles.emoji}>{mode.emoji}</Text>
           <View style={styles.modeInfo}>

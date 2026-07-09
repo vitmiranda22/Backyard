@@ -9,6 +9,8 @@ import { rateTour, TourDetail } from "../services/api";
 import StarRating from "../components/StarRating";
 import TourStatsGrid from "../components/TourStatsGrid";
 import { colors, font, radius } from "../theme";
+import { showToast } from "../services/toast";
+import { success } from "../services/haptics";
 
 interface RouteRatingScreenProps {
   tour: TourDetail;
@@ -27,8 +29,10 @@ export default function RouteRatingScreen({ tour, onDone }: RouteRatingScreenPro
     setSubmitting(true);
     try {
       await rateTour(tour.tour_id, score);
+      success();
     } catch (e: any) {
       console.warn("Failed to submit rating:", e.message);
+      showToast("Couldn't submit your rating.");
     }
     setSubmitting(false);
     onDone();
@@ -57,11 +61,13 @@ export default function RouteRatingScreen({ tour, onDone }: RouteRatingScreenPro
         style={[styles.submitBtn, score === 0 && styles.submitBtnDisabled]}
         onPress={handleSubmit}
         disabled={score === 0 || submitting}
+        accessibilityRole="button"
+        accessibilityLabel="Submit rating"
       >
         <Text style={styles.submitBtnText}>{submitting ? "Submitting..." : "Submit Rating"}</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={onDone} disabled={submitting}>
+      <TouchableOpacity onPress={onDone} disabled={submitting} accessibilityRole="button" accessibilityLabel="Skip rating">
         <Text style={styles.skipLink}>Skip</Text>
       </TouchableOpacity>
     </View>

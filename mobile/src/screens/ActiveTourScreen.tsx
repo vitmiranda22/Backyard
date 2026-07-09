@@ -13,6 +13,9 @@ import { watchPosition, getCurrentLocation } from "../services/location";
 import { narrateBlock, saveBlock, startTour } from "../services/api";
 import NarrationCard from "../components/NarrationCard";
 import { colors, radius } from "../theme";
+import { showToast } from "../services/toast";
+import { tap } from "../services/haptics";
+import { scheduleUnfinishedTourReminder, cancelReminder } from "../services/notifications";
 
 interface ActiveTourProps {
   mood: string;
@@ -63,6 +66,7 @@ export default function ActiveTourScreen({
         setTourId(tour.tour_id);
         tourIdRef.current = tour.tour_id;
         startTimeRef.current = Date.now();
+        scheduleUnfinishedTourReminder(tour.tour_id);
 
         // Get initial location and trigger first narration
         const loc = await getCurrentLocation();
@@ -155,6 +159,7 @@ export default function ActiveTourScreen({
           });
         } catch (e) {
           console.warn("Failed to save block (tour continues):", e);
+          showToast("Couldn't save that block — your walk continues.");
         }
       }
     } catch (e: any) {
@@ -173,9 +178,11 @@ export default function ActiveTourScreen({
   }
 
   function handleEndTour() {
+    tap();
     if (subscriptionRef.current) {
       subscriptionRef.current.remove();
     }
+    if (tourId) cancelReminder(tourId);
     resetZones();
     onEndTour(tourId || "", blocksVisited, startTimeRef.current);
   }
@@ -232,13 +239,20 @@ export default function ActiveTourScreen({
           style={styles.manualBtn}
           onPress={handleManualTrigger}
           disabled={isLoading}
+          accessibilityRole="button"
+          accessibilityLabel="Tell me about here"
         >
           <Text style={styles.manualBtnText}>
             {isLoading ? "Generating..." : "Tell me about here"}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.endBtn} onPress={handleEndTour}>
+        <TouchableOpacity
+          style={styles.endBtn}
+          onPress={handleEndTour}
+          accessibilityRole="button"
+          accessibilityLabel="End tour"
+        >
           <Text style={styles.endBtnText}>End Tour</Text>
         </TouchableOpacity>
       </View>

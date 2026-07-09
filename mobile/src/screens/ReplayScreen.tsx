@@ -11,6 +11,7 @@ import { haversineDistanceMeters } from "../utils/geo";
 import { REPLAY_PROXIMITY_M } from "../config";
 import NarrationCard from "../components/NarrationCard";
 import { colors, radius } from "../theme";
+import { showToast } from "../services/toast";
 
 interface ReplayScreenProps {
   tour: TourDetail;
@@ -108,6 +109,7 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
       setActiveBlock(refreshedTarget || null);
     } catch (e) {
       console.warn("Failed to refresh route audio:", e);
+      showToast("Couldn't refresh the audio — try again in a moment.");
     }
     setIsRefreshingAudio(false);
   }
@@ -145,7 +147,7 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
       </View>
 
       <View style={styles.statsBar}>
-        <TouchableOpacity onPress={onExit}>
+        <TouchableOpacity onPress={onExit} accessibilityRole="button" accessibilityLabel="Exit replay">
           <Text style={styles.exitLink}>‹ Exit</Text>
         </TouchableOpacity>
         <Text style={styles.statsText}>

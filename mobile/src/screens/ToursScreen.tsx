@@ -15,6 +15,8 @@ import { getTours, TourSummary, getNearbyRoutes, NearbyRoute } from "../services
 import { requestLocationPermission, getCurrentLocation } from "../services/location";
 import StarRating from "../components/StarRating";
 import { colors, font, radius } from "../theme";
+import { showToast } from "../services/toast";
+import { tap } from "../services/haptics";
 
 const MOOD_EMOJI: Record<string, string> = {
   time_machine: "🕰️",
@@ -58,6 +60,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
       setTours(result);
     } catch (e: any) {
       console.warn("Failed to load tours:", e.message);
+      showToast("Couldn't load your tours.");
       setTours([]);
     }
   }, []);
@@ -75,6 +78,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
       setRoutes(result);
     } catch (e: any) {
       console.warn("Failed to load nearby routes:", e.message);
+      showToast("Couldn't load nearby routes.");
       setRoutes([]);
     }
   }, []);
@@ -108,13 +112,23 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
       <View style={styles.segmentRow}>
         <TouchableOpacity
           style={[styles.segmentBtn, segment === "mine" && styles.segmentBtnActive]}
-          onPress={() => setSegment("mine")}
+          onPress={() => {
+            tap();
+            setSegment("mine");
+          }}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: segment === "mine" }}
         >
           <Text style={[styles.segmentText, segment === "mine" && styles.segmentTextActive]}>My Tours</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.segmentBtn, segment === "discover" && styles.segmentBtnActive]}
-          onPress={() => setSegment("discover")}
+          onPress={() => {
+            tap();
+            setSegment("discover");
+          }}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: segment === "discover" }}
         >
           <Text style={[styles.segmentText, segment === "discover" && styles.segmentTextActive]}>Discover</Text>
         </TouchableOpacity>

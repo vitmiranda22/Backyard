@@ -36,6 +36,8 @@ export default function ZonePhoto({ uri, thumbnailStyle }: ZonePhotoProps) {
               style={styles.closeBtn}
               onPress={() => setOpen(false)}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel="Close photo"
             >
               <Text style={styles.closeText}>✕</Text>
             </TouchableOpacity>

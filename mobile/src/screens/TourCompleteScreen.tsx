@@ -10,10 +10,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Share,
 } from "react-native";
 import { endTour, publishTour } from "../services/api";
 import TourStatsGrid from "../components/TourStatsGrid";
 import { colors, font, radius } from "../theme";
+import { showToast } from "../services/toast";
+import { tap, success } from "../services/haptics";
 
 interface TourCompleteProps {
   tourId: string;
@@ -33,6 +36,7 @@ export default function TourCompleteScreen({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [shareAsRoute, setShareAsRoute] = useState(true);
+  const [saved, setSaved] = useState(false);
 
   const durationSec = Math.round((Date.now() - startTime) / 1000);
   const durationMin = Math.round(durationSec / 60);
@@ -66,11 +70,28 @@ export default function TourCompleteScreen({
       if (tourId) {
         await publishTour(tourId, shareAsRoute, title.trim() || undefined);
       }
+      success();
+      if (shareAsRoute) {
+        setSaving(false);
+        setSaved(true);
+        return;
+      }
     } catch (e: any) {
       console.warn("Failed to publish tour:", e.message);
+      showToast("Couldn't save your tour details, but your walk is recorded.");
     }
     setSaving(false);
     onDone();
+  }
+
+  async function handleShare() {
+    try {
+      await Share.share({
+        message: `I just walked "${title}" on Backyard! Check it out: backyard://route/${tourId}`,
+      });
+    } catch (e) {
+      console.warn("Share failed:", e);
+    }
   }
 
   if (loading) {
@@ -78,6 +99,37 @@ export default function TourCompleteScreen({
       <View style={styles.container}>
         <ActivityIndicator size="large" color={colors.accent} />
         <Text style={styles.loadingText}>Saving your tour...</Text>
+      </View>
+    );
+  }
+
+  if (saved) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.emoji}>✅</Text>
+        <Text style={styles.title}>Saved &amp; published!</Text>
+        <Text style={styles.loadingText}>Share it so others can walk it too.</Text>
+
+        <TouchableOpacity
+          style={styles.doneBtn}
+          onPress={() => {
+            tap();
+            handleShare();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Share this route"
+        >
+          <Text style={styles.doneBtnText}>Share</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={onDone}
+          accessibilityRole="button"
+          accessibilityLabel="Continue"
+          style={{ marginTop: 16 }}
+        >
+          <Text style={styles.shareDesc}>Continue</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -93,6 +145,7 @@ export default function TourCompleteScreen({
         onChangeText={setTitle}
         placeholder="Name your tour"
         placeholderTextColor={colors.muted}
+        accessibilityLabel="Tour title"
       />
 
       <TourStatsGrid
@@ -111,10 +164,17 @@ export default function TourCompleteScreen({
           value={shareAsRoute}
           onValueChange={setShareAsRoute}
           trackColor={{ false: colors.border, true: colors.accent }}
+          accessibilityLabel="Publish as public route toggle"
         />
       </View>
 
-      <TouchableOpacity style={styles.doneBtn} onPress={handleSave} disabled={saving}>
+      <TouchableOpacity
+        style={styles.doneBtn}
+        onPress={handleSave}
+        disabled={saving}
+        accessibilityRole="button"
+        accessibilityLabel="Save tour"
+      >
         <Text style={styles.doneBtnText}>{saving ? "Saving..." : "Save"}</Text>
       </TouchableOpacity>
     </View>

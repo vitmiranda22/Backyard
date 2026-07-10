@@ -1,7 +1,7 @@
 // Profile screen — account info, content safety toggle, sign out.
 
 import React, { useEffect, useState } from "react";
-import { View, Text, Switch, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
+import { View, Text, Switch, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getCurrentUserEmail, signOut } from "../services/auth";
 import { getSettings, updateSettings, getUserStats, deleteAccount, UserStats } from "../services/api";
@@ -111,8 +111,9 @@ export default function ProfileScreen({
   }
 
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 54) + 20 }]}>
-      <Text style={styles.header}>Profile</Text>
+    <View style={[styles.container, { paddingTop: Math.max(insets.top, 54) }]}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <Text style={styles.header}>Profile</Text>
 
       <View style={styles.card}>
         <Text style={styles.label}>Signed in as</Text>
@@ -232,6 +233,7 @@ export default function ProfileScreen({
       >
         <Text style={styles.deleteText}>{deleting ? "Deleting..." : "Delete Account"}</Text>
       </TouchableOpacity>
+      </ScrollView>
     </View>
   );
 }
@@ -240,7 +242,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
+  },
+  scrollContent: {
     padding: 20,
+    paddingBottom: 40,
   },
   centered: {
     flex: 1,

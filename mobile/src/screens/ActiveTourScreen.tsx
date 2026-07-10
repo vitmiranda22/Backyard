@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, Pressable, StyleSheet, Alert, Animated, Easing, ActivityIndicator } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MapView, { Polyline } from "react-native-maps";
 import { useZoneTracker } from "../hooks/useZoneTracker";
 import {
@@ -46,6 +47,7 @@ export default function ActiveTourScreen({
   contentSafety,
   onEndTour,
 }: ActiveTourProps) {
+  const insets = useSafeAreaInsets();
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [heading, setHeading] = useState(0);
   const [tourId, setTourId] = useState<string | null>(null);
@@ -380,7 +382,7 @@ export default function ActiveTourScreen({
         )}
 
         <TouchableOpacity
-          style={styles.endLink}
+          style={[styles.endLink, { top: insets.top + 10 }]}
           onPress={handleEndTour}
           accessibilityRole="button"
           accessibilityLabel="End tour"
@@ -389,7 +391,7 @@ export default function ActiveTourScreen({
         </TouchableOpacity>
 
         {blockOrigin && targetBearing !== null && (
-          <View style={styles.compassOverlay}>
+          <View style={[styles.compassOverlay, { top: insets.top + 48 }]}>
             <WaypointCompass
               bearingDeg={relativeBearing}
               distanceLabel={`${Math.round(distanceToBlock)}m · ${compassLabel(targetBearing)}`}
@@ -496,7 +498,6 @@ const styles = StyleSheet.create({
   },
   endLink: {
     position: "absolute",
-    top: 50,
     right: 16,
     backgroundColor: "rgba(255,255,255,0.9)",
     paddingHorizontal: 12,
@@ -510,7 +511,6 @@ const styles = StyleSheet.create({
   },
   compassOverlay: {
     position: "absolute",
-    top: 88,
     right: 16,
   },
   statsBar: {

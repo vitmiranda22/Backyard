@@ -11,6 +11,7 @@ import {
   RefreshControl,
   Alert,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getTours, TourSummary, getNearbyRoutes, NearbyRoute } from "../services/api";
 import { requestLocationPermission, getCurrentLocation } from "../services/location";
 import StarRating from "../components/StarRating";
@@ -46,6 +47,7 @@ function formatDistance(distanceM: number) {
 type Segment = "mine" | "discover";
 
 export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId: string) => void }) {
+  const insets = useSafeAreaInsets();
   const [segment, setSegment] = useState<Segment>("mine");
 
   const [tours, setTours] = useState<TourSummary[] | null>(null);
@@ -107,7 +109,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Tours</Text>
+      <Text style={[styles.header, { paddingTop: insets.top + 12 }]}>Tours</Text>
 
       <View style={styles.segmentRow}>
         <TouchableOpacity
@@ -218,7 +220,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: colors.text,
     paddingHorizontal: 20,
-    paddingTop: 20,
     paddingBottom: 12,
   },
   segmentRow: {

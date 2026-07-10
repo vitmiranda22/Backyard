@@ -3,6 +3,7 @@
 
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getUserStats } from "../services/api";
 import { getAllBadges, BadgeStatus } from "../services/badges";
 import { colors, font, radius } from "../theme";
@@ -13,6 +14,7 @@ interface BadgeGalleryScreenProps {
 }
 
 export default function BadgeGalleryScreen({ onBack }: BadgeGalleryScreenProps) {
+  const insets = useSafeAreaInsets();
   const [badges, setBadges] = useState<BadgeStatus[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,8 +37,13 @@ export default function BadgeGalleryScreen({ onBack }: BadgeGalleryScreenProps) 
   }
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.backBtn} onPress={onBack} accessibilityRole="button" accessibilityLabel="Back">
+    <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
+      <TouchableOpacity
+        style={[styles.backBtn, { top: insets.top + 12 }]}
+        onPress={onBack}
+        accessibilityRole="button"
+        accessibilityLabel="Back"
+      >
         <Text style={styles.backText}>‹ Back</Text>
       </TouchableOpacity>
 
@@ -68,7 +75,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
     paddingHorizontal: 20,
-    paddingTop: 60,
   },
   centered: {
     flex: 1,
@@ -78,7 +84,6 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     position: "absolute",
-    top: 56,
     left: 20,
     zIndex: 1,
   },

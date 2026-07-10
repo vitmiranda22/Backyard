@@ -7,6 +7,7 @@
 
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, font, radius } from "../theme";
 
 const PERKS = [
@@ -20,6 +21,8 @@ interface PaywallScreenProps {
 }
 
 export default function PaywallScreen({ onClose }: PaywallScreenProps) {
+  const insets = useSafeAreaInsets();
+
   function handleUpgrade(plan: string) {
     Alert.alert("Coming soon", "Payments aren't wired up yet — check back soon!");
   }
@@ -27,7 +30,7 @@ export default function PaywallScreen({ onClose }: PaywallScreenProps) {
   return (
     <View style={styles.container}>
       <TouchableOpacity
-        style={styles.closeBtn}
+        style={[styles.closeBtn, { top: insets.top + 12 }]}
         onPress={onClose}
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         accessibilityRole="button"
@@ -85,7 +88,6 @@ const styles = StyleSheet.create({
   },
   closeBtn: {
     position: "absolute",
-    top: 56,
     right: 20,
   },
   closeText: {

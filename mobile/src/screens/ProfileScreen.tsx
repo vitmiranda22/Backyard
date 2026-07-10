@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { View, Text, Switch, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getCurrentUserEmail, signOut } from "../services/auth";
 import { getSettings, updateSettings, getUserStats, deleteAccount, UserStats } from "../services/api";
 import { getEarnedBadges, Badge } from "../services/badges";
@@ -23,6 +24,7 @@ export default function ProfileScreen({
   onOpenPaywall,
   onOpenBadges,
 }: ProfileScreenProps) {
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState<string | null>(null);
   const [contentSafety, setContentSafety] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -109,7 +111,7 @@ export default function ProfileScreen({
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
       <Text style={styles.header}>Profile</Text>
 
       <View style={styles.card}>

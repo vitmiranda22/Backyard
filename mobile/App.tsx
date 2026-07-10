@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect } from "react";
 import { StatusBar, View, ActivityIndicator, Linking } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as Updates from "expo-updates";
 import * as SecureStore from "expo-secure-store";
 import { restoreSession, signIn } from "./src/services/auth";
@@ -184,7 +185,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
       <ToastHost />
 
@@ -331,6 +332,6 @@ export default function App() {
           }}
         />
       )}
-    </>
+    </SafeAreaProvider>
   );
 }

@@ -5,6 +5,7 @@
 
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, font, radius } from "../theme";
 import { tap } from "../services/haptics";
 import { getCurrentLocation } from "../services/location";
@@ -56,6 +57,7 @@ interface MoodPickerProps {
 }
 
 export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequirePremium }: MoodPickerProps) {
+  const insets = useSafeAreaInsets();
   const [richness, setRichness] = useState<RichnessInfo | null>(null);
 
   useEffect(() => {
@@ -70,7 +72,12 @@ export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequ
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} accessibilityRole="button" accessibilityLabel="Cancel">
+      <TouchableOpacity
+        style={[styles.cancelBtn, { top: insets.top + 12 }]}
+        onPress={onCancel}
+        accessibilityRole="button"
+        accessibilityLabel="Cancel"
+      >
         <Text style={styles.cancelText}>Cancel</Text>
       </TouchableOpacity>
 
@@ -123,7 +130,6 @@ const styles = StyleSheet.create({
   },
   cancelBtn: {
     position: "absolute",
-    top: 56,
     left: 20,
     zIndex: 1,
   },

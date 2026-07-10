@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Share } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import { getTourDetail, TourDetail, toggleLike } from "../services/api";
 import StarRating from "../components/StarRating";
@@ -43,6 +44,7 @@ function regionForBlocks(blocks: { lat: number; lng: number }[]) {
 }
 
 export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: RouteDetailScreenProps) {
+  const insets = useSafeAreaInsets();
   const [tour, setTour] = useState<TourDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [liked, setLiked] = useState(false);
@@ -114,7 +116,7 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <TouchableOpacity onPress={onBack} accessibilityRole="button" accessibilityLabel="Back">
           <Text style={styles.backLink}>‹ Back</Text>
         </TouchableOpacity>
@@ -232,7 +234,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 50,
     paddingBottom: 12,
     backgroundColor: colors.bg,
     borderBottomWidth: 1,

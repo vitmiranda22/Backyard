@@ -4,6 +4,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ImageSourcePropType } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Audio } from "expo-av";
 import { getSettings, updateSettings, getVoiceSample } from "../services/api";
 import { colors, font, radius } from "../theme";
@@ -33,6 +34,7 @@ interface VoicePickerScreenProps {
 }
 
 export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: VoicePickerScreenProps) {
+  const insets = useSafeAreaInsets();
   const [current, setCurrent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -103,8 +105,13 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
   }
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.backBtn} onPress={onBack} accessibilityRole="button" accessibilityLabel="Back">
+    <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
+      <TouchableOpacity
+        style={[styles.backBtn, { top: insets.top + 12 }]}
+        onPress={onBack}
+        accessibilityRole="button"
+        accessibilityLabel="Back"
+      >
         <Text style={styles.backText}>‹ Back</Text>
       </TouchableOpacity>
 
@@ -164,7 +171,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
     padding: 20,
-    paddingTop: 60,
   },
   centered: {
     flex: 1,
@@ -174,7 +180,6 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     position: "absolute",
-    top: 56,
     left: 20,
     zIndex: 1,
   },

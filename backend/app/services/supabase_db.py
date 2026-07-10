@@ -517,7 +517,11 @@ async def get_tour_with_creator(tour_id: str):
         client = _get_client()
         result = (
             client.table("tours")
-            .select("*, users(display_name, avatar_url)")
+            # Explicit relationship name required since tour_likes (added in
+            # 008_social_and_voices.sql) also has FKs to both tours and
+            # users, making the bare "users(...)" embed shorthand ambiguous
+            # — PostgREST error PGRST201, "more than one relationship found".
+            .select("*, users!tours_creator_id_fkey(display_name, avatar_url)")
             .eq("id", tour_id)
             .limit(1)
             .execute()

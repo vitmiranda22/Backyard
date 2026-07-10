@@ -47,7 +47,11 @@ export async function watchPosition(
   const subscription = await Location.watchPositionAsync(
     {
       accuracy: Location.Accuracy.High,
-      distanceInterval: 10, // minimum 10m movement to trigger
+      // 10m was too coarse for the walked-path polyline — at a normal
+      // walking pace it skipped enough points to cut corners and miss
+      // curves in the actual street/sidewalk. 5m gives a noticeably
+      // more faithful trace without a meaningful battery/data cost.
+      distanceInterval: 5,
       timeInterval: intervalMs,
     },
     (location) => {

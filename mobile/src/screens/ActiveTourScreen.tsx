@@ -51,6 +51,13 @@ export default function ActiveTourScreen({
   // Use a ref for isLoading so GPS callbacks always see the current value
   const isLoadingRef = useRef(false);
 
+  // True from the moment a block's audio starts until it actually finishes
+  // playing (or the user skips) — separate from isLoadingRef, which only
+  // covers the network fetch. Without this, a new zone crossing mid-walk
+  // (zones are only ~19-38m, well under a full narration's playback time)
+  // would silently overwrite the currently-playing narration.
+  const hasActiveAudioRef = useRef(false);
+
   // Debounce — don't trigger more than once every 10 seconds
   const lastTriggerTime = useRef(0);
 
@@ -85,6 +92,11 @@ export default function ActiveTourScreen({
 
           // Check loading ref (not state — state is stale in callbacks)
           if (isLoadingRef.current) return;
+
+          // Don't interrupt a narration that's still being listened to —
+          // only auto-triggers are held back; the manual "Tell me about
+          // here" button can still override on purpose.
+          if (hasActiveAudioRef.current) return;
 
           // Debounce: at least 10 seconds between triggers
           const now = Date.now();
@@ -135,6 +147,11 @@ export default function ActiveTourScreen({
       setNarrationText(result.narration_text);
       setAudioUrl(result.audio_url);
       setImageUrl(result.image_url);
+
+      // Only hold off future auto-triggers if there's actual audio to be
+      // interrupted — a text-only block (audio generation failed) has
+      // nothing playing, so there's no reason to block the next zone.
+      hasActiveAudioRef.current = !!result.audio_url;
 
       sequenceRef.current += 1;
       setBlocksVisited(sequenceRef.current);
@@ -240,7 +257,11 @@ export default function ActiveTourScreen({
         narrationText={narrationText}
         audioUrl={audioUrl}
         imageUrl={imageUrl}
+        onAudioFinished={() => {
+          hasActiveAudioRef.current = false;
+        }}
         onSkip={() => {
+          hasActiveAudioRef.current = false;
           setNarrationText(null);
           setAudioUrl(null);
           setImageUrl(null);

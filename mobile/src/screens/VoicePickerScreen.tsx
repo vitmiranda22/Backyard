@@ -21,10 +21,22 @@ const VOICES: {
   label: string;
   desc: string;
   premium: boolean;
+  // Can be previewed but not yet selected as an active narration voice —
+  // real tour narration doesn't support it yet (see backend
+  // app/services/elevenlabs_service.py for why).
+  previewOnly?: boolean;
 }[] = [
   { id: "neutral", emoji: "🎙️", label: "Neutral", desc: "Clear and balanced narration", premium: false },
   { id: "dramatic", emoji: "🎭", label: "Dramatic", desc: "Bold, cinematic delivery", premium: true },
   { id: "warm", emoji: "☕", label: "Warm", desc: "Friendly, conversational tone", premium: true },
+  {
+    id: "signature",
+    emoji: "🌟",
+    label: "Signature",
+    desc: "Our most lifelike voice — full tours coming soon",
+    premium: true,
+    previewOnly: true,
+  },
 ];
 
 interface VoicePickerScreenProps {
@@ -78,8 +90,12 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
     }
   }
 
-  async function handleSelect(voiceId: string, premium: boolean) {
+  async function handleSelect(voiceId: string, premium: boolean, previewOnly?: boolean) {
     tap();
+    if (previewOnly) {
+      showToast("Full tour narration with this voice is coming soon — tap ▶ to hear a preview.");
+      return;
+    }
     if (premium && !isPremium) {
       onOpenPaywall();
       return;
@@ -125,10 +141,10 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
           <TouchableOpacity
             key={voice.id}
             style={[styles.card, selected && styles.cardSelected]}
-            onPress={() => handleSelect(voice.id, voice.premium)}
+            onPress={() => handleSelect(voice.id, voice.premium, voice.previewOnly)}
             disabled={saving}
             accessibilityRole="button"
-            accessibilityLabel={`${voice.label} voice${locked ? ", premium" : ""}${selected ? ", selected" : ""}`}
+            accessibilityLabel={`${voice.label} voice${voice.previewOnly ? ", preview only, full tours coming soon" : locked ? ", premium" : ""}${selected ? ", selected" : ""}`}
           >
             <View style={styles.avatarWrap}>
               {voice.avatarUri ? (
@@ -140,10 +156,16 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
             <View style={styles.info}>
               <View style={styles.labelRow}>
                 <Text style={styles.label}>{voice.label}</Text>
-                {voice.premium && (
-                  <View style={styles.premiumBadge}>
-                    <Text style={styles.premiumBadgeText}>{locked ? "PRO" : "PRO ✓"}</Text>
+                {voice.previewOnly ? (
+                  <View style={styles.soonBadge}>
+                    <Text style={styles.soonBadgeText}>SOON</Text>
                   </View>
+                ) : (
+                  voice.premium && (
+                    <View style={styles.premiumBadge}>
+                      <Text style={styles.premiumBadgeText}>{locked ? "PRO" : "PRO ✓"}</Text>
+                    </View>
+                  )
                 )}
               </View>
               <Text style={styles.desc}>{voice.desc}</Text>
@@ -261,6 +283,19 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "800",
     color: colors.proText,
+  },
+  soonBadge: {
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  soonBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.muted,
   },
   check: {
     fontSize: 18,

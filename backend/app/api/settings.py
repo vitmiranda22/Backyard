@@ -9,6 +9,7 @@ User settings endpoints.
 """
 
 import logging
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -18,10 +19,9 @@ from app.models.schemas import (
     UpdateSettingsRequest,
     UserStatsResponse,
     VoiceSampleResponse,
-    Voice,
     ErrorResponse,
 )
-from app.services import supabase_db, tts, r2
+from app.services import supabase_db, tts, r2, elevenlabs_service
 
 logger = logging.getLogger(__name__)
 
@@ -29,12 +29,17 @@ router = APIRouter()
 
 # Fixed, non-personal phrases — synthesized once per voice and cached
 # forever in voice_samples, so previewing a voice costs nothing after
-# the first request.
+# the first request. "signature" isn't a real Voice enum member (see
+# app/models/schemas.py) — it's a preview-only teaser for the ElevenLabs
+# voice, accepted here but nowhere a narration voice is actually selected.
 SAMPLE_PHRASES = {
     "neutral": "This is the Neutral voice. Clear and balanced narration.",
     "dramatic": "This is the Dramatic voice. Bold, cinematic delivery.",
     "warm": "This is the Warm voice. A friendly, conversational tone.",
+    "signature": "Explore your neighborhood with Backyard!",
 }
+
+SampleVoice = Literal["neutral", "dramatic", "warm", "signature"]
 
 
 @router.get(
@@ -164,23 +169,26 @@ async def get_user_stats(user_id: AuthenticatedUser):
     responses={500: {"model": ErrorResponse}},
     summary="Get a short preview clip for a narration voice",
 )
-async def get_voice_sample(user_id: AuthenticatedUser, voice: Voice = Query(...)):
-    r2_key = await supabase_db.get_voice_sample_key(voice.value)
+async def get_voice_sample(user_id: AuthenticatedUser, voice: SampleVoice = Query(...)):
+    r2_key = await supabase_db.get_voice_sample_key(voice)
 
     if not r2_key:
-        phrase = SAMPLE_PHRASES.get(voice.value, SAMPLE_PHRASES["neutral"])
-        audio_bytes = await tts.synthesize_speech(text=phrase, voice=voice.value)
+        phrase = SAMPLE_PHRASES.get(voice, SAMPLE_PHRASES["neutral"])
+        if voice == "signature":
+            audio_bytes = await elevenlabs_service.synthesize_speech(phrase)
+        else:
+            audio_bytes = await tts.synthesize_speech(text=phrase, voice=voice)
         if not audio_bytes:
             raise HTTPException(
                 status_code=500,
                 detail={"error": "Couldn't generate a voice sample right now.", "code": "sample_failed", "retry": True},
             )
-        r2_key = f"voice-samples/{voice.value}.mp3"
+        r2_key = f"voice-samples/{voice}.mp3"
         if not await r2.upload_audio(audio_bytes, r2_key):
             raise HTTPException(
                 status_code=500,
                 detail={"error": "Couldn't generate a voice sample right now.", "code": "sample_failed", "retry": True},
             )
-        await supabase_db.store_voice_sample_key(voice.value, r2_key)
+        await supabase_db.store_voice_sample_key(voice, r2_key)
 
-    return VoiceSampleResponse(voice=voice.value, audio_url=r2.generate_signed_url(r2_key))
+    return VoiceSampleResponse(voice=voice, audio_url=r2.generate_signed_url(r2_key))

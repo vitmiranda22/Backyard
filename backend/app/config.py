@@ -110,6 +110,15 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------------
     REVENUECAT_WEBHOOK_SECRET: str = ""
 
+    # -------------------------------------------------------------------------
+    # ElevenLabs — powers only the "Signature" voice's cached preview sample
+    # for now (see app/services/elevenlabs_service.py for why it's not yet
+    # wired into real narration). Blank values are a no-op — the sample
+    # endpoint returns an error for "signature" until both are set.
+    # -------------------------------------------------------------------------
+    ELEVENLABS_API_KEY: str = ""
+    ELEVENLABS_VOICE_ID: str = ""
+
     class Config:
         env_file = ".env"
         # If a .env file doesn't exist, that's fine — vars might come from

@@ -6,47 +6,18 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import { colors, font, radius } from "../theme";
 import { tap } from "../services/haptics";
 import { getCurrentLocation } from "../services/location";
 import { getRichness, RichnessInfo } from "../services/api";
 
 const MODES = [
-  {
-    id: "time_machine",
-    emoji: "🕰️",
-    label: "Time Machine",
-    desc: "Get transported to what this spot looked like decades ago",
-    premium: false,
-  },
-  {
-    id: "hidden_city",
-    emoji: "🔮",
-    label: "Hidden City",
-    desc: "Secrets hiding in plain sight that everyone walks past",
-    premium: false,
-  },
-  {
-    id: "dark_side",
-    emoji: "🕵️",
-    label: "Dark Side",
-    desc: "Unsolved mysteries, dark history, true crime energy",
-    premium: true,
-  },
-  {
-    id: "behind_scenes",
-    emoji: "🎬",
-    label: "Behind the Scenes",
-    desc: "Celebrity secrets, film locations, the real stories",
-    premium: true,
-  },
-  {
-    id: "unfiltered",
-    emoji: "🎭",
-    label: "Unfiltered",
-    desc: "Raw, funny, opinionated — like walking with a local friend",
-    premium: true,
-  },
+  { id: "time_machine", emoji: "🕰️", premium: false },
+  { id: "hidden_city", emoji: "🔮", premium: false },
+  { id: "dark_side", emoji: "🕵️", premium: true },
+  { id: "behind_scenes", emoji: "🎬", premium: true },
+  { id: "unfiltered", emoji: "🎭", premium: true },
 ];
 
 interface MoodPickerProps {
@@ -57,6 +28,7 @@ interface MoodPickerProps {
 }
 
 export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequirePremium }: MoodPickerProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [richness, setRichness] = useState<RichnessInfo | null>(null);
 
@@ -76,13 +48,13 @@ export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequ
         style={[styles.cancelBtn, { top: Math.max(insets.top, 54) + 12 }]}
         onPress={onCancel}
         accessibilityRole="button"
-        accessibilityLabel="Cancel"
+        accessibilityLabel={t("common.cancel")}
       >
-        <Text style={styles.cancelText}>Cancel</Text>
+        <Text style={styles.cancelText}>{t("common.cancel")}</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>Choose your experience</Text>
-      <Text style={styles.subtitle}>Same streets. Completely different stories.</Text>
+      <Text style={styles.title}>{t("moodPicker.title")}</Text>
+      <Text style={styles.subtitle}>{t("moodPicker.subtitle")}</Text>
       {richness && richness.tier !== "full" && (
         <Text style={styles.richnessCaption}>{richness.message}</Text>
       )}
@@ -96,23 +68,23 @@ export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequ
             mode.premium && !isPremium ? onRequirePremium() : onSelect(mode.id);
           }}
           accessibilityRole="button"
-          accessibilityLabel={`${mode.label}, ${mode.premium ? "premium" : "free"}`}
+          accessibilityLabel={`${t(`moods.${mode.id}.label`)}, ${mode.premium ? t("common.pro") : t("common.free")}`}
         >
           <Text style={styles.emoji}>{mode.emoji}</Text>
           <View style={styles.modeInfo}>
             <View style={styles.labelRow}>
-              <Text style={styles.modeLabel}>{mode.label}</Text>
+              <Text style={styles.modeLabel}>{t(`moods.${mode.id}.label`)}</Text>
               {mode.premium ? (
                 <View style={styles.premiumBadge}>
-                  <Text style={styles.premiumText}>PRO</Text>
+                  <Text style={styles.premiumText}>{t("common.pro")}</Text>
                 </View>
               ) : (
                 <View style={styles.freeBadge}>
-                  <Text style={styles.freeText}>FREE</Text>
+                  <Text style={styles.freeText}>{t("common.free")}</Text>
                 </View>
               )}
             </View>
-            <Text style={styles.modeDesc}>{mode.desc}</Text>
+            <Text style={styles.modeDesc}>{t(`moods.${mode.id}.desc`)}</Text>
           </View>
         </TouchableOpacity>
       ))}

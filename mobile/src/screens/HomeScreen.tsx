@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Image } from "react-native";
+import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import {
@@ -40,6 +41,7 @@ export default function HomeScreen({
   isPremium,
   onRequirePremium,
 }: HomeScreenProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [hasPermission, setHasPermission] = useState(false);
@@ -98,10 +100,7 @@ export default function HomeScreen({
           console.error("Failed to get location:", e);
         }
       } else {
-        Alert.alert(
-          "Location Required",
-          "Backyard needs your location to tell stories about where you are. Please enable it in Settings."
-        );
+        Alert.alert(t("home.locationRequiredTitle"), t("home.locationRequiredBody"));
       }
     }
     init();
@@ -128,7 +127,7 @@ export default function HomeScreen({
               description={
                 route.rating_count > 0
                   ? `★ ${route.avg_rating.toFixed(1)} (${route.rating_count})`
-                  : "Not yet rated — tap the marker to see the path, tap the card for details"
+                  : t("home.notYetRated")
               }
               onPress={() => handlePinPress(route)}
               onCalloutPress={() => onSelectRoute(route.tour_id)}
@@ -151,11 +150,11 @@ export default function HomeScreen({
                 lineCap="round"
                 lineJoin="round"
               />
-              <Marker coordinate={selectedPath[0]} pinColor={colors.accent} title="Start" />
+              <Marker coordinate={selectedPath[0]} pinColor={colors.accent} title={t("common.start")} />
               <Marker
                 coordinate={selectedPath[selectedPath.length - 1]}
                 pinColor={colors.danger}
-                title="End of route"
+                title={t("common.endOfRoute")}
               />
             </>
           )}
@@ -163,7 +162,7 @@ export default function HomeScreen({
       ) : (
         <View style={styles.mapPlaceholder}>
           <Text style={styles.placeholderText}>
-            {hasPermission ? "Finding you..." : "Location permission required"}
+            {hasPermission ? t("home.findingYou") : t("home.locationPermissionRequired")}
           </Text>
         </View>
       )}
@@ -172,14 +171,14 @@ export default function HomeScreen({
       <View style={[styles.locationPill, { top: insets.top + 12 }]}>
         <Image source={require("../../assets/icon.png")} style={styles.logoBadge} />
         <Text style={styles.locationPillText} numberOfLines={1}>
-          {placeLabel || "Somewhere worth exploring"}
+          {placeLabel || t("home.somewhereWorthExploring")}
         </Text>
       </View>
 
       {/* Floating start sheet */}
       <View style={styles.sheet}>
         <View style={styles.dragHandle} />
-        <Text style={styles.sheetLabel}>Pick your story</Text>
+        <Text style={styles.sheetLabel}>{t("home.pickYourStory")}</Text>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.moodRow}>
           {MOODS.map((mood) => (
@@ -192,13 +191,13 @@ export default function HomeScreen({
                 mood.pro && !isPremium ? onRequirePremium() : onQuickStart(mood.id);
               }}
               accessibilityRole="button"
-              accessibilityLabel={`${mood.label}, ${mood.pro ? "premium" : "free"}`}
+              accessibilityLabel={`${t(`moods.${mood.id}.label`)}, ${mood.pro ? t("common.pro") : t("common.free")}`}
             >
               <Text style={styles.moodEmoji}>{mood.emoji}</Text>
-              <Text style={styles.moodLabel}>{mood.label}</Text>
+              <Text style={styles.moodLabel}>{t(`moods.${mood.id}.label`)}</Text>
               {mood.pro && (
                 <View style={styles.proBadge}>
-                  <Text style={styles.proBadgeText}>PRO</Text>
+                  <Text style={styles.proBadgeText}>{t("common.pro")}</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -213,9 +212,9 @@ export default function HomeScreen({
           }}
           disabled={!location}
           accessibilityRole="button"
-          accessibilityLabel="Start walking tour"
+          accessibilityLabel={t("home.startWalkingTour")}
         >
-          <Text style={styles.startBtnText}>Start Walking Tour</Text>
+          <Text style={styles.startBtnText}>{t("home.startWalkingTour")}</Text>
         </TouchableOpacity>
       </View>
     </View>

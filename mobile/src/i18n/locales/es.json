@@ -1,0 +1,83 @@
+{
+  "common": {
+    "cancel": "Cancelar",
+    "error": "Error",
+    "success": "Éxito",
+    "tryAgain": "Por favor, inténtalo de nuevo",
+    "pro": "PRO",
+    "free": "GRATIS",
+    "start": "Inicio",
+    "endOfRoute": "Fin de la ruta"
+  },
+  "login": {
+    "title": "Backyard",
+    "subtitle": "Cada calle tiene una historia",
+    "emailPlaceholder": "Correo electrónico",
+    "passwordPlaceholder": "Contraseña",
+    "signIn": "Iniciar sesión",
+    "createAccount": "Crear cuenta",
+    "missingFields": "Introduce tu correo electrónico y contraseña",
+    "passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
+    "signInFailed": "No se pudo iniciar sesión",
+    "signUpFailed": "No se pudo crear la cuenta",
+    "accountCreated": "¡Cuenta creada! Ya puedes iniciar sesión."
+  },
+  "home": {
+    "somewhereWorthExploring": "Un lugar que vale la pena explorar",
+    "findingYou": "Buscando tu ubicación...",
+    "locationPermissionRequired": "Se requiere permiso de ubicación",
+    "locationRequiredTitle": "Ubicación requerida",
+    "locationRequiredBody": "Backyard necesita tu ubicación para contarte historias sobre donde estás. Actívala en Configuración.",
+    "pickYourStory": "Elige tu historia",
+    "startWalkingTour": "Comenzar recorrido",
+    "notYetRated": "Aún sin calificar — toca el marcador para ver la ruta, toca la tarjeta para más detalles",
+    "end": "Finalizar"
+  },
+  "tours": {
+    "header": "Recorridos",
+    "myTours": "Mis recorridos",
+    "discover": "Descubrir",
+    "noToursYet": "Aún no tienes recorridos — empieza a caminar para verlos aquí.",
+    "noRoutesNearby": "Aún no hay rutas públicas cerca de ti — ¡sé el primero en compartir una!",
+    "locationRequiredTitle": "Ubicación requerida",
+    "locationRequiredBody": "Activa la ubicación para descubrir rutas cercanas.",
+    "inProgress": "En curso"
+  },
+  "profile": {
+    "header": "Perfil",
+    "signedInAs": "Sesión iniciada como",
+    "premiumMember": "Miembro premium",
+    "premiumUnlocked": "Todos los estados de ánimo y voces desbloqueados",
+    "upgradeToPremium": "Actualizar a Premium",
+    "narrationVoice": "Voz de narración",
+    "narrationVoiceDesc": "Elige qué voz narra tus recorridos",
+    "language": "Idioma",
+    "matureContent": "Contenido para adultos",
+    "matureContentDesc": "Permitir historia gráfica, crimen y temas para adultos",
+    "yourStats": "Tus estadísticas",
+    "statTours": "recorridos",
+    "statKm": "km caminados",
+    "statCities": "ciudades",
+    "badges": "Insignias",
+    "signOut": "Cerrar sesión",
+    "deleteAccount": "Eliminar cuenta",
+    "deleting": "Eliminando...",
+    "deleteAccountTitle": "¿Eliminar cuenta?",
+    "deleteAccountBody": "Esto elimina permanentemente tu cuenta, recorridos, calificaciones y comentarios. Esto no se puede deshacer.",
+    "delete": "Eliminar",
+    "deleteConfirmTitle": "¿Estás seguro?",
+    "deleteConfirmBody": "Última oportunidad — esto realmente no se puede deshacer.",
+    "deleteMyAccount": "Eliminar mi cuenta"
+  },
+  "moods": {
+    "time_machine": { "label": "Máquina del tiempo", "desc": "Descubre cómo se veía este lugar hace décadas" },
+    "hidden_city": { "label": "Ciudad oculta", "desc": "Secretos escondidos a la vista de todos" },
+    "dark_side": { "label": "Lado oscuro", "desc": "Misterios sin resolver, historia oscura, energía de crimen real" },
+    "behind_scenes": { "label": "Detrás de escena", "desc": "Secretos de celebridades, locaciones de películas, historias reales" },
+    "unfiltered": { "label": "Sin filtro", "desc": "Crudo, divertido, con opiniones — como caminar con un amigo local" }
+  },
+  "moodPicker": {
+    "title": "Elige tu experiencia",
+    "subtitle": "Las mismas calles. Historias completamente distintas."
+  }
+}

@@ -12,17 +12,19 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 import { signIn, signUp } from "../services/auth";
 import { colors, font, radius } from "../theme";
 
 export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSignIn() {
     if (!email || !password) {
-      Alert.alert("Error", "Please enter email and password");
+      Alert.alert(t("common.error"), t("login.missingFields"));
       return;
     }
     setLoading(true);
@@ -30,38 +32,38 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
       await signIn(email, password);
       onLogin();
     } catch (e: any) {
-      Alert.alert("Sign in failed", e.message || "Please try again");
+      Alert.alert(t("login.signInFailed"), e.message || t("common.tryAgain"));
     }
     setLoading(false);
   }
 
   async function handleSignUp() {
     if (!email || !password) {
-      Alert.alert("Error", "Please enter email and password");
+      Alert.alert(t("common.error"), t("login.missingFields"));
       return;
     }
     if (password.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters");
+      Alert.alert(t("common.error"), t("login.passwordTooShort"));
       return;
     }
     setLoading(true);
     try {
       await signUp(email, password);
-      Alert.alert("Success", "Account created! You can now sign in.");
+      Alert.alert(t("common.success"), t("login.accountCreated"));
     } catch (e: any) {
-      Alert.alert("Sign up failed", e.message || "Please try again");
+      Alert.alert(t("login.signUpFailed"), e.message || t("common.tryAgain"));
     }
     setLoading(false);
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>🎙️ Backyard</Text>
-      <Text style={styles.subtitle}>Every street has a story</Text>
+      <Text style={styles.title}>🎙️ {t("login.title")}</Text>
+      <Text style={styles.subtitle}>{t("login.subtitle")}</Text>
 
       <TextInput
         style={styles.input}
-        placeholder="Email"
+        placeholder={t("login.emailPlaceholder")}
         placeholderTextColor={colors.muted}
         value={email}
         onChangeText={setEmail}
@@ -71,7 +73,7 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
       <TextInput
         style={styles.input}
-        placeholder="Password"
+        placeholder={t("login.passwordPlaceholder")}
         placeholderTextColor={colors.muted}
         value={password}
         onChangeText={setPassword}
@@ -83,11 +85,11 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
       ) : (
         <>
           <TouchableOpacity style={styles.signInBtn} onPress={handleSignIn}>
-            <Text style={styles.signInText}>Sign In</Text>
+            <Text style={styles.signInText}>{t("login.signIn")}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.signUpBtn} onPress={handleSignUp}>
-            <Text style={styles.signUpText}>Create Account</Text>
+            <Text style={styles.signUpText}>{t("login.createAccount")}</Text>
           </TouchableOpacity>
         </>
       )}

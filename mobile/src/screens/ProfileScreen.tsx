@@ -3,11 +3,13 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, Switch, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import { getCurrentUserEmail, signOut } from "../services/auth";
 import { getSettings, updateSettings, getUserStats, deleteAccount, UserStats } from "../services/api";
 import { getEarnedBadges, Badge } from "../services/badges";
 import { colors, font, radius } from "../theme";
 import { showToast } from "../services/toast";
+import { SUPPORTED_LANGUAGES, setLanguage } from "../i18n";
 
 interface ProfileScreenProps {
   onSignedOut: () => void;
@@ -24,6 +26,7 @@ export default function ProfileScreen({
   onOpenPaywall,
   onOpenBadges,
 }: ProfileScreenProps) {
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState<string | null>(null);
   const [contentSafety, setContentSafety] = useState(false);
@@ -65,22 +68,33 @@ export default function ProfileScreen({
     onSignedOut();
   }
 
+  function handleChangeLanguage() {
+    Alert.alert(
+      t("profile.language"),
+      undefined,
+      SUPPORTED_LANGUAGES.map((lang) => ({
+        text: lang.label,
+        onPress: () => setLanguage(lang.code),
+      })).concat([{ text: t("common.cancel"), style: "cancel" } as any])
+    );
+  }
+
   function handleDeleteAccount() {
     Alert.alert(
-      "Delete account?",
-      "This permanently deletes your account, tours, ratings, and comments. This can't be undone.",
+      t("profile.deleteAccountTitle"),
+      t("profile.deleteAccountBody"),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
-          text: "Delete",
+          text: t("profile.delete"),
           style: "destructive",
           onPress: () => {
             Alert.alert(
-              "Are you sure?",
-              "Last chance — this really can't be undone.",
+              t("profile.deleteConfirmTitle"),
+              t("profile.deleteConfirmBody"),
               [
-                { text: "Cancel", style: "cancel" },
-                { text: "Delete my account", style: "destructive", onPress: confirmDeleteAccount },
+                { text: t("common.cancel"), style: "cancel" },
+                { text: t("profile.deleteMyAccount"), style: "destructive", onPress: confirmDeleteAccount },
               ]
             );
           },
@@ -110,13 +124,16 @@ export default function ProfileScreen({
     );
   }
 
+  const currentLanguageLabel =
+    SUPPORTED_LANGUAGES.find((l) => l.code === i18n.language)?.label ?? SUPPORTED_LANGUAGES[0].label;
+
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top, 54) }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Text style={styles.header}>Profile</Text>
+        <Text style={styles.header}>{t("profile.header")}</Text>
 
       <View style={styles.card}>
-        <Text style={styles.label}>Signed in as</Text>
+        <Text style={styles.label}>{t("profile.signedInAs")}</Text>
         <Text style={styles.email}>{email || "Unknown"}</Text>
       </View>
 
@@ -124,11 +141,11 @@ export default function ProfileScreen({
         <View style={styles.card}>
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.rowTitle}>Premium member</Text>
-              <Text style={styles.rowDesc}>All moods and voices unlocked</Text>
+              <Text style={styles.rowTitle}>{t("profile.premiumMember")}</Text>
+              <Text style={styles.rowDesc}>{t("profile.premiumUnlocked")}</Text>
             </View>
             <View style={styles.premiumBadge}>
-              <Text style={styles.premiumBadgeText}>PRO</Text>
+              <Text style={styles.premiumBadgeText}>{t("common.pro")}</Text>
             </View>
           </View>
         </View>
@@ -137,9 +154,9 @@ export default function ProfileScreen({
           style={styles.upgradeBtn}
           onPress={onOpenPaywall}
           accessibilityRole="button"
-          accessibilityLabel="Upgrade to Premium"
+          accessibilityLabel={t("profile.upgradeToPremium")}
         >
-          <Text style={styles.upgradeBtnText}>Upgrade to Premium</Text>
+          <Text style={styles.upgradeBtnText}>{t("profile.upgradeToPremium")}</Text>
         </TouchableOpacity>
       )}
 
@@ -151,8 +168,23 @@ export default function ProfileScreen({
       >
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>Narration voice</Text>
-            <Text style={styles.rowDesc}>Choose which voice reads your tours</Text>
+            <Text style={styles.rowTitle}>{t("profile.narrationVoice")}</Text>
+            <Text style={styles.rowDesc}>{t("profile.narrationVoiceDesc")}</Text>
+          </View>
+          <Text style={styles.chevron}>›</Text>
+        </View>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.card}
+        onPress={handleChangeLanguage}
+        accessibilityRole="button"
+        accessibilityLabel={t("profile.language")}
+      >
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowTitle}>{t("profile.language")}</Text>
+            <Text style={styles.rowDesc}>{currentLanguageLabel}</Text>
           </View>
           <Text style={styles.chevron}>›</Text>
         </View>
@@ -161,8 +193,8 @@ export default function ProfileScreen({
       <View style={styles.card}>
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>Mature content</Text>
-            <Text style={styles.rowDesc}>Allow graphic history, crime, and adult themes</Text>
+            <Text style={styles.rowTitle}>{t("profile.matureContent")}</Text>
+            <Text style={styles.rowDesc}>{t("profile.matureContentDesc")}</Text>
           </View>
           <Switch
             value={contentSafety}
@@ -175,19 +207,19 @@ export default function ProfileScreen({
 
       {stats && (
         <View style={styles.card}>
-          <Text style={[styles.label, styles.centerText]}>Your stats</Text>
+          <Text style={[styles.label, styles.centerText]}>{t("profile.yourStats")}</Text>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{stats.tours_completed}</Text>
-              <Text style={styles.statLabel}>tours</Text>
+              <Text style={styles.statLabel}>{t("profile.statTours")}</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{(stats.total_distance_m / 1000).toFixed(1)}</Text>
-              <Text style={styles.statLabel}>km walked</Text>
+              <Text style={styles.statLabel}>{t("profile.statKm")}</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{stats.cities_visited}</Text>
-              <Text style={styles.statLabel}>cities</Text>
+              <Text style={styles.statLabel}>{t("profile.statCities")}</Text>
             </View>
           </View>
         </View>
@@ -201,7 +233,7 @@ export default function ProfileScreen({
           accessibilityLabel="View all badges"
         >
           <View style={styles.row}>
-            <Text style={[styles.label, { flex: 1 }]}>Badges</Text>
+            <Text style={[styles.label, { flex: 1 }]}>{t("profile.badges")}</Text>
             <Text style={styles.chevron}>›</Text>
           </View>
           <View style={[styles.badgeRow, styles.centerRow]}>
@@ -221,7 +253,7 @@ export default function ProfileScreen({
         accessibilityRole="button"
         accessibilityLabel="Sign out"
       >
-        <Text style={styles.signOutText}>Sign Out</Text>
+        <Text style={styles.signOutText}>{t("profile.signOut")}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -231,7 +263,7 @@ export default function ProfileScreen({
         accessibilityRole="button"
         accessibilityLabel="Delete account"
       >
-        <Text style={styles.deleteText}>{deleting ? "Deleting..." : "Delete Account"}</Text>
+        <Text style={styles.deleteText}>{deleting ? t("profile.deleting") : t("profile.deleteAccount")}</Text>
       </TouchableOpacity>
       </ScrollView>
     </View>

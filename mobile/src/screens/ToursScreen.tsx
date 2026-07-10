@@ -12,6 +12,7 @@ import {
   Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import { getTours, TourSummary, getNearbyRoutes, NearbyRoute } from "../services/api";
 import { requestLocationPermission, getCurrentLocation } from "../services/location";
 import StarRating from "../components/StarRating";
@@ -47,6 +48,7 @@ function formatDistance(distanceM: number) {
 type Segment = "mine" | "discover";
 
 export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId: string) => void }) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [segment, setSegment] = useState<Segment>("mine");
 
@@ -71,7 +73,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
     try {
       const granted = await requestLocationPermission();
       if (!granted) {
-        Alert.alert("Location Required", "Enable location to discover nearby routes.");
+        Alert.alert(t("tours.locationRequiredTitle"), t("tours.locationRequiredBody"));
         setRoutes([]);
         return;
       }
@@ -109,7 +111,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.header, { paddingTop: Math.max(insets.top, 54) + 12 }]}>Tours</Text>
+      <Text style={[styles.header, { paddingTop: Math.max(insets.top, 54) + 12 }]}>{t("tours.header")}</Text>
 
       <View style={styles.segmentRow}>
         <TouchableOpacity
@@ -121,7 +123,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
           accessibilityRole="tab"
           accessibilityState={{ selected: segment === "mine" }}
         >
-          <Text style={[styles.segmentText, segment === "mine" && styles.segmentTextActive]}>My Tours</Text>
+          <Text style={[styles.segmentText, segment === "mine" && styles.segmentTextActive]}>{t("tours.myTours")}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.segmentBtn, segment === "discover" && styles.segmentBtnActive]}
@@ -132,7 +134,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
           accessibilityRole="tab"
           accessibilityState={{ selected: segment === "discover" }}
         >
-          <Text style={[styles.segmentText, segment === "discover" && styles.segmentTextActive]}>Discover</Text>
+          <Text style={[styles.segmentText, segment === "discover" && styles.segmentTextActive]}>{t("tours.discover")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -149,7 +151,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
             refreshControl={<RefreshControl refreshing={refreshingMine} onRefresh={onRefreshMine} />}
             ListEmptyComponent={
               <View style={styles.centered}>
-                <Text style={styles.emptyText}>No tours yet — start walking to see them here.</Text>
+                <Text style={styles.emptyText}>{t("tours.noToursYet")}</Text>
               </View>
             }
             renderItem={({ item }) => (
@@ -161,7 +163,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
                   <Text style={styles.title} numberOfLines={1}>
                     {item.title}
                   </Text>
-                  <Text style={styles.meta}>{formatStats(item) || "In progress"}</Text>
+                  <Text style={styles.meta}>{formatStats(item) || t("tours.inProgress")}</Text>
                 </View>
                 <Text style={styles.date}>{formatDate(item.created_at)}</Text>
               </TouchableOpacity>
@@ -180,7 +182,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
           refreshControl={<RefreshControl refreshing={refreshingDiscover} onRefresh={onRefreshDiscover} />}
           ListEmptyComponent={
             <View style={styles.centered}>
-              <Text style={styles.emptyText}>No public routes near you yet — be the first to share one!</Text>
+              <Text style={styles.emptyText}>{t("tours.noRoutesNearby")}</Text>
             </View>
           }
           renderItem={({ item }) => (

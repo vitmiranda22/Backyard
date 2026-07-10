@@ -15,6 +15,8 @@ import { DEV_SKIP_LOGIN, DEV_EMAIL, DEV_PASSWORD } from "./src/config";
 import { colors } from "./src/theme";
 import { TourDetail, getSettings } from "./src/services/api";
 import { initSentry } from "./src/services/sentry";
+import "./src/i18n";
+import { loadSavedLanguage } from "./src/i18n";
 
 import LoginScreen from "./src/screens/LoginScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
@@ -146,6 +148,10 @@ export default function App() {
       setPendingRouteId(null);
     }
   }, [pendingRouteId, screen]);
+
+  useEffect(() => {
+    loadSavedLanguage();
+  }, []);
 
   useEffect(() => {
     async function checkSession() {

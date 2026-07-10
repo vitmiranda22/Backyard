@@ -196,10 +196,12 @@ async def narrate_block(
         city = geo_result.city
         country = geo_result.country
     else:
-        street_name = f"Location ({request.lat:.4f}, {request.lng:.4f})"
-        neighborhood = "Unknown"
-        city = "Unknown"
-        country = "Unknown"
+        # Nominatim failed even after a retry — degrade gracefully instead
+        # of showing the walker raw coordinates.
+        street_name = "this block"
+        neighborhood = ""
+        city = ""
+        country = ""
 
     # --- Step 4-6: Generate narration if not cached ---
     if narration_text is None:

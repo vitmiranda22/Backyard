@@ -77,23 +77,31 @@ async def reverse_geocode(lat: float, lng: float):
         "zoom": 18,           # Street-level detail
     }
 
-    try:
-        await _throttle()
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                NOMINATIM_URL,
-                params=params,
-                headers={"User-Agent": USER_AGENT},
-                timeout=REQUEST_TIMEOUT,
-            )
-            response.raise_for_status()
-            data = response.json()
+    # One retry on a transient failure — Nominatim is a free, best-effort
+    # public instance with no SLA, and a single blip here used to fall all
+    # the way through to showing the walker raw coordinates instead of a
+    # street name.
+    data = None
+    for attempt in range(2):
+        try:
+            await _throttle()
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    NOMINATIM_URL,
+                    params=params,
+                    headers={"User-Agent": USER_AGENT},
+                    timeout=REQUEST_TIMEOUT,
+                )
+                response.raise_for_status()
+                data = response.json()
+            break
+        except httpx.TimeoutException:
+            logger.warning(f"Nominatim timeout for ({lat}, {lng}), attempt {attempt + 1}/2")
+        except httpx.HTTPError as e:
+            logger.warning(f"Nominatim HTTP error for ({lat}, {lng}), attempt {attempt + 1}/2: {e}")
 
-    except httpx.TimeoutException:
-        logger.warning(f"Nominatim timeout for ({lat}, {lng})")
-        return None
-    except httpx.HTTPError as e:
-        logger.error(f"Nominatim HTTP error for ({lat}, {lng}): {e}")
+    if data is None:
+        logger.error(f"Nominatim failed for ({lat}, {lng}) after 2 attempts")
         return None
 
     # Parse the address components. Nominatim's response format varies by country,

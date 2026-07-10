@@ -181,10 +181,3 @@ async def root():
         "docs": "/docs",
         "health": "/health",
     }
-
-
-# TEMPORARY — verifying the Sentry wiring end to end. Remove this once
-# confirmed working in the Sentry dashboard.
-@app.get("/debug/sentry-test", include_in_schema=False)
-async def sentry_test():
-    raise Exception("Sentry test event — safe to ignore, this was triggered on purpose.")

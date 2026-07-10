@@ -63,6 +63,7 @@ export default function App() {
   const [tourId, setTourId] = useState("");
   const [blocksVisited, setBlocksVisited] = useState(0);
   const [startTime, setStartTime] = useState(0);
+  const [tourPath, setTourPath] = useState<{ lat: number; lng: number }[]>([]);
 
   // Routes/replay state
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
@@ -252,10 +253,11 @@ export default function App() {
           mood={selectedMood}
           voice={preferredVoice}
           contentSafety={false}
-          onEndTour={(id, blocks, start) => {
+          onEndTour={(id, blocks, start, path) => {
             setTourId(id);
             setBlocksVisited(blocks);
             setStartTime(start);
+            setTourPath(path.map((p) => ({ lat: p.latitude, lng: p.longitude })));
             setScreen("complete");
           }}
         />
@@ -266,6 +268,7 @@ export default function App() {
           tourId={tourId}
           blocksVisited={blocksVisited}
           startTime={startTime}
+          path={tourPath}
           onDone={() => {
             setActiveTab("home");
             setScreen("main");

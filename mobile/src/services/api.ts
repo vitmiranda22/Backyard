@@ -148,7 +148,8 @@ export interface EndTourResponse {
 export async function endTour(
   tourId: string,
   distanceM: number,
-  durationSec: number
+  durationSec: number,
+  path?: { lat: number; lng: number }[]
 ): Promise<EndTourResponse> {
   return authFetch("/end-tour", {
     method: "POST",
@@ -156,6 +157,7 @@ export async function endTour(
       tour_id: tourId,
       total_distance_m: distanceM,
       duration_sec: durationSec,
+      path,
     }),
   });
 }
@@ -233,6 +235,7 @@ export interface TourDetail {
   blocks: TourBlockDetail[];
   like_count: number;
   liked_by_me: boolean;
+  path: { lat: number; lng: number }[];
 }
 
 export async function getTourDetail(tourId: string): Promise<TourDetail> {

@@ -22,6 +22,7 @@ interface TourCompleteProps {
   tourId: string;
   blocksVisited: number;
   startTime: number;
+  path: { lat: number; lng: number }[];
   onDone: () => void;
 }
 
@@ -29,6 +30,7 @@ export default function TourCompleteScreen({
   tourId,
   blocksVisited,
   startTime,
+  path,
   onDone,
 }: TourCompleteProps) {
   const [title, setTitle] = useState("Your Tour");
@@ -47,7 +49,7 @@ export default function TourCompleteScreen({
   useEffect(() => {
     async function finalize() {
       try {
-        const result = await endTour(tourId, distanceM, durationSec);
+        const result = await endTour(tourId, distanceM, durationSec, path);
         setTitle(result.title);
         setMood(result.mood);
       } catch (e) {

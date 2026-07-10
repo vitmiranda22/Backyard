@@ -130,11 +130,20 @@ class SaveBlockResponse(BaseModel):
     sequence: int
 
 
+class PathPoint(BaseModel):
+    lat: float
+    lng: float
+
+
 class EndTourRequest(BaseModel):
     """POST /api/end-tour"""
     tour_id: str
     total_distance_m: Optional[int] = Field(None, ge=0)
     duration_sec: Optional[int] = Field(None, ge=0)
+    # The dense, GPS-sampled trace actually walked (as opposed to the
+    # sparse per-narration tour_blocks) — used to draw an accurate route
+    # line instead of straight segments that can cut through buildings.
+    path: Optional[List[PathPoint]] = None
 
 
 class EndTourResponse(BaseModel):
@@ -209,6 +218,10 @@ class TourDetailResponse(BaseModel):
     blocks: List[TourBlockDetail]
     like_count: int = 0
     liked_by_me: bool = False
+    # Real walked GPS trace when available (tours recorded after path
+    # persistence shipped); empty for older tours, which fall back to
+    # reconstructing a path from `blocks` on the client.
+    path: List[PathPoint] = []
 
 
 class NearbyRouteSummary(BaseModel):

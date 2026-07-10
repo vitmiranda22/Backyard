@@ -93,6 +93,15 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
   const durationMin = tour.duration_sec ? Math.round(tour.duration_sec / 60) : null;
   const hasAudio = tour.blocks.some((b) => b.audio_url);
 
+  // Prefer the actual walked GPS trace — tour.blocks only has a point per
+  // narration trigger (often 50-100m+ apart), so connecting those with
+  // straight lines can cut through buildings whenever the street curves.
+  // Older tours recorded before path persistence shipped fall back to blocks.
+  const routeCoords =
+    tour.path.length > 1
+      ? tour.path.map((p) => ({ latitude: p.lat, longitude: p.lng }))
+      : tour.blocks.map((b) => ({ latitude: b.lat, longitude: b.lng }));
+
   async function handleShare() {
     try {
       await Share.share({
@@ -145,35 +154,30 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
           {durationMin && <Text style={styles.statText}>⏱️ {durationMin} min</Text>}
         </View>
 
-        {tour.blocks.length > 0 && (
+        {routeCoords.length > 0 && (
           <View style={styles.mapPreview}>
             <MapView
               style={styles.map}
-              initialRegion={regionForBlocks(tour.blocks)}
+              initialRegion={regionForBlocks(
+                routeCoords.map((c) => ({ lat: c.latitude, lng: c.longitude }))
+              )}
               scrollEnabled={false}
               zoomEnabled={false}
               pointerEvents="none"
             >
-              {tour.blocks.length > 1 && (
+              {routeCoords.length > 1 && (
                 <Polyline
-                  coordinates={tour.blocks.map((b) => ({ latitude: b.lat, longitude: b.lng }))}
+                  coordinates={routeCoords}
                   strokeColor="rgba(255, 107, 74, 0.6)"
                   strokeWidth={14}
                   lineCap="round"
                   lineJoin="round"
                 />
               )}
-              <Marker
-                coordinate={{ latitude: tour.blocks[0].lat, longitude: tour.blocks[0].lng }}
-                pinColor={colors.accent}
-                title="Start"
-              />
-              {tour.blocks.length > 1 && (
+              <Marker coordinate={routeCoords[0]} pinColor={colors.accent} title="Start" />
+              {routeCoords.length > 1 && (
                 <Marker
-                  coordinate={{
-                    latitude: tour.blocks[tour.blocks.length - 1].lat,
-                    longitude: tour.blocks[tour.blocks.length - 1].lng,
-                  }}
+                  coordinate={routeCoords[routeCoords.length - 1]}
                   pinColor={colors.pro}
                   title="End of route"
                 />

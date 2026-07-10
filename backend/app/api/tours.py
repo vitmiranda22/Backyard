@@ -322,6 +322,7 @@ async def end_tour(
         center_lng=center_lng,
         city=city,
         location=location,
+        path_points=[p.model_dump() for p in request.path] if request.path else None,
     )
 
     if not updated:
@@ -512,6 +513,7 @@ async def get_tour_detail(tour_id: str, user_id: AuthenticatedUser):
         blocks=block_details,
         like_count=like_count,
         liked_by_me=liked_by_me,
+        path=tour.get("path_points") or [],
     )
 
 

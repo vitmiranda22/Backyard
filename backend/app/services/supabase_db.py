@@ -441,6 +441,7 @@ async def end_tour(
     center_lng: float = None,
     city: str = None,
     location: str = None,
+    path_points: list = None,
 ):
     """Finalize a tour with stats and title.
 
@@ -467,6 +468,8 @@ async def end_tour(
             update_data["city"] = city
         if location is not None:
             update_data["location"] = location
+        if path_points is not None:
+            update_data["path_points"] = path_points
 
         result = (
             client.table("tours")

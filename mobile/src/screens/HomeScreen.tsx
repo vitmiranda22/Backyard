@@ -58,7 +58,15 @@ export default function HomeScreen({
     setSelectedTourId(route.tour_id);
     try {
       const detail = await getTourDetail(route.tour_id);
-      setSelectedPath(detail.blocks.map((b) => ({ latitude: b.lat, longitude: b.lng })));
+      // Prefer the actual walked GPS trace over the sparse per-narration
+      // blocks — connecting those with straight lines can cut through
+      // buildings whenever the street curves. Older tours recorded before
+      // path persistence shipped fall back to the blocks-based path.
+      setSelectedPath(
+        detail.path.length > 1
+          ? detail.path.map((p) => ({ latitude: p.lat, longitude: p.lng }))
+          : detail.blocks.map((b) => ({ latitude: b.lat, longitude: b.lng }))
+      );
     } catch (e: any) {
       console.warn("Failed to load route path:", e.message);
       setSelectedTourId(null);

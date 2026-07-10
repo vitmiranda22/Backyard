@@ -22,7 +22,12 @@ interface ActiveTourProps {
   mood: string;
   voice: string;
   contentSafety: boolean;
-  onEndTour: (tourId: string, blocksVisited: number, startTime: number) => void;
+  onEndTour: (
+    tourId: string,
+    blocksVisited: number,
+    startTime: number,
+    path: { latitude: number; longitude: number }[]
+  ) => void;
 }
 
 export default function ActiveTourScreen({
@@ -216,7 +221,7 @@ export default function ActiveTourScreen({
     }
     if (tourId) cancelReminder(tourId);
     resetZones();
-    onEndTour(tourId || "", blocksVisited, startTimeRef.current);
+    onEndTour(tourId || "", blocksVisited, startTimeRef.current, path);
   }
 
   return (

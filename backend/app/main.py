@@ -116,6 +116,12 @@ async def global_exception_handler(request: Request, exc: Exception):
     """
     logger.exception(f"Unhandled exception on {request.method} {request.url.path}")
 
+    # This handler intercepts every unhandled exception before it would
+    # otherwise reach the ASGI layer Sentry's auto-instrumentation hooks
+    # into — without this explicit call, having a catch-all handler here
+    # means Sentry would silently never see any of these errors.
+    sentry_sdk.capture_exception(exc)
+
     detail = str(exc) if settings.ENVIRONMENT == "development" else "Internal server error"
 
     # Nested under "detail" to match the envelope FastAPI produces for
@@ -175,3 +181,10 @@ async def root():
         "docs": "/docs",
         "health": "/health",
     }
+
+
+# TEMPORARY — verifying the Sentry wiring end to end. Remove this once
+# confirmed working in the Sentry dashboard.
+@app.get("/debug/sentry-test", include_in_schema=False)
+async def sentry_test():
+    raise Exception("Sentry test event — safe to ignore, this was triggered on purpose.")

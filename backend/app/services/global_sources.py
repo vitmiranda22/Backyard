@@ -4,7 +4,8 @@ Global data sources — work in ANY city worldwide.
 6 sources:
 - Wikipedia Geosearch: articles about places within 200m
 - Wikimedia Commons: historical photos near coordinates
-- OpenStreetMap Overpass: building + memorial + mural + ghost-sign metadata
+- OpenStreetMap Overpass: building + memorial + mural + ghost-sign +
+  park/garden metadata
 - Google Knowledge Graph: entity enrichment
 - Wikidata SPARQL: structured facts (architect, construction date, type),
   notable people (born/died/lived here), and film locations for entities
@@ -126,12 +127,24 @@ async def fetch_wikimedia_commons(lat: float, lng: float, client: httpx.AsyncCli
         return []
 
 
+OVERPASS_ENDPOINTS = [
+    "https://overpass-api.de/api/interpreter",
+    # Public fallback mirror — the primary instance has no SLA and is
+    # known to rate-limit/time out under load. Since this query runs for
+    # every non-cached location worldwide (it's one of the few sources
+    # with zero city-specific gating), losing it to a transient outage
+    # would quietly degrade every global-tier city at once.
+    "https://overpass.kumi.systems/api/interpreter",
+]
+
+
 async def fetch_osm_buildings(lat: float, lng: float, client: httpx.AsyncClient) -> list:
     """
     OpenStreetMap Overpass API — building + street-level detail nearby.
     Returns building names/ages/styles plus the "notice this" layer: war
     memorials and plaques, murals, ghost signs (disused shops still bearing
-    old signage), and cemeteries.
+    old signage), cemeteries, and parks/gardens. Works anywhere OSM has
+    coverage — no per-city configuration, unlike DataSF/city_data.py.
     """
     query = f"""
     [out:json][timeout:8];
@@ -147,45 +160,49 @@ async def fetch_osm_buildings(lat: float, lng: float, client: httpx.AsyncClient)
       way(around:{RADIUS_METERS},{lat},{lng})["disused:shop"];
       node(around:{RADIUS_METERS},{lat},{lng})["amenity"="grave_yard"];
       way(around:{RADIUS_METERS},{lat},{lng})["landuse"="cemetery"];
+      way(around:{RADIUS_METERS},{lat},{lng})["leisure"="park"];
+      way(around:{RADIUS_METERS},{lat},{lng})["leisure"="garden"];
     );
     out body 15;
     """
-    try:
-        r = await client.post(
-            "https://overpass-api.de/api/interpreter",
-            data={"data": query},
-            timeout=TIMEOUT + 3,
-        )
-        if r.status_code != 200:
-            return []
 
-        elements = r.json().get("elements", [])
-        results = []
-        for el in elements[:15]:
-            tags = el.get("tags", {})
-            if tags:
-                results.append({
-                    "type": el.get("type", ""),
-                    "name": tags.get("name", ""),
-                    "building": tags.get("building", ""),
-                    "architect": tags.get("architect", ""),
-                    "start_date": tags.get("start_date", ""),
-                    "heritage": tags.get("heritage", ""),
-                    "historic": tags.get("historic", ""),
-                    "tourism": tags.get("tourism", ""),
-                    "memorial": tags.get("memorial", ""),
-                    "artwork_type": tags.get("artwork_type", ""),
-                    "disused_shop": tags.get("disused:shop", ""),
-                    "amenity": tags.get("amenity", ""),
-                    "landuse": tags.get("landuse", ""),
-                    "description": tags.get("description", ""),
-                    "old_name": tags.get("old_name", ""),
-                })
-        return results
+    for i, endpoint in enumerate(OVERPASS_ENDPOINTS):
+        try:
+            r = await client.post(endpoint, data={"data": query}, timeout=TIMEOUT + 3)
+            if r.status_code != 200:
+                logger.warning(f"Overpass endpoint {endpoint} returned {r.status_code}")
+                continue
 
-    except Exception as e:
-        logger.warning(f"OSM Overpass failed: {e}")
-        return []
+            elements = r.json().get("elements", [])
+            results = []
+            for el in elements[:15]:
+                tags = el.get("tags", {})
+                if tags:
+                    results.append({
+                        "type": el.get("type", ""),
+                        "name": tags.get("name", ""),
+                        "building": tags.get("building", ""),
+                        "architect": tags.get("architect", ""),
+                        "start_date": tags.get("start_date", ""),
+                        "heritage": tags.get("heritage", ""),
+                        "historic": tags.get("historic", ""),
+                        "tourism": tags.get("tourism", ""),
+                        "memorial": tags.get("memorial", ""),
+                        "artwork_type": tags.get("artwork_type", ""),
+                        "disused_shop": tags.get("disused:shop", ""),
+                        "amenity": tags.get("amenity", ""),
+                        "landuse": tags.get("landuse", ""),
+                        "leisure": tags.get("leisure", ""),
+                        "description": tags.get("description", ""),
+                        "old_name": tags.get("old_name", ""),
+                    })
+            return results
+
+        except Exception as e:
+            logger.warning(f"Overpass endpoint {endpoint} failed: {e}")
+            continue
+
+    return []
 
 
 async def fetch_knowledge_graph(street: str, neighborhood: str, client: httpx.AsyncClient) -> list:

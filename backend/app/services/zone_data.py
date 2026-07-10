@@ -221,6 +221,7 @@ def _format_osm(data: list) -> str:
         disused_shop = b.get("disused_shop", "")
         amenity = b.get("amenity", "")
         landuse = b.get("landuse", "")
+        leisure = b.get("leisure", "")
         parts = []
         if name:
             parts.append(name)
@@ -242,6 +243,8 @@ def _format_osm(data: list) -> str:
             parts.append(f"ghost sign — formerly a {disused_shop} shop")
         if amenity == "grave_yard" or landuse == "cemetery":
             parts.append("cemetery/graveyard nearby")
+        if leisure in ("park", "garden"):
+            parts.append(f"{leisure} nearby")
         if parts:
             lines.append(f"- {', '.join(parts)}")
     return "\n".join(lines)

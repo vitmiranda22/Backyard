@@ -66,6 +66,14 @@ export default function ActiveTourScreen({
   // Debounce — don't trigger more than once every 10 seconds
   const lastTriggerTime = useRef(0);
 
+  // sequence -> locally cached file URI, populated once cacheAudio()
+  // finishes downloading in the background. Deliberately NOT swapped into
+  // the live `audioUrl` state on its own — doing that used to restart
+  // playback from 0:00 partway through (a new AudioPlayer source always
+  // reloads), which sounded like the same narration playing twice. Only
+  // consulted as a fallback if playback actually errors out.
+  const cachedAudioRef = useRef<Record<number, string>>({});
+
   // Keep tourIdRef in sync
   useEffect(() => {
     tourIdRef.current = tourId;
@@ -163,14 +171,13 @@ export default function ActiveTourScreen({
       const thisSequence = sequenceRef.current;
 
       // Cache this block's audio to disk once it's done loading, so a
-      // signal drop right after doesn't interrupt what's already playing.
-      // Not pre-caching future blocks — they don't exist yet (live
-      // generation). Guarded against a race where the user has already
-      // moved to a new block by the time this resolves.
+      // signal drop mid-playback has something to fall back to (see
+      // handleAudioError below). Not pre-caching future blocks — they
+      // don't exist yet (live generation).
       if (result.audio_url) {
         cacheAudio(result.audio_url, `${tourIdRef.current || "notour"}-${thisSequence}`).then((localUri) => {
-          if (localUri && sequenceRef.current === thisSequence) {
-            setAudioUrl(localUri);
+          if (localUri) {
+            cachedAudioRef.current[thisSequence] = localUri;
           }
         });
       }
@@ -211,6 +218,15 @@ export default function ActiveTourScreen({
   function handleManualTrigger() {
     if (location && !isLoadingRef.current) {
       triggerNarration(location.lat, location.lng, "manual");
+    }
+  }
+
+  // Playback failed (e.g. the remote stream dropped mid-narration) — retry
+  // once from the locally cached copy, if one's ready yet.
+  function handleAudioError() {
+    const cached = cachedAudioRef.current[sequenceRef.current];
+    if (cached) {
+      setAudioUrl(cached);
     }
   }
 
@@ -271,6 +287,7 @@ export default function ActiveTourScreen({
         onAudioFinished={() => {
           hasActiveAudioRef.current = false;
         }}
+        onAudioError={handleAudioError}
         onSkip={() => {
           hasActiveAudioRef.current = false;
           setNarrationText(null);

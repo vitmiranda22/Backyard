@@ -28,6 +28,7 @@ import ReplayScreen from "./src/screens/ReplayScreen";
 import RouteRatingScreen from "./src/screens/RouteRatingScreen";
 import PaywallScreen from "./src/screens/PaywallScreen";
 import VoicePickerScreen from "./src/screens/VoicePickerScreen";
+import BadgeGalleryScreen from "./src/screens/BadgeGalleryScreen";
 import TabBar, { MainTab } from "./src/components/TabBar";
 import ToastHost from "./src/components/Toast";
 
@@ -54,7 +55,8 @@ type Screen =
   | "replay"
   | "rate"
   | "paywall"
-  | "voicePicker";
+  | "voicePicker"
+  | "badgeGallery";
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("loading");
@@ -232,6 +234,7 @@ export default function App() {
                 isPremium={isPremium}
                 onOpenVoicePicker={() => setScreen("voicePicker")}
                 onOpenPaywall={requirePremium}
+                onOpenBadges={() => setScreen("badgeGallery")}
               />
             )}
           </View>
@@ -316,6 +319,15 @@ export default function App() {
             setActiveTab("profile");
             setScreen("main");
             refreshSettings();
+          }}
+        />
+      )}
+
+      {screen === "badgeGallery" && (
+        <BadgeGalleryScreen
+          onBack={() => {
+            setActiveTab("profile");
+            setScreen("main");
           }}
         />
       )}

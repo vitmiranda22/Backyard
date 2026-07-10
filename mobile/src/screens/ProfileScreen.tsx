@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, Switch, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import { getCurrentUserEmail, signOut } from "../services/auth";
-import { getSettings, updateSettings, getUserStats, deleteAccount } from "../services/api";
+import { getSettings, updateSettings, getUserStats, deleteAccount, UserStats } from "../services/api";
 import { getEarnedBadges, Badge } from "../services/badges";
 import { colors, font, radius } from "../theme";
 import { showToast } from "../services/toast";
@@ -13,6 +13,7 @@ interface ProfileScreenProps {
   isPremium: boolean;
   onOpenVoicePicker: () => void;
   onOpenPaywall: () => void;
+  onOpenBadges: () => void;
 }
 
 export default function ProfileScreen({
@@ -20,23 +21,28 @@ export default function ProfileScreen({
   isPremium,
   onOpenVoicePicker,
   onOpenPaywall,
+  onOpenBadges,
 }: ProfileScreenProps) {
   const [email, setEmail] = useState<string | null>(null);
   const [contentSafety, setContentSafety] = useState(false);
   const [loading, setLoading] = useState(true);
   const [badges, setBadges] = useState<Badge[]>([]);
+  const [stats, setStats] = useState<UserStats | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function load() {
-      const [userEmail, settings, stats] = await Promise.all([
+      const [userEmail, settings, userStats] = await Promise.all([
         getCurrentUserEmail().catch(() => null),
         getSettings().catch(() => null),
         getUserStats().catch(() => null),
       ]);
       setEmail(userEmail);
       if (settings) setContentSafety(settings.content_safety);
-      if (stats) setBadges(getEarnedBadges(stats));
+      if (userStats) {
+        setStats(userStats);
+        setBadges(getEarnedBadges(userStats));
+      }
       setLoading(false);
     }
     load();
@@ -164,9 +170,37 @@ export default function ProfileScreen({
         </View>
       </View>
 
-      {badges.length > 0 && (
+      {stats && (
         <View style={styles.card}>
-          <Text style={styles.label}>Badges</Text>
+          <Text style={styles.label}>Your stats</Text>
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{stats.tours_completed}</Text>
+              <Text style={styles.statLabel}>tours</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{(stats.total_distance_m / 1000).toFixed(1)}</Text>
+              <Text style={styles.statLabel}>km walked</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{stats.cities_visited}</Text>
+              <Text style={styles.statLabel}>cities</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {badges.length > 0 && (
+        <TouchableOpacity
+          style={styles.card}
+          onPress={onOpenBadges}
+          accessibilityRole="button"
+          accessibilityLabel="View all badges"
+        >
+          <View style={styles.row}>
+            <Text style={[styles.label, { flex: 1 }]}>Badges</Text>
+            <Text style={styles.chevron}>›</Text>
+          </View>
           <View style={styles.badgeRow}>
             {badges.map((b) => (
               <View key={b.id} style={styles.badgeChip}>
@@ -175,7 +209,7 @@ export default function ProfileScreen({
               </View>
             ))}
           </View>
-        </View>
+        </TouchableOpacity>
       )}
 
       <TouchableOpacity
@@ -293,6 +327,24 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 15,
     fontWeight: "700",
+  },
+  statsRow: {
+    flexDirection: "row",
+    marginTop: 10,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: colors.text,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 2,
   },
   badgeRow: {
     flexDirection: "row",

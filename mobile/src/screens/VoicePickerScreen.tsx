@@ -3,14 +3,24 @@
 // opens the paywall instead of selecting it.
 
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ImageSourcePropType } from "react-native";
 import { Audio } from "expo-av";
 import { getSettings, updateSettings, getVoiceSample } from "../services/api";
 import { colors, font, radius } from "../theme";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
 
-const VOICES = [
+// avatarUri is left unset for now — drop in real art later
+// (e.g. avatarUri: require("../../assets/voices/neutral.png")) and the
+// card automatically shows it in place of the emoji, no other changes.
+const VOICES: {
+  id: string;
+  emoji: string;
+  avatarUri?: ImageSourcePropType;
+  label: string;
+  desc: string;
+  premium: boolean;
+}[] = [
   { id: "neutral", emoji: "🎙️", label: "Neutral", desc: "Clear and balanced narration", premium: false },
   { id: "dramatic", emoji: "🎭", label: "Dramatic", desc: "Bold, cinematic delivery", premium: true },
   { id: "warm", emoji: "☕", label: "Warm", desc: "Friendly, conversational tone", premium: true },
@@ -113,7 +123,13 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
             accessibilityRole="button"
             accessibilityLabel={`${voice.label} voice${locked ? ", premium" : ""}${selected ? ", selected" : ""}`}
           >
-            <Text style={styles.emoji}>{voice.emoji}</Text>
+            <View style={styles.avatarWrap}>
+              {voice.avatarUri ? (
+                <Image source={voice.avatarUri} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.emoji}>{voice.emoji}</Text>
+              )}
+            </View>
             <View style={styles.info}>
               <View style={styles.labelRow}>
                 <Text style={styles.label}>{voice.label}</Text>
@@ -193,9 +209,24 @@ const styles = StyleSheet.create({
   cardSelected: {
     borderColor: colors.accent,
   },
-  emoji: {
-    fontSize: 26,
+  avatarWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 14,
+    overflow: "hidden",
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+  },
+  emoji: {
+    fontSize: 22,
   },
   info: {
     flex: 1,

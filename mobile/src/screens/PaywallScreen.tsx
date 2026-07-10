@@ -30,7 +30,7 @@ export default function PaywallScreen({ onClose }: PaywallScreenProps) {
   return (
     <View style={styles.container}>
       <TouchableOpacity
-        style={[styles.closeBtn, { top: insets.top + 12 }]}
+        style={[styles.closeBtn, { top: Math.max(insets.top, 54) + 12 }]}
         onPress={onClose}
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         accessibilityRole="button"

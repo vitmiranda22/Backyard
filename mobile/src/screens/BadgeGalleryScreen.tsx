@@ -37,9 +37,9 @@ export default function BadgeGalleryScreen({ onBack }: BadgeGalleryScreenProps) 
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
+    <View style={[styles.container, { paddingTop: Math.max(insets.top, 54) + 16 }]}>
       <TouchableOpacity
-        style={[styles.backBtn, { top: insets.top + 12 }]}
+        style={[styles.backBtn, { top: Math.max(insets.top, 54) + 12 }]}
         onPress={onBack}
         accessibilityRole="button"
         accessibilityLabel="Back"

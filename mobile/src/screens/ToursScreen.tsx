@@ -109,7 +109,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.header, { paddingTop: insets.top + 12 }]}>Tours</Text>
+      <Text style={[styles.header, { paddingTop: Math.max(insets.top, 54) + 12 }]}>Tours</Text>
 
       <View style={styles.segmentRow}>
         <TouchableOpacity

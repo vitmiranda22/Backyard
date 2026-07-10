@@ -111,7 +111,7 @@ export default function ProfileScreen({
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
+    <View style={[styles.container, { paddingTop: Math.max(insets.top, 54) + 20 }]}>
       <Text style={styles.header}>Profile</Text>
 
       <View style={styles.card}>
@@ -174,7 +174,7 @@ export default function ProfileScreen({
 
       {stats && (
         <View style={styles.card}>
-          <Text style={styles.label}>Your stats</Text>
+          <Text style={[styles.label, styles.centerText]}>Your stats</Text>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{stats.tours_completed}</Text>
@@ -203,7 +203,7 @@ export default function ProfileScreen({
             <Text style={[styles.label, { flex: 1 }]}>Badges</Text>
             <Text style={styles.chevron}>›</Text>
           </View>
-          <View style={styles.badgeRow}>
+          <View style={[styles.badgeRow, styles.centerRow]}>
             {badges.map((b) => (
               <View key={b.id} style={styles.badgeChip}>
                 <Text style={styles.badgeEmoji}>{b.emoji}</Text>
@@ -330,8 +330,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
   },
+  centerText: {
+    textAlign: "center",
+  },
+  centerRow: {
+    justifyContent: "center",
+  },
   statsRow: {
     flexDirection: "row",
+    justifyContent: "center",
     marginTop: 10,
   },
   statItem: {

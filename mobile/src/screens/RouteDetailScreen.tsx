@@ -116,7 +116,7 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 54) + 10 }]}>
         <TouchableOpacity onPress={onBack} accessibilityRole="button" accessibilityLabel="Back">
           <Text style={styles.backLink}>‹ Back</Text>
         </TouchableOpacity>

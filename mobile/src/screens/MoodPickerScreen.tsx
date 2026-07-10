@@ -73,7 +73,7 @@ export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequ
   return (
     <View style={styles.container}>
       <TouchableOpacity
-        style={[styles.cancelBtn, { top: insets.top + 12 }]}
+        style={[styles.cancelBtn, { top: Math.max(insets.top, 54) + 12 }]}
         onPress={onCancel}
         accessibilityRole="button"
         accessibilityLabel="Cancel"

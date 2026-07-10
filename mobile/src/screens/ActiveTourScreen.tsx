@@ -382,7 +382,7 @@ export default function ActiveTourScreen({
         )}
 
         <TouchableOpacity
-          style={[styles.endLink, { top: insets.top + 10 }]}
+          style={[styles.endLink, { top: Math.max(insets.top, 54) + 10 }]}
           onPress={handleEndTour}
           accessibilityRole="button"
           accessibilityLabel="End tour"
@@ -391,7 +391,7 @@ export default function ActiveTourScreen({
         </TouchableOpacity>
 
         {blockOrigin && targetBearing !== null && (
-          <View style={[styles.compassOverlay, { top: insets.top + 48 }]}>
+          <View style={[styles.compassOverlay, { top: Math.max(insets.top, 54) + 48 }]}>
             <WaypointCompass
               bearingDeg={relativeBearing}
               distanceLabel={`${Math.round(distanceToBlock)}m · ${compassLabel(targetBearing)}`}

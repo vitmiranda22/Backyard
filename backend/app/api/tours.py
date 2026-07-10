@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-GEOHASH_PRECISION = 8  # must match backend/app/api/narrate.py
+GEOHASH_PRECISION = 7  # must match backend/app/api/narrate.py
 
 
 def _expected_r2_keys(tour_id: str, lat: float, lng: float, mood: str, voice: str, content_safety: bool):

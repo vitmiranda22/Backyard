@@ -10,8 +10,8 @@ export const API_URL = "https://backyard-api.onrender.com/api";
 export const SUPABASE_URL = "https://uhhjntfwmgsiyvzepptm.supabase.co";       // e.g. https://xxxxx.supabase.co
 export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoaGpudGZ3bWdzaXl2emVwcHRtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxOTc0MTEsImV4cCI6MjA5ODc3MzQxMX0._cCsOR3Y8DYGTSipo218Pt-sM33BqThXnxEt1RtjFL8"; // starts with eyJ...
 
-// Geohash precision 8 = ~19-38m zones (must match backend)
-export const GEOHASH_PRECISION = 8;
+// Geohash precision 7 = ~153m x 153m zones (must match backend)
+export const GEOHASH_PRECISION = 7;
 
 // How often to check GPS (milliseconds)
 export const GPS_INTERVAL_MS = 5000;

@@ -34,7 +34,14 @@ export default function TourCompleteScreen({
   path,
   onDone,
 }: TourCompleteProps) {
-  const [title, setTitle] = useState("Your Tour");
+  // Naming is its own forced first step — no auto-generated default to
+  // fall back on, so there's nothing to silently skip. The endTour() call
+  // (which needs a couple seconds and gives us `mood` for the stats grid)
+  // runs in the background while the walker is still typing, rather than
+  // making them stare at a spinner before they can even start.
+  const [nameStep, setNameStep] = useState(true);
+  const [advancing, setAdvancing] = useState(false);
+  const [title, setTitle] = useState("");
   const [mood, setMood] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -52,11 +59,9 @@ export default function TourCompleteScreen({
     async function finalize() {
       try {
         const result = await endTour(tourId, distanceM, durationSec, path);
-        setTitle(result.title);
         setMood(result.mood);
       } catch (e) {
         console.error("Failed to end tour:", e);
-        setTitle("Tour Complete");
       }
       setLoading(false);
     }
@@ -67,6 +72,27 @@ export default function TourCompleteScreen({
       setLoading(false);
     }
   }, []);
+
+  function handleContinueFromName() {
+    if (!title.trim()) return;
+    tap();
+    if (loading) {
+      // endTour() is still finishing up in the background — show a brief
+      // beat instead of the name step just vanishing into nothing.
+      setAdvancing(true);
+      return;
+    }
+    setNameStep(false);
+  }
+
+  // Once endTour() resolves, advance automatically if the walker already
+  // hit Continue and was waiting on it.
+  useEffect(() => {
+    if (advancing && !loading) {
+      setAdvancing(false);
+      setNameStep(false);
+    }
+  }, [loading, advancing]);
 
   async function handleSave() {
     setSaving(true);
@@ -121,11 +147,42 @@ export default function TourCompleteScreen({
     }
   }
 
-  if (loading) {
+  if (nameStep) {
+    if (advancing) {
+      return (
+        <View style={styles.container}>
+          <ActivityIndicator size="large" color={colors.accent} />
+          <Text style={styles.loadingText}>Finishing up...</Text>
+        </View>
+      );
+    }
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color={colors.accent} />
-        <Text style={styles.loadingText}>Saving your tour...</Text>
+        <Text style={styles.emoji}>🎉</Text>
+        <Text style={styles.title}>What was this walk?</Text>
+        <Text style={styles.nameSubtitle}>Give it a name before you move on</Text>
+
+        <TextInput
+          style={styles.titleInput}
+          value={title}
+          onChangeText={setTitle}
+          placeholder="e.g. Sunset stroll through Hayes Valley"
+          placeholderTextColor={colors.muted}
+          accessibilityLabel="Tour title"
+          autoFocus
+          returnKeyType="done"
+          onSubmitEditing={handleContinueFromName}
+        />
+
+        <TouchableOpacity
+          style={[styles.doneBtn, !title.trim() && styles.doneBtnDisabled]}
+          onPress={handleContinueFromName}
+          disabled={!title.trim()}
+          accessibilityRole="button"
+          accessibilityLabel="Continue"
+        >
+          <Text style={styles.doneBtnText}>Continue</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -164,15 +221,17 @@ export default function TourCompleteScreen({
   return (
     <View style={styles.container}>
       <Text style={styles.emoji}>🎉</Text>
-      <Text style={styles.title}>Tour Complete!</Text>
+      <Text style={styles.title} numberOfLines={2}>
+        {title}
+      </Text>
 
       <TextInput
-        style={styles.titleInput}
+        style={styles.editNameInput}
         value={title}
         onChangeText={setTitle}
         placeholder="Name your tour"
         placeholderTextColor={colors.muted}
-        accessibilityLabel="Tour title"
+        accessibilityLabel="Edit tour title"
       />
 
       <TourStatsGrid
@@ -237,6 +296,13 @@ const styles = StyleSheet.create({
     fontSize: 26,
     color: colors.text,
     marginBottom: 16,
+    textAlign: "center",
+  },
+  nameSubtitle: {
+    fontSize: 14,
+    color: colors.muted,
+    marginBottom: 24,
+    textAlign: "center",
   },
   titleInput: {
     width: "100%",
@@ -244,11 +310,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
-    padding: 12,
-    fontSize: 16,
+    padding: 14,
+    fontSize: 17,
     color: colors.text,
     textAlign: "center",
+    marginBottom: 24,
+  },
+  editNameInput: {
+    width: "100%",
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 10,
+    fontSize: 13,
+    color: colors.muted,
+    textAlign: "center",
     marginBottom: 20,
+  },
+  doneBtnDisabled: {
+    backgroundColor: colors.border,
   },
   shareRow: {
     flexDirection: "row",

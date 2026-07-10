@@ -294,21 +294,31 @@ async def end_tour(
         blocks=blocks,
     )
 
-    # Calculate center point from blocks
+    # Where the tour's map pin lands — the actual starting point, not the
+    # geometric centroid of every block visited (a route that loops or
+    # zigzags can have a centroid nowhere near where you'd actually start
+    # walking). Prefer the first sample of the real GPS trace, captured
+    # the instant the tour began; fall back to the first block for older
+    # clients that don't send a path.
     center_lat = None
     center_lng = None
     city = None
     location = None
+    if request.path:
+        center_lat = request.path[0].lat
+        center_lng = request.path[0].lng
+    elif blocks:
+        first_lat = blocks[0].get("lat")
+        first_lng = blocks[0].get("lng")
+        if first_lat is not None and first_lng is not None:
+            center_lat = first_lat
+            center_lng = first_lng
+    if center_lat is not None and center_lng is not None:
+        # EWKT — PostGIS parses this directly through PostgREST for a
+        # geography column. This is what makes the tour findable via
+        # nearby_tours() once it's published.
+        location = f"SRID=4326;POINT({center_lng} {center_lat})"
     if blocks:
-        lats = [b["lat"] for b in blocks if b.get("lat")]
-        lngs = [b["lng"] for b in blocks if b.get("lng")]
-        if lats and lngs:
-            center_lat = sum(lats) / len(lats)
-            center_lng = sum(lngs) / len(lngs)
-            # EWKT — PostGIS parses this directly through PostgREST for a
-            # geography column. This is what makes the tour findable via
-            # nearby_tours() once it's published.
-            location = f"SRID=4326;POINT({center_lng} {center_lat})"
         city = blocks[0].get("city", "Unknown")
 
     # Update the tour record

@@ -141,7 +141,6 @@ export default function HomeScreen({
               <Marker
                 key={route.tour_id}
                 coordinate={{ latitude: route.lat, longitude: route.lng }}
-                pinColor={colors.pro}
                 title={route.title}
                 description={
                   route.rating_count > 0
@@ -150,7 +149,14 @@ export default function HomeScreen({
                 }
                 onPress={() => handlePinPress(route)}
                 onCalloutPress={() => onSelectRoute(route.tour_id)}
-              />
+                tracksViewChanges={false}
+              >
+                <View style={styles.moodPin}>
+                  <Text style={styles.moodPinEmoji}>
+                    {MOODS.find((m) => m.id === route.mood)?.emoji ?? "🗺️"}
+                  </Text>
+                </View>
+              </Marker>
             ))}
 
             {selectedPath.length > 1 && (
@@ -269,6 +275,24 @@ const styles = StyleSheet.create({
   placeholderText: {
     color: colors.muted,
     fontSize: 15,
+  },
+  moodPin: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.pro,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  moodPinEmoji: {
+    fontSize: 17,
   },
   sheet: {
     flex: 1,

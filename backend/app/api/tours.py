@@ -527,6 +527,46 @@ async def get_tour_detail(tour_id: str, user_id: AuthenticatedUser):
     )
 
 
+@router.delete(
+    "/tours/{tour_id}",
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+    summary="Permanently delete a tour you created",
+)
+async def delete_tour(tour_id: str, user_id: AuthenticatedUser):
+    """
+    Deletes the tour row. Blocks, likes, comments, and ratings all cascade
+    from tours (see 001_initial_schema.sql), so this alone removes
+    everything tied to it — irreversible.
+    """
+    tour = await supabase_db.get_tour(tour_id)
+    if not tour:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Tour not found.", "code": "tour_not_found", "retry": False},
+        )
+    if tour["creator_id"] != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "This tour doesn't belong to you.", "code": "forbidden", "retry": False},
+        )
+
+    ok = await supabase_db.delete_tour(tour_id)
+    if not ok:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Failed to delete tour. Please try again.",
+                "code": "tour_delete_failed",
+                "retry": True,
+            },
+        )
+    return {"deleted": True}
+
+
 @router.post(
     "/rate-tour",
     response_model=RateTourResponse,

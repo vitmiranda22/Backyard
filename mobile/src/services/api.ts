@@ -242,6 +242,10 @@ export async function getTourDetail(tourId: string): Promise<TourDetail> {
   return authFetch(`/tours/${tourId}`);
 }
 
+export async function deleteTour(tourId: string): Promise<void> {
+  return authFetch(`/tours/${tourId}`, { method: "DELETE" });
+}
+
 export interface NearbyRoute {
   tour_id: string;
   title: string;

@@ -486,6 +486,18 @@ async def end_tour(
         return None
 
 
+async def delete_tour(tour_id: str) -> bool:
+    """Permanently delete a tour row. Blocks/likes/comments/ratings cascade from it."""
+    try:
+        client = _get_client()
+        client.table("tours").delete().eq("id", tour_id).execute()
+        logger.info(f"Deleted tour {tour_id[:8]}...")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to delete tour: {e}")
+        return False
+
+
 # =============================================================================
 # Routes — publish, discover, rate (reuses ratings table + nearby_tours() SQL
 # function already defined in 001_initial_schema.sql)

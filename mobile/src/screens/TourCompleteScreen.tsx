@@ -11,8 +11,9 @@ import {
   StyleSheet,
   ActivityIndicator,
   Share,
+  Alert,
 } from "react-native";
-import { endTour, publishTour } from "../services/api";
+import { endTour, publishTour, deleteTour } from "../services/api";
 import TourStatsGrid from "../components/TourStatsGrid";
 import { colors, font, radius } from "../theme";
 import { showToast } from "../services/toast";
@@ -37,6 +38,7 @@ export default function TourCompleteScreen({
   const [mood, setMood] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
   const [shareAsRoute, setShareAsRoute] = useState(true);
   const [saved, setSaved] = useState(false);
 
@@ -84,6 +86,29 @@ export default function TourCompleteScreen({
     }
     setSaving(false);
     onDone();
+  }
+
+  function handleDiscard() {
+    Alert.alert(
+      "Discard this walk?",
+      "This deletes it permanently — it won't be saved to your history or published.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Discard", style: "destructive", onPress: confirmDiscard },
+      ]
+    );
+  }
+
+  async function confirmDiscard() {
+    setDiscarding(true);
+    try {
+      if (tourId) await deleteTour(tourId);
+      onDone();
+    } catch (e: any) {
+      console.warn("Failed to discard tour:", e.message);
+      showToast("Couldn't discard this walk — try again in a moment.");
+      setDiscarding(false);
+    }
   }
 
   async function handleShare() {
@@ -173,11 +198,23 @@ export default function TourCompleteScreen({
       <TouchableOpacity
         style={styles.doneBtn}
         onPress={handleSave}
-        disabled={saving}
+        disabled={saving || discarding}
         accessibilityRole="button"
         accessibilityLabel="Save tour"
       >
         <Text style={styles.doneBtnText}>{saving ? "Saving..." : "Save"}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={handleDiscard}
+        disabled={saving || discarding}
+        accessibilityRole="button"
+        accessibilityLabel="Discard this walk"
+        style={styles.discardBtn}
+      >
+        <Text style={styles.discardBtnText}>
+          {discarding ? "Discarding..." : "Discard this walk"}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -246,6 +283,16 @@ const styles = StyleSheet.create({
     color: colors.accentText,
     fontSize: 18,
     fontWeight: "bold",
+    textAlign: "center",
+  },
+  discardBtn: {
+    marginTop: 14,
+    padding: 8,
+  },
+  discardBtnText: {
+    color: colors.danger,
+    fontSize: 14,
+    fontWeight: "600",
     textAlign: "center",
   },
   loadingText: {

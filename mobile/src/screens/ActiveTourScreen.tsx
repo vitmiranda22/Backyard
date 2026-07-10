@@ -234,7 +234,13 @@ export default function ActiveTourScreen({
           showsUserLocation
         >
           {path.length > 1 && (
-            <Polyline coordinates={path} strokeColor={colors.accent} strokeWidth={4} />
+            <Polyline
+              coordinates={path}
+              strokeColor="rgba(255, 107, 74, 0.6)"
+              strokeWidth={14}
+              lineCap="round"
+              lineJoin="round"
+            />
           )}
         </MapView>
       ) : (

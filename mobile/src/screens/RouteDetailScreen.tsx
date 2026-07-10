@@ -157,8 +157,10 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
               {tour.blocks.length > 1 && (
                 <Polyline
                   coordinates={tour.blocks.map((b) => ({ latitude: b.lat, longitude: b.lng }))}
-                  strokeColor={colors.accent}
-                  strokeWidth={4}
+                  strokeColor="rgba(255, 107, 74, 0.6)"
+                  strokeWidth={14}
+                  lineCap="round"
+                  lineJoin="round"
                 />
               )}
               <Marker

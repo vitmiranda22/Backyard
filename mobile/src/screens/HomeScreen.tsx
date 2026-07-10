@@ -4,13 +4,13 @@
 
 import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, Polyline } from "react-native-maps";
 import {
   requestLocationPermission,
   getCurrentLocation,
   reverseGeocode,
 } from "../services/location";
-import { getTours, getNearbyRoutes, TourSummary, NearbyRoute } from "../services/api";
+import { getTours, getNearbyRoutes, getTourDetail, TourSummary, NearbyRoute } from "../services/api";
 import { colors, font, radius } from "../theme";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
@@ -45,6 +45,25 @@ export default function HomeScreen({
   const [toursLoaded, setToursLoaded] = useState(false);
   const [nearbyRoutes, setNearbyRoutes] = useState<NearbyRoute[]>([]);
   const [routesLoaded, setRoutesLoaded] = useState(false);
+
+  // The full walked path of whichever pin was last tapped, drawn directly
+  // on this map. Fetched on demand (nearby-route pins only carry a single
+  // point, not the full block-by-block path) rather than up front for
+  // every pin, since most of them will never get tapped.
+  const [selectedPath, setSelectedPath] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [selectedTourId, setSelectedTourId] = useState<string | null>(null);
+
+  async function handlePinPress(route: NearbyRoute) {
+    if (selectedTourId === route.tour_id) return;
+    setSelectedTourId(route.tour_id);
+    try {
+      const detail = await getTourDetail(route.tour_id);
+      setSelectedPath(detail.blocks.map((b) => ({ latitude: b.lat, longitude: b.lng })));
+    } catch (e: any) {
+      console.warn("Failed to load route path:", e.message);
+      setSelectedTourId(null);
+    }
+  }
 
   useEffect(() => {
     async function init() {
@@ -119,11 +138,30 @@ export default function HomeScreen({
                 description={
                   route.rating_count > 0
                     ? `★ ${route.avg_rating.toFixed(1)} (${route.rating_count})`
-                    : "Not yet rated"
+                    : "Not yet rated — tap the marker to see the path, tap the card for details"
                 }
+                onPress={() => handlePinPress(route)}
                 onCalloutPress={() => onSelectRoute(route.tour_id)}
               />
             ))}
+
+            {selectedPath.length > 1 && (
+              <>
+                <Polyline
+                  coordinates={selectedPath}
+                  strokeColor="rgba(255, 107, 74, 0.6)"
+                  strokeWidth={14}
+                  lineCap="round"
+                  lineJoin="round"
+                />
+                <Marker coordinate={selectedPath[0]} pinColor={colors.accent} title="Start" />
+                <Marker
+                  coordinate={selectedPath[selectedPath.length - 1]}
+                  pinColor={colors.danger}
+                  title="End of route"
+                />
+              </>
+            )}
           </MapView>
         ) : (
           <View style={styles.mapPlaceholder}>

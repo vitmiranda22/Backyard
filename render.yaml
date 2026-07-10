@@ -31,6 +31,8 @@ services:
         sync: false
       - key: TMDB_API_KEY
         sync: false
+      - key: SENTRY_DSN
+        sync: false
       - key: DAILY_NARRATION_LIMIT
         value: "250"
       - key: MINUTE_NARRATION_LIMIT

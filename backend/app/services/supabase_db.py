@@ -65,6 +65,28 @@ async def check_rate_limit(user_id: str, minute_limit: int, daily_limit: int) ->
         return True, ""
 
 
+async def check_question_rate_limit(user_id: str, daily_limit: int) -> tuple:
+    """
+    Same atomic check-and-increment pattern as check_rate_limit, but against
+    the separate question_count/question_window_start columns — /ask-question
+    has its own daily ceiling instead of sharing the narration one (see
+    migrations/010_question_rate_limit.sql). Also fails open on RPC error.
+    """
+    try:
+        client = _get_client()
+        result = client.rpc("check_and_increment_question_limit", {
+            "p_user_id": user_id,
+            "p_daily_limit": daily_limit,
+        }).execute()
+        if result.data:
+            row = result.data[0]
+            return row["allowed"], row["reason"]
+        return True, ""
+    except Exception as e:
+        logger.error(f"Question rate limit check failed for {user_id}: {e}")
+        return True, ""
+
+
 # =============================================================================
 # Narration cache operations (Week 1)
 # =============================================================================

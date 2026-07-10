@@ -80,14 +80,25 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------------
     # Rate limiting
     # -------------------------------------------------------------------------
-    # Raised alongside the geohash precision bump (7->8): smaller ~19-38m
-    # zones mean a normal walk crosses roughly 5x more zone boundaries than
-    # before, so the same limits would rate-limit a normal user mid-walk.
-    # MINUTE stays more conservative than the 5x daily bump on purpose — it's
-    # the main defense against rapid scripted abuse, and walking speed itself
-    # didn't change.
-    DAILY_NARRATION_LIMIT: int = 250
+    # Tiered by premium status — the previous flat 250/day gave free and
+    # premium users identical quotas, so the "higher daily limit" Premium
+    # perk advertised in the paywall was never actually enforced. Free is
+    # sized to comfortably finish one real walking tour without hitting the
+    # ceiling mid-walk: at the current geohash precision (7->8, ~19-38m
+    # zones), a normal 1-2km walk can cross 40-80+ zone boundaries. MINUTE
+    # stays flat and conservative for both tiers — it's the main defense
+    # against rapid scripted abuse, and walking speed doesn't change with
+    # plan tier.
+    DAILY_NARRATION_LIMIT_FREE: int = 80
+    DAILY_NARRATION_LIMIT_PREMIUM: int = 100
     MINUTE_NARRATION_LIMIT: int = 15
+
+    # /ask-question has zero caching (fresh Whisper + GPT + TTS on every
+    # single call, unlike narrate-block which reuses cached audio for a
+    # revisited zone) — it gets its own tighter daily ceiling instead of
+    # sharing the narration pool above.
+    DAILY_QUESTION_LIMIT_FREE: int = 8
+    DAILY_QUESTION_LIMIT_PREMIUM: int = 25
 
     # -------------------------------------------------------------------------
     # App settings

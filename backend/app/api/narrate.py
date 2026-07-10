@@ -100,13 +100,17 @@ async def narrate_block(
     user_id: AuthenticatedUser,
 ):
     # --- Step 0: Rate limit ---
+    # Fetched once, up front — needed both to size today's daily quota by
+    # plan tier and for the premium mood/voice check right below.
+    is_premium = await supabase_db.get_user_premium_status(user_id)
+
     # Every fresh (non-cached) narration triggers billed OpenAI/Street
     # View/TTS calls, so this has to be checked before any of that work
     # starts, not just logged/measured after the fact.
     allowed, reason = await supabase_db.check_rate_limit(
         user_id,
         minute_limit=settings.MINUTE_NARRATION_LIMIT,
-        daily_limit=settings.DAILY_NARRATION_LIMIT,
+        daily_limit=settings.DAILY_NARRATION_LIMIT_PREMIUM if is_premium else settings.DAILY_NARRATION_LIMIT_FREE,
     )
     if not allowed:
         retry_message = (
@@ -125,7 +129,7 @@ async def narrate_block(
     # client or a direct API call. Reject outright rather than silently
     # substituting a different mood/voice the user didn't ask for.
     if request.mood.value in PREMIUM_MOODS or request.voice.value in PREMIUM_VOICES:
-        if not await supabase_db.get_user_premium_status(user_id):
+        if not is_premium:
             raise HTTPException(
                 status_code=403,
                 detail={
@@ -450,22 +454,38 @@ async def ask_question(
     using the walker's current location as context, and speaks the answer
     back through the same TTS/R2 pipeline narration uses.
     """
-    # Costs the same class of billed calls as a narration (transcription +
-    # GPT + TTS), so it shares the same rate limit.
-    allowed, reason = await supabase_db.check_rate_limit(
+    # Unlike narrate-block, this has zero caching (fresh Whisper + GPT + TTS
+    # on every call), so it gets its own tighter daily ceiling rather than
+    # sharing the narration pool — still shares the minute limit, since
+    # that's about rapid-fire abuse, not daily cost.
+    is_premium = await supabase_db.get_user_premium_status(user_id)
+
+    allowed, reason = await supabase_db.check_question_rate_limit(
         user_id,
-        minute_limit=settings.MINUTE_NARRATION_LIMIT,
-        daily_limit=settings.DAILY_NARRATION_LIMIT,
+        daily_limit=settings.DAILY_QUESTION_LIMIT_PREMIUM if is_premium else settings.DAILY_QUESTION_LIMIT_FREE,
     )
     if not allowed:
-        retry_message = (
-            "Too many requests — slow down a bit and try again in a moment."
-            if reason == "minute_limit_exceeded"
-            else "You've hit today's limit. Try again tomorrow."
-        )
         raise HTTPException(
             status_code=429,
-            detail={"error": retry_message, "code": reason, "retry": reason == "minute_limit_exceeded"},
+            detail={
+                "error": "You've asked a lot of questions today — try again tomorrow.",
+                "code": reason,
+                "retry": False,
+            },
+        )
+
+    # Defense-in-depth, same as narrate-block: the client is expected to
+    # gate premium moods/voices before ever reaching here, so this only
+    # fires for a stale client or a direct API call — reject rather than
+    # silently downgrading to a mood/voice the user didn't ask for.
+    if (mood in PREMIUM_MOODS or voice in PREMIUM_VOICES) and not is_premium:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "This mood or voice is a premium feature. Upgrade to unlock it.",
+                "code": "premium_required",
+                "retry": False,
+            },
         )
 
     audio_bytes = await audio.read()

@@ -43,9 +43,15 @@ services:
         sync: false
       - key: ELEVENLABS_VOICE_ID
         sync: false
-      - key: DAILY_NARRATION_LIMIT
-        value: "250"
+      - key: DAILY_NARRATION_LIMIT_FREE
+        value: "80"
+      - key: DAILY_NARRATION_LIMIT_PREMIUM
+        value: "100"
       - key: MINUTE_NARRATION_LIMIT
         value: "15"
+      - key: DAILY_QUESTION_LIMIT_FREE
+        value: "8"
+      - key: DAILY_QUESTION_LIMIT_PREMIUM
+        value: "25"
       - key: ENVIRONMENT
         value: production

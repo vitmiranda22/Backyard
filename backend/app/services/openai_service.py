@@ -10,14 +10,20 @@ uses REAL facts about the location instead of generic filler.
 
 import logging
 import re
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 from app.config import settings
 from app.core.prompts import build_prompt, build_connector_prompt
 
 logger = logging.getLogger(__name__)
 
-client = OpenAI(api_key=settings.OPENAI_API_KEY)
+# AsyncOpenAI, not the sync OpenAI client — this call happens on every
+# narration request (with web_search enabled it's the longest-running
+# call in the pipeline), and uvicorn runs a single worker here. A sync
+# client's blocking call would freeze the whole event loop for its
+# duration, including Render's health check — the same class of bug
+# fixed in tts.py/r2.py for the TTS/R2 calls.
+client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 MODEL = "gpt-4.1-mini"
 
@@ -94,7 +100,7 @@ async def generate_narration(
         logger.info(f"ZONE DATA LENGTH: {len(zone_data) if zone_data else 0} chars")
         logger.info(f"USER MESSAGE: {user_message}")
 
-        response = client.responses.create(
+        response = await client.responses.create(
             model=MODEL,
             instructions=system_prompt,
             input=user_message,
@@ -181,7 +187,7 @@ async def generate_connector(
     fallback_summary = current_narration[:200]
 
     try:
-        response = client.responses.create(
+        response = await client.responses.create(
             model=MODEL,
             input=prompt,
             temperature=0.8,

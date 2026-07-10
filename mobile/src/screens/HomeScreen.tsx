@@ -1,16 +1,18 @@
-// Home screen — "Dawn Air" — map-first: an interactive map showing nearby
-// community routes (top-rated pins) front and center, with a compact sheet
-// below for starting your own tour.
+// Home screen — "Dawn Air" — immersive map: a full-bleed interactive map
+// with floating glass-style controls on top (location pill, mood picker +
+// start sheet) instead of a map-then-sheet stacked layout. Mood pins from
+// nearby community routes live directly on the map.
 
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Image } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import {
   requestLocationPermission,
   getCurrentLocation,
   reverseGeocode,
 } from "../services/location";
-import { getTours, getNearbyRoutes, getTourDetail, TourSummary, NearbyRoute } from "../services/api";
+import { getNearbyRoutes, getTourDetail, NearbyRoute } from "../services/api";
 import { colors, font, radius } from "../theme";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
@@ -38,13 +40,11 @@ export default function HomeScreen({
   isPremium,
   onRequirePremium,
 }: HomeScreenProps) {
+  const insets = useSafeAreaInsets();
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [hasPermission, setHasPermission] = useState(false);
   const [placeLabel, setPlaceLabel] = useState<string | null>(null);
-  const [recentTour, setRecentTour] = useState<TourSummary | null>(null);
-  const [toursLoaded, setToursLoaded] = useState(false);
   const [nearbyRoutes, setNearbyRoutes] = useState<NearbyRoute[]>([]);
-  const [routesLoaded, setRoutesLoaded] = useState(false);
 
   // The full walked path of whichever pin was last tapped, drawn directly
   // on this map. Fetched on demand (nearby-route pins only carry a single
@@ -93,8 +93,7 @@ export default function HomeScreen({
             .catch((e) => {
               console.warn("Failed to load nearby routes:", e.message);
               showToast("Couldn't load nearby routes.");
-            })
-            .finally(() => setRoutesLoaded(true));
+            });
         } catch (e) {
           console.error("Failed to get location:", e);
         }
@@ -106,106 +105,81 @@ export default function HomeScreen({
       }
     }
     init();
-
-    getTours()
-      .then((tours) => setRecentTour(tours[0] ?? null))
-      .catch((e) => {
-        console.warn("Failed to load recent tour:", e.message);
-        showToast("Couldn't load your recent tour.");
-      })
-      .finally(() => setToursLoaded(true));
   }, []);
-
-  function formatStats(tour: TourSummary) {
-    const parts: string[] = [];
-    if (tour.blocks_visited) parts.push(`${tour.blocks_visited} blocks`);
-    if (tour.duration_sec) parts.push(`${Math.round(tour.duration_sec / 60)} min`);
-    return parts.join(" · ");
-  }
 
   return (
     <View style={styles.container}>
-      <View style={styles.mapHero}>
-        {location ? (
-          <MapView
-            style={styles.map}
-            initialRegion={{
-              latitude: location.lat,
-              longitude: location.lng,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
-            }}
-            showsUserLocation
-          >
-            {nearbyRoutes.map((route) => (
-              <Marker
-                key={route.tour_id}
-                coordinate={{ latitude: route.lat, longitude: route.lng }}
-                title={route.title}
-                description={
-                  route.rating_count > 0
-                    ? `★ ${route.avg_rating.toFixed(1)} (${route.rating_count})`
-                    : "Not yet rated — tap the marker to see the path, tap the card for details"
-                }
-                onPress={() => handlePinPress(route)}
-                onCalloutPress={() => onSelectRoute(route.tour_id)}
-                tracksViewChanges={false}
-              >
-                <View style={styles.moodPin}>
-                  <Text style={styles.moodPinEmoji}>
-                    {MOODS.find((m) => m.id === route.mood)?.emoji ?? "🗺️"}
-                  </Text>
-                </View>
-              </Marker>
-            ))}
+      {location ? (
+        <MapView
+          style={StyleSheet.absoluteFillObject}
+          initialRegion={{
+            latitude: location.lat,
+            longitude: location.lng,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          }}
+          showsUserLocation
+        >
+          {nearbyRoutes.map((route) => (
+            <Marker
+              key={route.tour_id}
+              coordinate={{ latitude: route.lat, longitude: route.lng }}
+              title={route.title}
+              description={
+                route.rating_count > 0
+                  ? `★ ${route.avg_rating.toFixed(1)} (${route.rating_count})`
+                  : "Not yet rated — tap the marker to see the path, tap the card for details"
+              }
+              onPress={() => handlePinPress(route)}
+              onCalloutPress={() => onSelectRoute(route.tour_id)}
+              tracksViewChanges={false}
+            >
+              <View style={styles.moodPin}>
+                <Text style={styles.moodPinEmoji}>
+                  {MOODS.find((m) => m.id === route.mood)?.emoji ?? "🗺️"}
+                </Text>
+              </View>
+            </Marker>
+          ))}
 
-            {selectedPath.length > 1 && (
-              <>
-                <Polyline
-                  coordinates={selectedPath}
-                  strokeColor="rgba(255, 107, 74, 0.6)"
-                  strokeWidth={14}
-                  lineCap="round"
-                  lineJoin="round"
-                />
-                <Marker coordinate={selectedPath[0]} pinColor={colors.accent} title="Start" />
-                <Marker
-                  coordinate={selectedPath[selectedPath.length - 1]}
-                  pinColor={colors.danger}
-                  title="End of route"
-                />
-              </>
-            )}
-          </MapView>
-        ) : (
-          <View style={styles.mapPlaceholder}>
-            <Text style={styles.placeholderText}>
-              {hasPermission ? "Finding you..." : "Location permission required"}
-            </Text>
-          </View>
-        )}
+          {selectedPath.length > 1 && (
+            <>
+              <Polyline
+                coordinates={selectedPath}
+                strokeColor="rgba(255, 107, 74, 0.6)"
+                strokeWidth={14}
+                lineCap="round"
+                lineJoin="round"
+              />
+              <Marker coordinate={selectedPath[0]} pinColor={colors.accent} title="Start" />
+              <Marker
+                coordinate={selectedPath[selectedPath.length - 1]}
+                pinColor={colors.danger}
+                title="End of route"
+              />
+            </>
+          )}
+        </MapView>
+      ) : (
+        <View style={styles.mapPlaceholder}>
+          <Text style={styles.placeholderText}>
+            {hasPermission ? "Finding you..." : "Location permission required"}
+          </Text>
+        </View>
+      )}
+
+      {/* Floating location pill */}
+      <View style={[styles.locationPill, { top: insets.top + 12 }]}>
+        <Image source={require("../../assets/icon.png")} style={styles.logoBadge} />
+        <Text style={styles.locationPillText} numberOfLines={1}>
+          {placeLabel || "Somewhere worth exploring"}
+        </Text>
       </View>
 
-      <ScrollView style={styles.sheet} contentContainerStyle={styles.sheetContent}>
-        <Text style={styles.eyebrow}>You're standing on</Text>
-        <Text style={styles.greeting}>{placeLabel || "Somewhere worth exploring"}</Text>
-
-        <TouchableOpacity
-          style={[styles.startBtn, !location && styles.startBtnDisabled]}
-          onPress={() => {
-            tap();
-            onStartTour();
-          }}
-          disabled={!location}
-          accessibilityRole="button"
-          accessibilityLabel="Start walking tour"
-        >
-          <Text style={styles.startBtnText}>Start Walking Tour</Text>
-        </TouchableOpacity>
-
-        {routesLoaded && nearbyRoutes.length === 0 && (
-          <Text style={styles.noRoutesText}>No routes nearby yet — be the first to share one!</Text>
-        )}
+      {/* Floating start sheet */}
+      <View style={styles.sheet}>
+        <View style={styles.dragHandle} />
+        <Text style={styles.sheetLabel}>Pick your story</Text>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.moodRow}>
           {MOODS.map((mood) => (
@@ -231,26 +205,19 @@ export default function HomeScreen({
           ))}
         </ScrollView>
 
-        {recentTour ? (
-          <View style={styles.recentCard}>
-            <View style={styles.recentIcon}>
-              <Text>{MOODS.find((m) => m.id === recentTour.mood)?.emoji ?? "🗺️"}</Text>
-            </View>
-            <View style={styles.recentInfo}>
-              <Text style={styles.recentTitle} numberOfLines={1}>
-                {recentTour.title}
-              </Text>
-              <Text style={styles.recentMeta}>{formatStats(recentTour)}</Text>
-            </View>
-          </View>
-        ) : (
-          toursLoaded && (
-            <View style={styles.emptyRecentCard}>
-              <Text style={styles.emptyRecentText}>Your walks will show up here.</Text>
-            </View>
-          )
-        )}
-      </ScrollView>
+        <TouchableOpacity
+          style={[styles.startBtn, !location && styles.startBtnDisabled]}
+          onPress={() => {
+            tap();
+            onStartTour();
+          }}
+          disabled={!location}
+          accessibilityRole="button"
+          accessibilityLabel="Start walking tour"
+        >
+          <Text style={styles.startBtnText}>Start Walking Tour</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -259,12 +226,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
-  },
-  mapHero: {
-    height: "65%",
-  },
-  map: {
-    flex: 1,
   },
   mapPlaceholder: {
     flex: 1,
@@ -294,36 +255,68 @@ const styles = StyleSheet.create({
   moodPinEmoji: {
     fontSize: 17,
   },
+  locationPill: {
+    position: "absolute",
+    left: 16,
+    maxWidth: "72%",
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.92)",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: radius.pill,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  logoBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: 8,
+  },
+  locationPillText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.text,
+    flexShrink: 1,
+  },
   sheet: {
-    flex: 1,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
-    marginTop: -18,
-  },
-  sheetContent: {
     padding: 20,
-    paddingBottom: 32,
+    paddingTop: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 10,
   },
-  eyebrow: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    color: colors.muted,
-  },
-  greeting: {
-    fontFamily: font.display,
-    fontSize: 20,
-    color: colors.text,
-    marginTop: 4,
+  dragHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    alignSelf: "center",
     marginBottom: 14,
+  },
+  sheetLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: 10,
   },
   startBtn: {
     backgroundColor: colors.accent,
     padding: 15,
     borderRadius: radius.md,
-    marginBottom: 14,
   },
   startBtnDisabled: {
     backgroundColor: colors.border,
@@ -335,7 +328,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   moodRow: {
-    marginBottom: 14,
+    marginBottom: 16,
   },
   moodChip: {
     flexDirection: "row",
@@ -368,53 +361,5 @@ const styles = StyleSheet.create({
     color: colors.proText,
     fontSize: 9,
     fontWeight: "800",
-  },
-  recentCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: 14,
-  },
-  recentIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.accent,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  recentInfo: {
-    flex: 1,
-  },
-  recentTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  recentMeta: {
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: 2,
-  },
-  noRoutesText: {
-    fontSize: 12,
-    color: colors.muted,
-    marginBottom: 14,
-  },
-  emptyRecentCard: {
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: 14,
-  },
-  emptyRecentText: {
-    fontSize: 13,
-    color: colors.muted,
-    textAlign: "center",
   },
 });

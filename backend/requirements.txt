@@ -30,6 +30,9 @@ geohash2==1.1
 # Environment variables
 python-dotenv==1.0.1
 
+# Multipart form parsing (needed for UploadFile — voice question audio)
+python-multipart==0.0.20
+
 # Google Cloud TTS
 google-cloud-texttospeech==2.24.0
 

@@ -92,6 +92,20 @@ def build_tour_r2_key(tour_id: str, geo_hash: str, content_safety: bool, voice: 
     return f"audio/tours/{tour_id}/{geo_hash}/{safety_str}/{voice}.mp3"
 
 
+def build_question_r2_key(tour_id: str, question_id: str) -> str:
+    """
+    Build the R2 object key for a spoken answer to a voice question.
+
+    Every question gets a unique answer — there's nothing to deduplicate
+    across users/tours the way narration is, so this just needs to be
+    unique, not deterministic like build_r2_key().
+
+    Returns:
+        R2 object key, e.g. "audio/questions/3f9a.../a1b2c3d4.mp3"
+    """
+    return f"audio/questions/{tour_id or 'notour'}/{question_id}.mp3"
+
+
 def build_image_r2_key(geo_hash: str) -> str:
     """
     Build the R2 object key for a zone's street-level photo.

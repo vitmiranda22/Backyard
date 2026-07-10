@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.vitorsm9004.backyard",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "Backyard uses your microphone so you can ask spoken questions about where you're standing."
       }
     },
     "android": {

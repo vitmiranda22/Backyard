@@ -87,6 +87,65 @@ export async function narrateBlock(
   });
 }
 
+export interface AskQuestionResponse {
+  question_text: string;
+  answer_text: string;
+  audio_url: string | null;
+  audio_duration_ms: number | null;
+}
+
+// Multipart upload — deliberately bypasses authFetch, which hardcodes
+// Content-Type: application/json. Setting Content-Type manually for a
+// FormData body breaks the multipart boundary fetch generates itself.
+export async function askQuestion(
+  audioUri: string,
+  lat: number,
+  lng: number,
+  mood: string,
+  voice: string,
+  tourId?: string,
+  isRetry = false
+): Promise<AskQuestionResponse> {
+  const token = getToken();
+  if (!token) {
+    throw new Error("Not authenticated. Please sign in.");
+  }
+
+  const form = new FormData();
+  form.append("audio", {
+    uri: audioUri,
+    name: "question.m4a",
+    type: "audio/m4a",
+  } as any);
+  form.append("lat", String(lat));
+  form.append("lng", String(lng));
+  form.append("mood", mood);
+  form.append("voice", voice);
+  if (tourId) form.append("tour_id", tourId);
+
+  const response = await fetch(`${API_URL}/ask-question`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+
+  if (response.status === 401 && !isRetry) {
+    try {
+      await refreshToken();
+      return askQuestion(audioUri, lat, lng, mood, voice, tourId, true);
+    } catch {
+      // Fall through to the normal error handling below.
+    }
+  }
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+    throw new Error(error.error || error.detail?.error || `Request failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
 // =============================================================================
 // Tour session
 // =============================================================================

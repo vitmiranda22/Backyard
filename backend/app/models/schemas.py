@@ -80,6 +80,14 @@ class NarrateBlockResponse(BaseModel):
     zone_data_used: Optional[ZoneDataUsed] = None
 
 
+class AskQuestionResponse(BaseModel):
+    """Response from /api/ask-question"""
+    question_text: str
+    answer_text: str
+    audio_url: Optional[str] = None
+    audio_duration_ms: Optional[int] = None
+
+
 # =============================================================================
 # Tour session endpoints (Week 2)
 # =============================================================================

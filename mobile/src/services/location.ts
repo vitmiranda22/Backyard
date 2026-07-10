@@ -39,6 +39,46 @@ export async function reverseGeocode(lat: number, lng: number) {
   }
 }
 
+// Start watching device compass heading — powers the waypoint compass.
+// Returns a subscription you can remove later, same shape as watchPosition.
+export async function watchHeading(callback: (headingDeg: number) => void) {
+  const subscription = await Location.watchHeadingAsync((heading) => {
+    // trueHeading is -1 when unavailable (e.g. no GPS fix yet) — fall back
+    // to magnetic heading rather than feeding a bogus -1 into bearing math.
+    const deg = heading.trueHeading >= 0 ? heading.trueHeading : heading.magHeading;
+    callback(deg);
+  });
+  return subscription;
+}
+
+// Initial bearing (degrees, 0-360, 0 = north) from one coordinate to
+// another — standard great-circle forward azimuth formula.
+export function bearingBetween(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const toDeg = (r: number) => (r * 180) / Math.PI;
+  const dLng = toRad(lng2 - lng1);
+  const y = Math.sin(dLng) * Math.cos(toRad(lat2));
+  const x =
+    Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+    Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLng);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+export function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+const COMPASS_DIRS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+export function compassLabel(bearingDeg: number): string {
+  return COMPASS_DIRS[Math.round(bearingDeg / 45) % 8];
+}
+
 // Start watching position — returns a subscription you can remove later
 export async function watchPosition(
   callback: (lat: number, lng: number) => void,

@@ -240,3 +240,96 @@ async def generate_connector(
     except Exception as e:
         logger.error(f"Connector generation failed: {e}")
         return None, fallback_summary
+
+
+async def transcribe_audio(audio_bytes: bytes, filename: str = "question.m4a") -> str:
+    """
+    Speech-to-text for a recorded voice question, via Whisper.
+
+    Returns the transcribed text, or an empty string if transcription
+    failed or produced nothing usable — callers should treat an empty
+    result as "couldn't hear that," not raise on it.
+    """
+    try:
+        response = await client.audio.transcriptions.create(
+            model="whisper-1",
+            file=(filename, audio_bytes),
+        )
+        return (response.text or "").strip()
+    except Exception as e:
+        logger.error(f"Whisper transcription failed: {e}")
+        return ""
+
+
+async def answer_question(
+    question: str,
+    street: str,
+    neighborhood: str,
+    city: str,
+    mood: str,
+    recent_narration: str = None,
+) -> str:
+    """
+    Answer a free-form spoken question about the user's current
+    surroundings — a follow-up to the ambient narration, not a fresh
+    60-90s story. Short and conversational, with web_search for grounding
+    since a specific factual question deserves a real answer, not a guess.
+
+    Returns the answer text, or None if generation failed.
+    """
+    context_lines = [f"The walker is currently at: {street}, {neighborhood}, {city}."]
+    if recent_narration:
+        context_lines.append(f"They just heard this narration: \"{recent_narration[:400]}\"")
+    context = "\n".join(context_lines)
+
+    instructions = (
+        f"You are a knowledgeable, friendly walking-tour guide answering a quick spoken "
+        f"question from someone standing right where they are, mid-walk. Match the "
+        f"'{mood}' tone of the tour they're on. Answer directly and conversationally in "
+        f"2-4 sentences — this is spoken aloud, not read, so no headers, lists, citations, "
+        f"or markdown. If you don't know the specific answer, say so briefly rather than "
+        f"inventing details, and offer whatever related fact you're confident about instead."
+    )
+
+    try:
+        response = await client.responses.create(
+            model=MODEL,
+            instructions=instructions,
+            input=f"{context}\n\nTheir question: \"{question}\"",
+            tools=[{"type": "web_search"}],
+            temperature=0.7,
+            max_output_tokens=2048,
+        )
+
+        answer = None
+        try:
+            answer = response.output_text
+        except Exception:
+            pass
+
+        if not answer and response.output:
+            text_parts = []
+            for item in response.output:
+                if getattr(item, "type", None) == "message":
+                    for part in getattr(item, "content", []):
+                        if getattr(part, "text", None):
+                            text_parts.append(part.text)
+            if text_parts:
+                answer = " ".join(text_parts)
+
+        if answer:
+            answer = _strip_citations(answer)
+
+        if not answer or len(answer) < 5:
+            logger.warning(f"Question answering returned empty result for: {question[:100]}")
+            return None
+
+        return answer
+
+    except Exception as e:
+        logger.error(f"Question answering failed: {e}")
+        return None
+
+    except Exception as e:
+        logger.error(f"Connector generation failed: {e}")
+        return None, fallback_summary

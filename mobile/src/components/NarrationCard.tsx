@@ -1,10 +1,11 @@
 // Narration card — the bottom card showing the current narration
 //
-// Shows: street name, narration text (scrollable), and audio controls.
-// Has loading and error states.
+// Shows: a floating "popup" photo peeking above the card, a peek-drawer
+// transcript (a few lines + tap to read the full story), and audio
+// controls. Has loading and error states.
 
-import React from "react";
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, ActivityIndicator, Modal, TouchableOpacity, ScrollView } from "react-native";
 import AudioPlayer from "./AudioPlayer";
 import ZonePhoto from "./ZonePhoto";
 import { colors, radius } from "../theme";
@@ -32,6 +33,8 @@ export default function NarrationCard({
   onSkip,
   onAudioError,
 }: NarrationCardProps) {
+  const [fullTextOpen, setFullTextOpen] = useState(false);
+
   if (isLoading) {
     return (
       <View style={styles.card}>
@@ -66,32 +69,75 @@ export default function NarrationCard({
   }
 
   return (
-    <View style={styles.card}>
-      {/* Photo of the spot being discussed, when we have one — tap to enlarge */}
-      {imageUrl && <ZonePhoto uri={imageUrl} thumbnailStyle={styles.image} />}
+    <View style={styles.wrapper}>
+      <View style={styles.card}>
+        <View style={styles.content}>
+          {/* Street name header */}
+          <Text style={styles.streetName}>📍 {streetName}</Text>
 
-      <View style={styles.content}>
-        {/* Street name header */}
-        <Text style={styles.streetName}>📍 {streetName}</Text>
+          {/* Peek drawer — a few lines, tap to read the full story */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => setFullTextOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Read the full story"
+          >
+            <Text style={styles.narrationText} numberOfLines={3} ellipsizeMode="tail">
+              {narrationText}
+            </Text>
+            <Text style={styles.expandHint}>▲ swipe up for the full story</Text>
+          </TouchableOpacity>
 
-        {/* Narration text - scrollable */}
-        <ScrollView style={styles.textScroll} nestedScrollEnabled>
-          <Text style={styles.narrationText}>{narrationText}</Text>
-        </ScrollView>
-
-        {/* Audio controls */}
-        <AudioPlayer
-          audioUrl={audioUrl}
-          onFinished={onAudioFinished}
-          onSkip={onSkip}
-          onError={onAudioError}
-        />
+          {/* Audio controls */}
+          <AudioPlayer
+            audioUrl={audioUrl}
+            onFinished={onAudioFinished}
+            onSkip={onSkip}
+            onError={onAudioError}
+          />
+        </View>
       </View>
+
+      {/* Photo floats as a popup peeking above the card, instead of sitting
+          flush inside it — tap to expand full-screen (see ZonePhoto). */}
+      {imageUrl && (
+        <View style={styles.photoPopup}>
+          <ZonePhoto uri={imageUrl} thumbnailStyle={styles.photoImage} />
+        </View>
+      )}
+
+      <Modal
+        visible={fullTextOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setFullTextOpen(false)}
+      >
+        <View style={styles.modalScrim}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalStreetName}>📍 {streetName}</Text>
+            <ScrollView style={styles.modalScroll}>
+              <Text style={styles.modalText}>{narrationText}</Text>
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalCloseBtn}
+              onPress={() => setFullTextOpen(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Close full story"
+            >
+              <Text style={styles.modalCloseBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    // No clipping here — the popup photo needs to poke above the card.
+  },
   card: {
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.lg,
@@ -102,28 +148,48 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     maxHeight: 460,
   },
-  image: {
-    width: "100%",
-    height: 140,
+  photoPopup: {
+    position: "absolute",
+    top: -34,
+    right: 18,
+    transform: [{ rotate: "-4deg" }],
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    padding: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
+  photoImage: {
+    width: 118,
+    height: 88,
+    borderRadius: radius.sm,
     backgroundColor: colors.surfaceAlt,
   },
   content: {
     padding: 16,
+    paddingTop: 26,
   },
   streetName: {
     fontSize: 16,
     fontWeight: "700",
     color: colors.text,
     marginBottom: 8,
-  },
-  textScroll: {
-    maxHeight: 120,
-    marginBottom: 8,
+    maxWidth: "70%",
   },
   narrationText: {
     fontSize: 14,
     color: colors.muted,
     lineHeight: 20,
+  },
+  expandHint: {
+    fontSize: 11,
+    color: colors.muted,
+    textAlign: "center",
+    marginTop: 6,
+    marginBottom: 4,
   },
   loadingText: {
     color: colors.muted,
@@ -142,5 +208,52 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 14,
     padding: 20,
+  },
+  modalScrim: {
+    flex: 1,
+    backgroundColor: "rgba(10, 12, 18, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    padding: 20,
+    maxHeight: "70%",
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    alignSelf: "center",
+    marginBottom: 14,
+  },
+  modalStreetName: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: 12,
+  },
+  modalScroll: {
+    marginBottom: 16,
+  },
+  modalText: {
+    fontSize: 15,
+    color: colors.text,
+    lineHeight: 23,
+  },
+  modalCloseBtn: {
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 14,
+  },
+  modalCloseBtnText: {
+    textAlign: "center",
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.text,
   },
 });

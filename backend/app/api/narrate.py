@@ -33,15 +33,17 @@ Two cache layers:
 
 import asyncio
 import logging
+import uuid
 import geohash2
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 
 from app.api.auth import AuthenticatedUser
 from app.config import settings, PREMIUM_MOODS, PREMIUM_VOICES
 from app.models.schemas import (
     NarrateBlockRequest,
     NarrateBlockResponse,
+    AskQuestionResponse,
     ErrorResponse,
     ZoneDataUsed,
 )
@@ -419,4 +421,113 @@ async def narrate_block(
         content_safety_applied=request.content_safety,
         cached=was_cached,
         zone_data_used=zone_data_used,
+    )
+
+
+@router.post(
+    "/ask-question",
+    response_model=AskQuestionResponse,
+    responses={
+        429: {"model": ErrorResponse},
+        408: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+    summary="Ask a spoken follow-up question about the current location",
+)
+async def ask_question(
+    user_id: AuthenticatedUser,
+    audio: UploadFile = File(...),
+    lat: float = Form(...),
+    lng: float = Form(...),
+    mood: str = Form("time_machine"),
+    voice: str = Form("neutral"),
+    tour_id: str = Form(None),
+):
+    """
+    Hold-to-ask voice question — transcribes the recording, answers it
+    using the walker's current location as context, and speaks the answer
+    back through the same TTS/R2 pipeline narration uses.
+    """
+    # Costs the same class of billed calls as a narration (transcription +
+    # GPT + TTS), so it shares the same rate limit.
+    allowed, reason = await supabase_db.check_rate_limit(
+        user_id,
+        minute_limit=settings.MINUTE_NARRATION_LIMIT,
+        daily_limit=settings.DAILY_NARRATION_LIMIT,
+    )
+    if not allowed:
+        retry_message = (
+            "Too many requests — slow down a bit and try again in a moment."
+            if reason == "minute_limit_exceeded"
+            else "You've hit today's limit. Try again tomorrow."
+        )
+        raise HTTPException(
+            status_code=429,
+            detail={"error": retry_message, "code": reason, "retry": reason == "minute_limit_exceeded"},
+        )
+
+    audio_bytes = await audio.read()
+    question_text = await openai_service.transcribe_audio(audio_bytes, audio.filename or "question.m4a")
+
+    if not question_text:
+        raise HTTPException(
+            status_code=408,
+            detail={
+                "error": "Couldn't hear that clearly — try holding the button again.",
+                "code": "transcription_failed",
+                "retry": True,
+            },
+        )
+
+    logger.info(f"Question from user={user_id[:8]}...: {question_text[:100]}")
+
+    # Reuse the tour's running narrative summary for grounding if there is
+    # one. Deliberately NOT fetching all 23 zone-data sources fresh here —
+    # a question should feel snappy, not pay narration's full latency.
+    geo_result = await geocode.reverse_geocode(lat, lng)
+    street_name = geo_result.street if geo_result else "this spot"
+    neighborhood = geo_result.neighborhood if geo_result else ""
+    city = geo_result.city if geo_result else ""
+
+    recent_narration = None
+    if tour_id:
+        tour = await supabase_db.get_tour(tour_id)
+        if tour and tour.get("creator_id") == user_id:
+            recent_narration = tour.get("narrative_summary")
+
+    answer_text = await openai_service.answer_question(
+        question=question_text,
+        street=street_name,
+        neighborhood=neighborhood,
+        city=city,
+        mood=mood,
+        recent_narration=recent_narration,
+    )
+
+    if not answer_text:
+        raise HTTPException(
+            status_code=408,
+            detail={
+                "error": "Couldn't come up with an answer to that. Try asking again.",
+                "code": "answer_failed",
+                "retry": True,
+            },
+        )
+
+    audio_url = None
+    audio_duration_ms = None
+    audio_bytes_out = await tts.synthesize_speech(text=answer_text, voice=voice)
+    if audio_bytes_out:
+        question_id = uuid.uuid4().hex[:12]
+        r2_key = r2.build_question_r2_key(tour_id, question_id)
+        upload_ok = await r2.upload_audio(audio_bytes_out, r2_key)
+        if upload_ok:
+            audio_url = r2.generate_signed_url(r2_key)
+            audio_duration_ms = tts.estimate_duration_ms(answer_text, voice)
+
+    return AskQuestionResponse(
+        question_text=question_text,
+        answer_text=answer_text,
+        audio_url=audio_url,
+        audio_duration_ms=audio_duration_ms,
     )

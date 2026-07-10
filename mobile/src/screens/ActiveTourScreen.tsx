@@ -5,13 +5,23 @@
 // - Audio and text are always from the same narration response
 // - Debounce on zone changes prevents rapid re-fires
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { View, Text, TouchableOpacity, Pressable, StyleSheet, Alert, Animated, Easing, ActivityIndicator } from "react-native";
 import MapView, { Polyline } from "react-native-maps";
 import { useZoneTracker } from "../hooks/useZoneTracker";
-import { watchPosition, getCurrentLocation } from "../services/location";
-import { narrateBlock, saveBlock, startTour } from "../services/api";
+import {
+  watchPosition,
+  watchHeading,
+  getCurrentLocation,
+  bearingBetween,
+  distanceMeters,
+  compassLabel,
+} from "../services/location";
+import { narrateBlock, saveBlock, startTour, askQuestion } from "../services/api";
+import { startRecording, stopRecording, cancelRecording } from "../services/recording";
 import NarrationCard from "../components/NarrationCard";
+import WaypointCompass from "../components/WaypointCompass";
+import AudioPlayer from "../components/AudioPlayer";
 import { colors, radius } from "../theme";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
@@ -37,6 +47,7 @@ export default function ActiveTourScreen({
   onEndTour,
 }: ActiveTourProps) {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [heading, setHeading] = useState(0);
   const [tourId, setTourId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,11 +58,25 @@ export default function ActiveTourScreen({
   const [blocksVisited, setBlocksVisited] = useState(0);
   const [path, setPath] = useState<{ latitude: number; longitude: number }[]>([]);
 
+  // Where the currently-displayed block was triggered — the waypoint
+  // compass points back at this as you keep walking.
+  const [blockOrigin, setBlockOrigin] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Hold-to-ask voice question state.
+  const [qaState, setQaState] = useState<"idle" | "recording" | "thinking">("idle");
+  const [qaAnswer, setQaAnswer] = useState<{
+    question: string;
+    answerText: string;
+    audioUrl: string | null;
+  } | null>(null);
+
   const { checkZone, commitZone, reset: resetZones } = useZoneTracker();
   const sequenceRef = useRef(0);
   const startTimeRef = useRef(Date.now());
   const subscriptionRef = useRef<any>(null);
+  const headingSubRef = useRef<any>(null);
   const tourIdRef = useRef<string | null>(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Use a ref for isLoading so GPS callbacks always see the current value
   const isLoadingRef = useRef(false);
@@ -78,6 +103,31 @@ export default function ActiveTourScreen({
   useEffect(() => {
     tourIdRef.current = tourId;
   }, [tourId]);
+
+  // Pulse the ask button while recording.
+  useEffect(() => {
+    if (qaState === "recording") {
+      const loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.15,
+            duration: 500,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 500,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      loop.start();
+      return () => loop.stop();
+    }
+    pulseAnim.setValue(1);
+  }, [qaState]);
 
   // Start tour session on mount
   useEffect(() => {
@@ -106,9 +156,7 @@ export default function ActiveTourScreen({
           // Check loading ref (not state — state is stale in callbacks)
           if (isLoadingRef.current) return;
 
-          // Don't interrupt a narration that's still being listened to —
-          // only auto-triggers are held back; the manual "Tell me about
-          // here" button can still override on purpose.
+          // Don't interrupt a narration that's still being listened to.
           if (hasActiveAudioRef.current) return;
 
           // Debounce: at least 10 seconds between triggers
@@ -122,6 +170,11 @@ export default function ActiveTourScreen({
           triggerNarration(lat, lng, "auto");
         });
         subscriptionRef.current = sub;
+
+        // Powers the waypoint compass — heading updates independently of
+        // position, since you can turn in place without moving.
+        const headingSub = await watchHeading((deg) => setHeading(deg));
+        headingSubRef.current = headingSub;
       } catch (e: any) {
         Alert.alert("Error", "Failed to start tour: " + e.message);
       }
@@ -132,6 +185,10 @@ export default function ActiveTourScreen({
       if (subscriptionRef.current) {
         subscriptionRef.current.remove();
       }
+      if (headingSubRef.current) {
+        headingSubRef.current.remove();
+      }
+      cancelRecording();
     };
   }, []);
 
@@ -160,6 +217,7 @@ export default function ActiveTourScreen({
       setNarrationText(result.narration_text);
       setAudioUrl(result.audio_url);
       setImageUrl(result.image_url);
+      setBlockOrigin({ lat, lng });
 
       // Only hold off future auto-triggers if there's actual audio to be
       // interrupted — a text-only block (audio generation failed) has
@@ -215,12 +273,6 @@ export default function ActiveTourScreen({
     setIsLoading(false);
   }
 
-  function handleManualTrigger() {
-    if (location && !isLoadingRef.current) {
-      triggerNarration(location.lat, location.lng, "manual");
-    }
-  }
-
   // Playback failed (e.g. the remote stream dropped mid-narration) — retry
   // once from the locally cached copy, if one's ready yet.
   function handleAudioError() {
@@ -230,45 +282,121 @@ export default function ActiveTourScreen({
     }
   }
 
+  async function handleAskPressIn() {
+    if (qaState !== "idle") return;
+    tap();
+    const started = await startRecording();
+    if (started) {
+      setQaState("recording");
+    }
+  }
+
+  async function handleAskPressOut() {
+    if (qaState !== "recording") return;
+    setQaState("thinking");
+    const uri = await stopRecording();
+    if (!uri || !location) {
+      setQaState("idle");
+      return;
+    }
+    try {
+      const result = await askQuestion(
+        uri,
+        location.lat,
+        location.lng,
+        mood,
+        voice,
+        tourIdRef.current || undefined
+      );
+      setQaAnswer({
+        question: result.question_text,
+        answerText: result.answer_text,
+        audioUrl: result.audio_url,
+      });
+    } catch (e: any) {
+      console.warn("Failed to get an answer:", e.message);
+      showToast("Couldn't get an answer to that — try again.");
+    }
+    setQaState("idle");
+  }
+
   function handleEndTour() {
     tap();
     if (subscriptionRef.current) {
       subscriptionRef.current.remove();
+    }
+    if (headingSubRef.current) {
+      headingSubRef.current.remove();
     }
     if (tourId) cancelReminder(tourId);
     resetZones();
     onEndTour(tourId || "", blocksVisited, startTimeRef.current, path);
   }
 
+  const targetBearing =
+    blockOrigin && location
+      ? bearingBetween(location.lat, location.lng, blockOrigin.lat, blockOrigin.lng)
+      : null;
+  const relativeBearing = targetBearing !== null ? (targetBearing - heading + 360) % 360 : 0;
+  const distanceToBlock =
+    blockOrigin && location ? distanceMeters(location.lat, location.lng, blockOrigin.lat, blockOrigin.lng) : 0;
+
+  const askCaption =
+    qaState === "recording"
+      ? "Listening to your question…"
+      : qaState === "thinking"
+      ? "Thinking…"
+      : "Hold to ask a question";
+
   return (
     <View style={styles.container}>
       {/* Map */}
-      {location ? (
-        <MapView
-          style={styles.map}
-          region={{
-            latitude: location.lat,
-            longitude: location.lng,
-            latitudeDelta: 0.003,
-            longitudeDelta: 0.003,
-          }}
-          showsUserLocation
+      <View style={styles.mapWrap}>
+        {location ? (
+          <MapView
+            style={styles.map}
+            region={{
+              latitude: location.lat,
+              longitude: location.lng,
+              latitudeDelta: 0.003,
+              longitudeDelta: 0.003,
+            }}
+            showsUserLocation
+          >
+            {path.length > 1 && (
+              <Polyline
+                coordinates={path}
+                strokeColor="rgba(255, 107, 74, 0.6)"
+                strokeWidth={14}
+                lineCap="round"
+                lineJoin="round"
+              />
+            )}
+          </MapView>
+        ) : (
+          <View style={styles.mapPlaceholder}>
+            <Text style={styles.placeholderText}>Getting location...</Text>
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={styles.endLink}
+          onPress={handleEndTour}
+          accessibilityRole="button"
+          accessibilityLabel="End tour"
         >
-          {path.length > 1 && (
-            <Polyline
-              coordinates={path}
-              strokeColor="rgba(255, 107, 74, 0.6)"
-              strokeWidth={14}
-              lineCap="round"
-              lineJoin="round"
+          <Text style={styles.endLinkText}>End</Text>
+        </TouchableOpacity>
+
+        {blockOrigin && targetBearing !== null && (
+          <View style={styles.compassOverlay}>
+            <WaypointCompass
+              bearingDeg={relativeBearing}
+              distanceLabel={`${Math.round(distanceToBlock)}m · ${compassLabel(targetBearing)}`}
             />
-          )}
-        </MapView>
-      ) : (
-        <View style={styles.mapPlaceholder}>
-          <Text style={styles.placeholderText}>Getting location...</Text>
-        </View>
-      )}
+          </View>
+        )}
+      </View>
 
       {/* Blocks counter */}
       <View style={styles.statsBar}>
@@ -297,28 +425,50 @@ export default function ActiveTourScreen({
         }}
       />
 
-      {/* Bottom buttons */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={styles.manualBtn}
-          onPress={handleManualTrigger}
-          disabled={isLoading}
-          accessibilityRole="button"
-          accessibilityLabel="Tell me about here"
-        >
-          <Text style={styles.manualBtnText}>
-            {isLoading ? "Generating..." : "Tell me about here"}
-          </Text>
-        </TouchableOpacity>
+      {qaAnswer && (
+        <View style={styles.answerCard}>
+          <View style={styles.answerHeader}>
+            <Text style={styles.answerQuestion} numberOfLines={1}>
+              “{qaAnswer.question}”
+            </Text>
+            <TouchableOpacity
+              onPress={() => setQaAnswer(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss answer"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.answerClose}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.answerText}>{qaAnswer.answerText}</Text>
+          <AudioPlayer audioUrl={qaAnswer.audioUrl} />
+        </View>
+      )}
 
-        <TouchableOpacity
-          style={styles.endBtn}
-          onPress={handleEndTour}
+      {/* Hold-to-ask */}
+      <View style={styles.footer}>
+        <Pressable
+          onPressIn={handleAskPressIn}
+          onPressOut={handleAskPressOut}
+          disabled={qaState === "thinking" || isLoading}
           accessibilityRole="button"
-          accessibilityLabel="End tour"
+          accessibilityLabel="Hold to ask a question"
         >
-          <Text style={styles.endBtnText}>End Tour</Text>
-        </TouchableOpacity>
+          <Animated.View
+            style={[
+              styles.askBtn,
+              qaState === "recording" && styles.askBtnRecording,
+              { transform: [{ scale: pulseAnim }] },
+            ]}
+          >
+            {qaState === "thinking" ? (
+              <ActivityIndicator color={colors.accentText} />
+            ) : (
+              <Text style={styles.askBtnIcon}>🎙️</Text>
+            )}
+          </Animated.View>
+        </Pressable>
+        <Text style={styles.footerHint}>{askCaption}</Text>
       </View>
     </View>
   );
@@ -328,6 +478,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
+  },
+  mapWrap: {
+    flex: 1,
   },
   map: {
     flex: 1,
@@ -340,6 +493,25 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: colors.muted,
+  },
+  endLink: {
+    position: "absolute",
+    top: 50,
+    right: 16,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+  },
+  endLinkText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  compassOverlay: {
+    position: "absolute",
+    top: 88,
+    right: 16,
   },
   statsBar: {
     flexDirection: "row",
@@ -362,36 +534,67 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textTransform: "capitalize",
   },
-  bottomBar: {
+  answerCard: {
+    backgroundColor: colors.surfaceAlt,
+    borderTopWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  answerHeader: {
     flexDirection: "row",
-    padding: 12,
-    gap: 10,
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  answerQuestion: {
+    flex: 1,
+    fontSize: 13,
+    fontStyle: "italic",
+    color: colors.muted,
+    marginRight: 10,
+  },
+  answerClose: {
+    fontSize: 14,
+    color: colors.muted,
+    fontWeight: "700",
+  },
+  answerText: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  footer: {
+    alignItems: "center",
+    paddingVertical: 14,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  manualBtn: {
-    flex: 2,
+  askBtn: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: colors.accent,
-    padding: 14,
-    borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.accent,
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   },
-  manualBtnText: {
-    color: colors.accentText,
-    textAlign: "center",
-    fontSize: 16,
-    fontWeight: "700",
+  askBtnRecording: {
+    backgroundColor: "#E85A3B",
   },
-  endBtn: {
-    flex: 1,
-    backgroundColor: colors.danger,
-    padding: 14,
-    borderRadius: radius.md,
+  askBtnIcon: {
+    fontSize: 26,
   },
-  endBtnText: {
-    color: colors.accentText,
-    textAlign: "center",
-    fontSize: 16,
-    fontWeight: "700",
+  footerHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: colors.muted,
   },
 });

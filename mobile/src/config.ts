@@ -29,4 +29,4 @@ export const DEV_PASSWORD = "BackyardDev123!";
 
 // Crash reporting — scaffolded, inactive until you create a Sentry project
 // and paste its DSN here. A blank value is a no-op (see src/services/sentry.ts).
-export const SENTRY_DSN = "";
+export const SENTRY_DSN = "https://49568006e6b19952177c8155c2d48f69@o4511708654731264.ingest.us.sentry.io/4511708674523136";

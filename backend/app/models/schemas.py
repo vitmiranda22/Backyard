@@ -295,6 +295,14 @@ class UserStatsResponse(BaseModel):
     tours_completed: int = 0
     total_distance_m: int = 0
     cities_visited: int = 0
+    moods_tried: List[str] = []
+    routes_published: int = 0
+    total_likes_received: int = 0
+    # Based on each tour's created_at hour in UTC, not the walker's local
+    # time — an accepted approximation until location-based timezone
+    # lookup is worth the added complexity for a gamification nice-to-have.
+    walked_at_night: bool = False
+    walked_early: bool = False
 
 
 class VoiceSampleResponse(BaseModel):

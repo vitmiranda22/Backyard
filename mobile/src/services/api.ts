@@ -446,6 +446,11 @@ export interface UserStats {
   tours_completed: number;
   total_distance_m: number;
   cities_visited: number;
+  moods_tried: string[];
+  routes_published: number;
+  total_likes_received: number;
+  walked_at_night: boolean;
+  walked_early: boolean;
 }
 
 export async function getUserStats(): Promise<UserStats> {

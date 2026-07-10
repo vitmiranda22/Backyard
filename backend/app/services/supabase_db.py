@@ -701,24 +701,69 @@ async def get_user_stats(user_id: str) -> dict:
     actually walked (blocks_visited > 0), so an abandoned tour that never
     got past start-tour doesn't inflate the count.
     """
+    empty = {
+        "tours_completed": 0,
+        "total_distance_m": 0,
+        "cities_visited": 0,
+        "moods_tried": [],
+        "routes_published": 0,
+        "total_likes_received": 0,
+        "walked_at_night": False,
+        "walked_early": False,
+    }
     try:
         client = _get_client()
         result = (
             client.table("tours")
-            .select("total_distance_m, city, blocks_visited")
+            .select("id, total_distance_m, city, blocks_visited, mood, is_public, created_at")
             .eq("creator_id", user_id)
             .gt("blocks_visited", 0)
             .execute()
         )
         rows = result.data if result.data else []
+        if not rows:
+            return empty
+
+        tour_ids = [r["id"] for r in rows if r.get("id")]
+
+        walked_at_night = False
+        walked_early = False
+        for r in rows:
+            created_at = r.get("created_at")
+            if not created_at:
+                continue
+            try:
+                hour = datetime.fromisoformat(created_at.replace("Z", "+00:00")).hour
+            except ValueError:
+                continue
+            if hour >= 20 or hour < 5:
+                walked_at_night = True
+            if 5 <= hour < 8:
+                walked_early = True
+
+        total_likes_received = 0
+        if tour_ids:
+            likes_result = (
+                client.table("tour_likes")
+                .select("tour_id", count="exact")
+                .in_("tour_id", tour_ids)
+                .execute()
+            )
+            total_likes_received = likes_result.count or 0
+
         return {
             "tours_completed": len(rows),
             "total_distance_m": sum(r.get("total_distance_m") or 0 for r in rows),
             "cities_visited": len({r["city"] for r in rows if r.get("city")}),
+            "moods_tried": sorted({r["mood"] for r in rows if r.get("mood")}),
+            "routes_published": sum(1 for r in rows if r.get("is_public")),
+            "total_likes_received": total_likes_received,
+            "walked_at_night": walked_at_night,
+            "walked_early": walked_early,
         }
     except Exception as e:
         logger.error(f"Failed to get user stats: {e}")
-        return {"tours_completed": 0, "total_distance_m": 0, "cities_visited": 0}
+        return empty
 
 
 # =============================================================================

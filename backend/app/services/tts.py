@@ -17,6 +17,7 @@ the same narration+voice combo is generated ONCE and then served from R2
 forever (until the 30-day cache expires).
 """
 
+import asyncio
 import logging
 from google.cloud import texttospeech
 
@@ -65,6 +66,15 @@ async def synthesize_speech(text: str, voice: str = "neutral"):
         MP3 audio as bytes, or None if synthesis failed.
         A 90-second narration produces roughly 1.5MB of MP3 data.
     """
+    # The Google Cloud TTS client is synchronous (blocking gRPC/REST call,
+    # commonly 1-4s). Run it in a thread so it doesn't freeze the single
+    # asyncio event loop uvicorn runs here — a blocked loop can't answer
+    # Render's health check either, which was causing the instance to be
+    # cycled as "unhealthy" mid-request.
+    return await asyncio.to_thread(_synthesize_speech_sync, text, voice)
+
+
+def _synthesize_speech_sync(text: str, voice: str):
     voice_name = VOICE_MAP.get(voice, VOICE_MAP["neutral"])
 
     try:

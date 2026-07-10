@@ -17,6 +17,7 @@ This key structure means:
 - Easy to bulk-delete expired files
 """
 
+import asyncio
 import logging
 import boto3
 from botocore.config import Config
@@ -117,7 +118,11 @@ async def upload_image(image_bytes: bytes, r2_key: str) -> bool:
     """
     try:
         client = _get_s3_client()
-        client.put_object(
+        # boto3 is synchronous — offload to a thread so this network call
+        # doesn't block the single event loop (see synthesize_speech's
+        # docstring for why that matters on this deployment).
+        await asyncio.to_thread(
+            client.put_object,
             Bucket=settings.R2_BUCKET_NAME,
             Key=r2_key,
             Body=image_bytes,
@@ -144,7 +149,8 @@ async def upload_audio(audio_bytes: bytes, r2_key: str) -> bool:
     """
     try:
         client = _get_s3_client()
-        client.put_object(
+        await asyncio.to_thread(
+            client.put_object,
             Bucket=settings.R2_BUCKET_NAME,
             Key=r2_key,
             Body=audio_bytes,

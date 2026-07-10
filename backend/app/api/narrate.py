@@ -15,7 +15,7 @@ Full pipeline:
 3. Check narration cache → HIT? Skip to step 8
 4. Reverse geocode → street name, neighborhood, city
 5. Check zone data cache → HIT? Skip to step 7
-6. Fetch ALL 23 data sources in parallel (~2-4 seconds)
+6. Fetch ALL 26 data sources in parallel (~2-4 seconds)
 7. Feed zone data to OpenAI → generate narration
 8. If part of an active tour (tour_id given, and it belongs to this
    user), stitch in a short transition connecting this block to the
@@ -220,7 +220,7 @@ async def narrate_block(
                 sources_hit=sources_hit,
             )
         else:
-            # Step 5: Fetch ALL 23 sources in parallel
+            # Step 5: Fetch ALL 26 sources in parallel
             logger.info(f"Zone data cache MISS for {geo_hash} — fetching all sources...")
             result = await fetch_all_zone_data(
                 lat=request.lat,

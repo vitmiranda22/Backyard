@@ -4,7 +4,7 @@ OpenAI narration generation service.
 Takes a location, mood, and zone data, then asks gpt-4.1-mini (with the
 Responses API's built-in web_search tool) to generate a compelling narration.
 
-Zone data from 23 sources is fed directly into the prompt so the model
+Zone data from 26 sources is fed directly into the prompt so the model
 uses REAL facts about the location instead of generic filler.
 """
 
@@ -68,7 +68,7 @@ async def generate_narration(
         country: Country name
         mood: One of "time_machine", "hidden_city", "dark_side", "behind_scenes", "unfiltered"
         content_safety: True = allow mature content, False = family-friendly
-        zone_data: Formatted string of zone data from 23 sources
+        zone_data: Formatted string of zone data from 26 sources
 
     Returns:
         The narration text (150-225 words, ready for TTS), or None if generation failed.

@@ -65,6 +65,19 @@ class Settings(BaseSettings):
     TMDB_API_KEY: str = ""
 
     # -------------------------------------------------------------------------
+    # GeoNames (nearby named places/features) — optional, free username from
+    # geonames.org (register, confirm by email, then enable the free
+    # webservice on your account page). Source is skipped if left blank.
+    # -------------------------------------------------------------------------
+    GEONAMES_USERNAME: str = ""
+
+    # -------------------------------------------------------------------------
+    # Europeana (digitized European cultural heritage) — optional, free API
+    # key from pro.europeana.eu/get-api. Source is skipped if left blank.
+    # -------------------------------------------------------------------------
+    EUROPEANA_API_KEY: str = ""
+
+    # -------------------------------------------------------------------------
     # Rate limiting
     # -------------------------------------------------------------------------
     # Raised alongside the geohash precision bump (7->8): smaller ~19-38m

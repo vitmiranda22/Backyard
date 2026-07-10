@@ -1,6 +1,6 @@
 """
 Data richness signal — a static, instant classification of how much of
-the app's 23-source zone-data pipeline is likely to return real content
+the app's 26-source zone-data pipeline is likely to return real content
 for a given city.
 
 This deliberately reuses the same city-gating logic zone_data.py already

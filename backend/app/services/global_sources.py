@@ -1,7 +1,7 @@
 """
 Global data sources — work in ANY city worldwide.
 
-6 sources:
+9 sources:
 - Wikipedia Geosearch: articles about places within 200m
 - Wikimedia Commons: historical photos near coordinates
 - OpenStreetMap Overpass: building + memorial + mural + ghost-sign +
@@ -13,10 +13,14 @@ Global data sources — work in ANY city worldwide.
 - TMDb: films/TV associated with the city (city-level only — TMDb's public
   API has no per-address filming-location endpoint, so it can't pinpoint
   exact street locations the way the SF-specific film dataset does)
+- UNESCO World Heritage List: ~1,250 sites worldwide, live geo-distance query
+- GeoNames: nearby named places/features from the global gazetteer
+- Europeana: digitized European museum/archive/library items near this spot
 
-All free. Wikipedia/Wikimedia/OSM/Wikidata need no API key.
-Knowledge Graph reuses your Google Cloud TTS key. TMDb needs its own free
-API key (optional — the source is skipped entirely if unset).
+All free. Wikipedia/Wikimedia/OSM/Wikidata/UNESCO need no API key.
+Knowledge Graph reuses your Google Cloud TTS key. TMDb, GeoNames, and
+Europeana each need their own free key/username (optional — each source
+is skipped entirely if its credential is unset).
 """
 
 import logging
@@ -340,6 +344,131 @@ async def fetch_wikidata(lat: float, lng: float, client: httpx.AsyncClient) -> l
 
     except Exception as e:
         logger.warning(f"Wikidata SPARQL failed: {e}")
+        return []
+
+
+async def fetch_unesco_heritage(lat: float, lng: float, client: httpx.AsyncClient) -> list:
+    """
+    UNESCO World Heritage List — official OpenDataSoft-hosted API
+    (data.unesco.org), ~1,250 sites worldwide. No API key needed, and it
+    supports a native geo-distance filter, so this is a normal live
+    per-request query like the other global sources rather than something
+    that needs bundling locally. Verified live: geofilter.distance returns
+    real nearby results (e.g. 2 hits within 5km of central Paris).
+    """
+    try:
+        r = await client.get(
+            "https://data.unesco.org/api/records/1.0/search/",
+            params={
+                "dataset": "whc001",
+                "rows": 3,
+                "geofilter.distance": f"{lat},{lng},3000",
+            },
+            timeout=TIMEOUT,
+        )
+        if r.status_code != 200:
+            return []
+
+        records = r.json().get("records", [])
+        results = []
+        for rec in records:
+            f = rec.get("fields", {})
+            if not f.get("name_en"):
+                continue
+            results.append({
+                "name": f.get("name_en", ""),
+                "states": f.get("states_names", ""),
+                "inscribed": f.get("secondary_dates", ""),
+                "justification": (f.get("justification_en") or "")[:400],
+            })
+        return results
+
+    except Exception as e:
+        logger.warning(f"UNESCO World Heritage lookup failed: {e}")
+        return []
+
+
+async def fetch_geonames(lat: float, lng: float, client: httpx.AsyncClient) -> list:
+    """
+    GeoNames findNearby — named places/features close to this coordinate
+    (populated places, physical geography, points of interest), classified
+    by feature type. Global gazetteer coverage that often fills in gaps
+    where OSM/Wikipedia are sparse. Requires a free username (register at
+    geonames.org, confirm by email, enable the webservice) — skipped
+    entirely if GEONAMES_USERNAME isn't set.
+    """
+    username = getattr(settings, "GEONAMES_USERNAME", None)
+    if not username:
+        return []
+
+    try:
+        r = await client.get(
+            "http://api.geonames.org/findNearbyJSON",
+            params={"lat": lat, "lng": lng, "radius": 1, "maxRows": 10, "username": username},
+            timeout=TIMEOUT,
+        )
+        if r.status_code != 200:
+            return []
+
+        geonames = r.json().get("geonames", [])
+        return [
+            {
+                "name": g.get("name", ""),
+                "feature_class": g.get("fclName", ""),
+                "feature_type": g.get("fCodeName", ""),
+                "distance_km": g.get("distance", ""),
+            }
+            for g in geonames
+            if g.get("name")
+        ]
+
+    except Exception as e:
+        logger.warning(f"GeoNames lookup failed: {e}")
+        return []
+
+
+async def fetch_europeana(lat: float, lng: float, client: httpx.AsyncClient) -> list:
+    """
+    Europeana — digitized museum/archive/library items across Europe, the
+    closest thing to "DataSF for the whole EU." Geo-filtered via the
+    distance() query function on items with a currentLocation. Requires a
+    free API key (register at pro.europeana.eu/get-api) — skipped entirely
+    if EUROPEANA_API_KEY isn't set.
+    """
+    api_key = getattr(settings, "EUROPEANA_API_KEY", None)
+    if not api_key:
+        return []
+
+    try:
+        r = await client.get(
+            "https://api.europeana.eu/record/v2/search.json",
+            params={
+                "wskey": api_key,
+                "query": "*:*",
+                "qf": f"distance(currentLocation,{lat},{lng},2)",
+                "rows": 8,
+                "profile": "minimal",
+            },
+            timeout=TIMEOUT,
+        )
+        if r.status_code != 200:
+            return []
+
+        items = r.json().get("items", [])
+        results = []
+        for item in items:
+            title = (item.get("title") or [""])[0]
+            if not title:
+                continue
+            results.append({
+                "title": title,
+                "provider": (item.get("dataProvider") or [""])[0],
+                "year": (item.get("year") or [""])[0] if item.get("year") else "",
+            })
+        return results
+
+    except Exception as e:
+        logger.warning(f"Europeana lookup failed: {e}")
         return []
 
 

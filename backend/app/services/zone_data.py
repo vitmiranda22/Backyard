@@ -1,10 +1,11 @@
 """
-Zone data fetcher — orchestrates ALL 23 data sources in parallel.
+Zone data fetcher — orchestrates ALL 26 data sources in parallel.
 
 This is the core of Week 3. For any geographic zone, we:
-1. Fire off 15 DataSF queries + 6 global queries + 2 other-city queries
+1. Fire off 15 DataSF queries + 9 global queries + 2 other-city queries
    simultaneously (the other-city ones no-op instantly unless the geocoded
-   city matches the NYC/Chicago registry in city_data.py)
+   city matches the NYC/Chicago registry in city_data.py; GeoNames/
+   Europeana no-op instantly unless their optional API keys are set)
 2. Wait for all of them (with timeouts — if one fails, others continue)
 3. Bundle everything into a single JSON blob
 4. Store it in zone_data_cache (reused across all moods for 30 days)
@@ -30,7 +31,7 @@ async def fetch_all_zone_data(
     city: str,
 ) -> dict:
     """
-    Query all 23 data sources in parallel for a geographic zone.
+    Query all 26 data sources in parallel for a geographic zone.
 
     Returns a dict with all results bundled together, plus metadata
     about which sources succeeded and which failed.
@@ -64,6 +65,9 @@ async def fetch_all_zone_data(
             "knowledge_graph": global_sources.fetch_knowledge_graph(street_name, neighborhood, client),
             "wikidata": global_sources.fetch_wikidata(lat, lng, client),
             "tmdb_films": global_sources.fetch_tmdb_films(city, client),
+            "unesco_heritage": global_sources.fetch_unesco_heritage(lat, lng, client),
+            "geonames": global_sources.fetch_geonames(lat, lng, client),
+            "europeana": global_sources.fetch_europeana(lat, lng, client),
             # --- Other-city Socrata (2 sources, gated on city match — NYC/Chicago only) ---
             "city_311": city_data.fetch_city_311(lat, lng, city, client),
             "city_building_permits": city_data.fetch_city_building_permits(lat, lng, city, client),
@@ -137,6 +141,9 @@ def format_zone_data_for_prompt(zone_data: dict) -> str:
         "knowledge_graph": ("🔍 KNOWLEDGE GRAPH ENTITIES", _format_kg),
         "wikidata": ("🗂️ WIKIDATA FACTS (places, people, film locations)", _format_wikidata),
         "tmdb_films": ("🎬 FILMS/TV ASSOCIATED WITH THIS CITY", _format_tmdb),
+        "unesco_heritage": ("🏛️ UNESCO WORLD HERITAGE", _format_unesco),
+        "geonames": ("📌 NEARBY NAMED PLACES (GeoNames)", _format_geonames),
+        "europeana": ("🏺 EUROPEAN CULTURAL HERITAGE (Europeana)", _format_europeana),
         "city_311": ("📞 311 COMPLAINTS", _format_city_311),
         "city_building_permits": ("🏗️ BUILDING PERMITS", _format_city_permits),
     }
@@ -303,6 +310,47 @@ def _format_tmdb(data: list) -> str:
         line = f"- \"{title}\" ({year})" if year else f"- \"{title}\""
         if overview:
             line += f" — {overview}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_unesco(data: list) -> str:
+    lines = []
+    for site in data[:3]:
+        name = site.get("name", "")
+        inscribed = site.get("inscribed", "")
+        justification = site.get("justification", "")
+        line = f"- \"{name}\""
+        if inscribed:
+            line += f" (inscribed {inscribed})"
+        if justification:
+            line += f" — {justification}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_geonames(data: list) -> str:
+    lines = []
+    for g in data[:8]:
+        name = g.get("name", "")
+        feature = g.get("feature_type", "") or g.get("feature_class", "")
+        line = f"- {name}"
+        if feature:
+            line += f" ({feature})"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_europeana(data: list) -> str:
+    lines = []
+    for item in data[:6]:
+        title = item.get("title", "")
+        provider = item.get("provider", "")
+        year = item.get("year", "")
+        line = f"- \"{title}\""
+        details = [d for d in (year, provider) if d]
+        if details:
+            line += f" ({', '.join(details)})"
         lines.append(line)
     return "\n".join(lines)
 

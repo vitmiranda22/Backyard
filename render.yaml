@@ -31,6 +31,10 @@ services:
         sync: false
       - key: TMDB_API_KEY
         sync: false
+      - key: GEONAMES_USERNAME
+        sync: false
+      - key: EUROPEANA_API_KEY
+        sync: false
       - key: SENTRY_DSN
         sync: false
       - key: DAILY_NARRATION_LIMIT

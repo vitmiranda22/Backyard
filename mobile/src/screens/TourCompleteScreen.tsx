@@ -18,6 +18,7 @@ import TourStatsGrid from "../components/TourStatsGrid";
 import { colors, font, radius } from "../theme";
 import { showToast } from "../services/toast";
 import { tap, success } from "../services/haptics";
+import { track } from "../services/analytics";
 
 interface TourCompleteProps {
   tourId: string;
@@ -60,6 +61,12 @@ export default function TourCompleteScreen({
       try {
         const result = await endTour(tourId, distanceM, durationSec, path);
         setMood(result.mood);
+        track("tour_completed", {
+          mood: result.mood,
+          blocks_visited: blocksVisited,
+          distance_m: distanceM,
+          duration_sec: durationSec,
+        });
       } catch (e) {
         console.error("Failed to end tour:", e);
       }
@@ -100,6 +107,7 @@ export default function TourCompleteScreen({
       if (tourId) {
         await publishTour(tourId, shareAsRoute, title.trim() || undefined);
       }
+      track("tour_saved", { published: shareAsRoute });
       success();
       if (shareAsRoute) {
         setSaving(false);
@@ -142,6 +150,7 @@ export default function TourCompleteScreen({
       await Share.share({
         message: `I just walked "${title}" on Backyard! Check it out: backyard://route/${tourId}`,
       });
+      track("route_shared", { source: "tour_complete" });
     } catch (e) {
       console.warn("Share failed:", e);
     }

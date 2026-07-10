@@ -10,11 +10,13 @@ import { StatusBar, View, ActivityIndicator, Linking } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as Updates from "expo-updates";
 import * as SecureStore from "expo-secure-store";
-import { restoreSession, signIn } from "./src/services/auth";
+import { restoreSession, signIn, getCurrentUserId } from "./src/services/auth";
 import { DEV_SKIP_LOGIN, DEV_EMAIL, DEV_PASSWORD } from "./src/config";
 import { colors } from "./src/theme";
 import { TourDetail, getSettings } from "./src/services/api";
 import { initSentry } from "./src/services/sentry";
+import { initAnalytics, identifyUser, track, resetAnalytics } from "./src/services/analytics";
+import { initPurchases } from "./src/services/purchases";
 import "./src/i18n";
 import { loadSavedLanguage } from "./src/i18n";
 
@@ -38,6 +40,7 @@ import ToastHost from "./src/components/Toast";
 const ONBOARDING_KEY = "onboarding_complete";
 
 initSentry();
+initAnalytics();
 
 // Parses backyard://route/<tourId> deep links (from Share) into a tourId,
 // or null if the URL doesn't match that shape.
@@ -88,6 +91,19 @@ export default function App() {
       setPreferredVoice(settings.preferred_voice);
     } catch (e: any) {
       console.warn("Failed to load settings:", e.message);
+    }
+  }
+
+  // Links this device to a stable identity for analytics + purchases —
+  // called once per session, right after we know the user is signed in.
+  async function identifyCurrentUser() {
+    try {
+      const userId = await getCurrentUserId();
+      if (!userId) return;
+      identifyUser(userId);
+      initPurchases(userId);
+    } catch (e) {
+      console.warn("Failed to identify user:", e);
     }
   }
 
@@ -163,6 +179,7 @@ export default function App() {
           await signIn(DEV_EMAIL, DEV_PASSWORD);
           goToMainOrOnboarding();
           refreshSettings();
+          identifyCurrentUser();
           return;
         } catch (e) {
           console.warn("Dev auto-login failed, falling back to login screen:", e);
@@ -173,6 +190,7 @@ export default function App() {
       if (hasSession) {
         goToMainOrOnboarding();
         refreshSettings();
+        identifyCurrentUser();
       } else {
         setScreen("login");
       }
@@ -181,6 +199,7 @@ export default function App() {
   }, []);
 
   function startTourWithMood(mood: string) {
+    track("tour_started", { mood });
     setSelectedMood(mood);
     setScreen("tour");
   }
@@ -206,6 +225,7 @@ export default function App() {
           onLogin={() => {
             goToMainOrOnboarding();
             refreshSettings();
+            identifyCurrentUser();
           }}
         />
       )}
@@ -237,7 +257,10 @@ export default function App() {
             )}
             {activeTab === "profile" && (
               <ProfileScreen
-                onSignedOut={() => setScreen("login")}
+                onSignedOut={() => {
+                  resetAnalytics();
+                  setScreen("login");
+                }}
                 isPremium={isPremium}
                 onOpenVoicePicker={() => setScreen("voicePicker")}
                 onOpenPaywall={requirePremium}
@@ -314,6 +337,13 @@ export default function App() {
           onClose={() => {
             setScreen(screenBeforePaywall);
             refreshSettings();
+          }}
+          onPurchased={() => {
+            // Unlock immediately client-side — the backend's is_premium flag
+            // (kept in sync via a RevenueCat webhook) can lag purchase
+            // confirmation by a few seconds, and refreshSettings() above
+            // would otherwise briefly show the user as still free.
+            setIsPremium(true);
           }}
         />
       )}

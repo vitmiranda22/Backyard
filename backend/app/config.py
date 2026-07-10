@@ -101,6 +101,15 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------------
     SENTRY_DSN: str = ""
 
+    # -------------------------------------------------------------------------
+    # RevenueCat webhook — the shared secret configured as this webhook's
+    # Authorization header value in the RevenueCat dashboard (Project
+    # Settings > Integrations > Webhooks). A blank value makes the webhook
+    # endpoint reject every request (see app/api/webhooks.py) rather than
+    # silently trust an unauthenticated caller.
+    # -------------------------------------------------------------------------
+    REVENUECAT_WEBHOOK_SECRET: str = ""
+
     class Config:
         env_file = ".env"
         # If a .env file doesn't exist, that's fine — vars might come from

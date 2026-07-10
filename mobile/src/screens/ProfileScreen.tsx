@@ -232,9 +232,9 @@ export default function ProfileScreen({
           accessibilityRole="button"
           accessibilityLabel="View all badges"
         >
-          <View style={styles.row}>
-            <Text style={[styles.label, { flex: 1 }]}>{t("profile.badges")}</Text>
-            <Text style={styles.chevron}>›</Text>
+          <View style={styles.badgeHeaderRow}>
+            <Text style={[styles.label, styles.centerText]}>{t("profile.badges")}</Text>
+            <Text style={styles.badgeHeaderChevron}>›</Text>
           </View>
           <View style={[styles.badgeRow, styles.centerRow]}>
             {badges.map((b) => (
@@ -351,6 +351,17 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   chevron: {
+    fontSize: 22,
+    color: colors.muted,
+  },
+  badgeHeaderRow: {
+    position: "relative",
+    justifyContent: "center",
+  },
+  badgeHeaderChevron: {
+    position: "absolute",
+    right: 0,
+    top: -2,
     fontSize: 22,
     color: colors.muted,
   },

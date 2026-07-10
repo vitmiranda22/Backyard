@@ -677,6 +677,23 @@ async def update_user_settings(user_id: str, updates: dict):
         return None
 
 
+async def set_premium_status(user_id: str, is_premium: bool) -> bool:
+    """
+    Sets a user's premium entitlement. Only called from the RevenueCat
+    webhook handler (app/api/webhooks.py) after verifying the request —
+    deliberately separate from update_user_settings, whose request schema
+    has no is_premium field, so a client can never set this on itself.
+    """
+    try:
+        client = _get_client()
+        client.table("users").update({"is_premium": is_premium}).eq("id", user_id).execute()
+        logger.info(f"Set is_premium={is_premium} for user {user_id[:8]}...")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to set premium status: {e}")
+        return False
+
+
 async def delete_user_account(user_id: str) -> bool:
     """
     Permanently deletes the user's auth record. Every foreign key in the

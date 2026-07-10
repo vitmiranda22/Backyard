@@ -1,14 +1,18 @@
 // Paywall — shown when a free user taps a premium mood or voice.
 //
-// Purchases aren't wired up yet (needs a RevenueCat account + App Store/
-// Play Console products, none of which exist yet), so the upgrade buttons
-// are a stub for now. Swapping them for a real purchase call later doesn't
-// require touching any caller of this screen.
+// Purchases go through RevenueCat (src/services/purchases.ts). Until
+// REVENUECAT_IOS_API_KEY/REVENUECAT_ANDROID_API_KEY are filled in (see
+// src/config.ts) and an offering is set up in the RevenueCat dashboard,
+// getPackages() returns [] and this screen falls back to the same
+// "Coming soon" stub it always showed — nothing breaks in the meantime.
 
-import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { PurchasesPackage, PACKAGE_TYPE } from "react-native-purchases";
 import { colors, font, radius } from "../theme";
+import { getPackages, purchasePackage, restorePurchases } from "../services/purchases";
+import { track } from "../services/analytics";
 
 const PERKS = [
   { emoji: "🕵️", label: "3 extra moods — Dark Side, Behind the Scenes, Unfiltered" },
@@ -18,14 +22,53 @@ const PERKS = [
 
 interface PaywallScreenProps {
   onClose: () => void;
+  onPurchased?: () => void;
 }
 
-export default function PaywallScreen({ onClose }: PaywallScreenProps) {
+export default function PaywallScreen({ onClose, onPurchased }: PaywallScreenProps) {
   const insets = useSafeAreaInsets();
+  const [packages, setPackages] = useState<PurchasesPackage[] | null>(null);
+  const [purchasing, setPurchasing] = useState(false);
 
-  function handleUpgrade(plan: string) {
-    Alert.alert("Coming soon", "Payments aren't wired up yet — check back soon!");
+  useEffect(() => {
+    track("paywall_viewed");
+    getPackages().then(setPackages);
+  }, []);
+
+  async function handleUpgrade(pkg: PurchasesPackage | null, planLabel: string) {
+    if (!pkg) {
+      Alert.alert("Coming soon", "Payments aren't wired up yet — check back soon!");
+      return;
+    }
+    track("upgrade_tapped", { plan: planLabel });
+    setPurchasing(true);
+    const result = await purchasePackage(pkg);
+    setPurchasing(false);
+    if (result.success && result.isPremium) {
+      track("purchase_completed", { plan: planLabel });
+      onPurchased?.();
+      onClose();
+    } else if (!result.userCancelled) {
+      track("purchase_failed", { plan: planLabel });
+      Alert.alert("Purchase failed", "Something went wrong — please try again.");
+    }
   }
+
+  async function handleRestore() {
+    setPurchasing(true);
+    const restored = await restorePurchases();
+    setPurchasing(false);
+    if (restored) {
+      onPurchased?.();
+      onClose();
+    } else {
+      Alert.alert("Nothing to restore", "We couldn't find a previous purchase for this account.");
+    }
+  }
+
+  const monthly = packages?.find((p) => p.packageType === PACKAGE_TYPE.MONTHLY) ?? null;
+  const annual = packages?.find((p) => p.packageType === PACKAGE_TYPE.ANNUAL) ?? null;
+  const configured = !!packages && packages.length > 0;
 
   return (
     <View style={styles.container}>
@@ -52,24 +95,41 @@ export default function PaywallScreen({ onClose }: PaywallScreenProps) {
         ))}
       </View>
 
-      <TouchableOpacity
-        style={styles.planBtn}
-        onPress={() => handleUpgrade("monthly")}
-        accessibilityRole="button"
-        accessibilityLabel="Upgrade monthly, $4.99 per month"
-      >
-        <Text style={styles.planBtnText}>$4.99 / month</Text>
-      </TouchableOpacity>
+      {purchasing ? (
+        <ActivityIndicator size="large" color={colors.pro} style={{ marginBottom: 20 }} />
+      ) : (
+        <>
+          <TouchableOpacity
+            style={styles.planBtn}
+            onPress={() => handleUpgrade(monthly, "monthly")}
+            accessibilityRole="button"
+            accessibilityLabel={`Upgrade monthly, ${monthly?.product.priceString ?? "$4.99"} per month`}
+          >
+            <Text style={styles.planBtnText}>{monthly?.product.priceString ?? "$4.99"} / month</Text>
+          </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.planBtnOutline}
-        onPress={() => handleUpgrade("annual")}
-        accessibilityRole="button"
-        accessibilityLabel="Upgrade yearly, $39.99 per year, save 33%"
-      >
-        <Text style={styles.planBtnOutlineText}>$39.99 / year</Text>
-        <Text style={styles.planBtnSub}>Save 33%</Text>
-      </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.planBtnOutline}
+            onPress={() => handleUpgrade(annual, "annual")}
+            accessibilityRole="button"
+            accessibilityLabel={`Upgrade yearly, ${annual?.product.priceString ?? "$39.99"} per year, save 33%`}
+          >
+            <Text style={styles.planBtnOutlineText}>{annual?.product.priceString ?? "$39.99"} / year</Text>
+            <Text style={styles.planBtnSub}>Save 33%</Text>
+          </TouchableOpacity>
+        </>
+      )}
+
+      {configured && (
+        <TouchableOpacity
+          onPress={handleRestore}
+          disabled={purchasing}
+          accessibilityRole="button"
+          accessibilityLabel="Restore purchases"
+        >
+          <Text style={styles.restoreText}>Restore purchases</Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Not now">
         <Text style={styles.notNow}>Not now</Text>
@@ -159,6 +219,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 12,
     marginTop: 2,
+  },
+  restoreText: {
+    color: colors.muted,
+    textAlign: "center",
+    fontSize: 13,
+    marginBottom: 14,
   },
   notNow: {
     color: colors.muted,

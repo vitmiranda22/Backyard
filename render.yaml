@@ -37,6 +37,8 @@ services:
         sync: false
       - key: SENTRY_DSN
         sync: false
+      - key: REVENUECAT_WEBHOOK_SECRET
+        sync: false
       - key: DAILY_NARRATION_LIMIT
         value: "250"
       - key: MINUTE_NARRATION_LIMIT

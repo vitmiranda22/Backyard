@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import { signIn, signUp } from "../services/auth";
+import { track } from "../services/analytics";
 import { colors, font, radius } from "../theme";
 
 export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
@@ -30,6 +31,7 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
     setLoading(true);
     try {
       await signIn(email, password);
+      track("login_completed");
       onLogin();
     } catch (e: any) {
       Alert.alert(t("login.signInFailed"), e.message || t("common.tryAgain"));
@@ -49,6 +51,7 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
     setLoading(true);
     try {
       await signUp(email, password);
+      track("signup_completed");
       Alert.alert(t("common.success"), t("login.accountCreated"));
     } catch (e: any) {
       Alert.alert(t("login.signUpFailed"), e.message || t("common.tryAgain"));

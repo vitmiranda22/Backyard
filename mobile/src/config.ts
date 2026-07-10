@@ -30,3 +30,23 @@ export const DEV_PASSWORD = "BackyardDev123!";
 // Crash reporting — scaffolded, inactive until you create a Sentry project
 // and paste its DSN here. A blank value is a no-op (see src/services/sentry.ts).
 export const SENTRY_DSN = "https://49568006e6b19952177c8155c2d48f69@o4511708654731264.ingest.us.sentry.io/4511708674523136";
+
+// Product analytics — scaffolded, inactive until you create a free project at
+// posthog.com and paste its key here. A blank value is a no-op (see
+// src/services/analytics.ts). If your project is on PostHog's EU cloud,
+// switch POSTHOG_HOST to "https://eu.i.posthog.com".
+export const POSTHOG_API_KEY = "";
+export const POSTHOG_HOST = "https://us.i.posthog.com";
+
+// In-app purchases (RevenueCat) — scaffolded, inactive until you:
+//   1. Create App Store Connect / Play Console in-app purchase products
+//   2. Create a RevenueCat account, connect those stores, and set up an
+//      "premium" entitlement + offering
+//   3. Paste the platform API keys below (Project settings > API keys in
+//      RevenueCat)
+// Blank values are a no-op — the Paywall screen falls back to its static
+// "Coming soon" behavior until these are filled in (see
+// src/services/purchases.ts).
+export const REVENUECAT_IOS_API_KEY = "";
+export const REVENUECAT_ANDROID_API_KEY = "";
+export const REVENUECAT_ENTITLEMENT_ID = "premium";

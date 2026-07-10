@@ -38,15 +38,11 @@ export const SENTRY_DSN = "https://49568006e6b19952177c8155c2d48f69@o45117086547
 export const POSTHOG_API_KEY = "";
 export const POSTHOG_HOST = "https://us.i.posthog.com";
 
-// In-app purchases (RevenueCat) — scaffolded, inactive until you:
-//   1. Create App Store Connect / Play Console in-app purchase products
-//   2. Create a RevenueCat account, connect those stores, and set up an
-//      "premium" entitlement + offering
-//   3. Paste the platform API keys below (Project settings > API keys in
-//      RevenueCat)
-// Blank values are a no-op — the Paywall screen falls back to its static
-// "Coming soon" behavior until these are filled in (see
+// In-app purchases (RevenueCat) — iOS is live (Backyard Pro entitlement,
+// monthly/annual App Store subscriptions). Android is still a no-op until
+// REVENUECAT_ANDROID_API_KEY is filled in — the Paywall screen falls back
+// to its static "Coming soon" behavior on that platform until then (see
 // src/services/purchases.ts).
-export const REVENUECAT_IOS_API_KEY = "";
+export const REVENUECAT_IOS_API_KEY = "appl_NvUtdkUBqCAuuHgCFuXuJgFRygg";
 export const REVENUECAT_ANDROID_API_KEY = "";
-export const REVENUECAT_ENTITLEMENT_ID = "premium";
+export const REVENUECAT_ENTITLEMENT_ID = "Backyard Pro";

@@ -98,11 +98,14 @@ def _synthesize_speech_sync(text: str, voice: str):
             pitch=_get_pitch(voice),
         )
 
-        # Make the API call
+        # Make the API call. Explicit timeout — this runs in a worker
+        # thread (see synthesize_speech above); an unbounded hang here
+        # would tie up that thread indefinitely instead of just failing.
         response = client.synthesize_speech(
             input=synthesis_input,
             voice=voice_config,
             audio_config=audio_config,
+            timeout=20.0,
         )
 
         audio_bytes = response.audio_content
@@ -133,6 +136,7 @@ def _synthesize_speech_sync(text: str, voice: str):
                     input=synthesis_input,
                     voice=voice_config,
                     audio_config=audio_config,
+                    timeout=20.0,
                 )
                 return response.audio_content
             except Exception as e2:

@@ -23,7 +23,11 @@ logger = logging.getLogger(__name__)
 # client's blocking call would freeze the whole event loop for its
 # duration, including Render's health check — the same class of bug
 # fixed in tts.py/r2.py for the TTS/R2 calls.
-client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+#
+# Explicit timeout — the SDK default is 10 minutes, which is far longer
+# than a mobile client will ever wait; a stalled web_search tool call
+# shouldn't hang a request that long.
+client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY, timeout=45.0)
 
 MODEL = "gpt-4.1-mini"
 

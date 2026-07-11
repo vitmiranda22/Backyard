@@ -365,15 +365,15 @@ Write two things:
    specific from "SO FAR ON THIS TOUR" — not a generic "as we continue our
    walk" filler — and hand off naturally into the next block. Second person,
    present tense, matches the mood's voice.
-   BANNED OPENER: never start with "Just" (as in "Just steps from...",
-   "Just past...", "Just as...") — this is a crutch every model reaches
-   for by default, and it gets repetitive fast across a multi-block tour.
-   Vary the opener instead — rotate through different connective moves:
-   a direction/movement cue ("Cross to the far corner and..." / "Keep
-   walking and..."), a time cue ("A few decades later..." / "Fast forward
-   to now..."), a contrast ("But turn the corner, and..." / "Where that
-   story ended, this one begins..."), or a direct address ("Look up, and
-   you'll find..."). Never reuse the same opener style two blocks in a row.
+   VARY YOUR OPENER: "Just" (as in "Just steps from...", "Just past...",
+   "Just as...") is a crutch every model reaches for by default — it's a
+   fine opener occasionally, but it should NOT be your go-to move every
+   time. Rotate through other connective moves too: a direction/movement
+   cue ("Cross to the far corner and..." / "Keep walking and..."), a time
+   cue ("A few decades later..." / "Fast forward to now..."), a contrast
+   ("But turn the corner, and..." / "Where that story ended, this one
+   begins..."), or a direct address ("Look up, and you'll find...").
+   Never reuse the same opener style two blocks in a row.
 2. An updated rolling summary (2-3 sentences, under 60 words) of the tour
    so far, folding in what the next block is about to cover, written so it
    can be handed back to you as "SO FAR ON THIS TOUR" for the block after

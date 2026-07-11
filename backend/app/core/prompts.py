@@ -90,6 +90,16 @@ HOW TO WRITE:
   acceptable — if you're not confident enough in an anchor to state it, find a
   different detail from the data that you ARE sure of, rather than dropping
   the anchor entirely.
+- EXTERIOR ONLY, ALWAYS — describe only what's visible from the public
+  street/sidewalk (facade, signage, windows, materials, what you can see
+  through a window from outside). NEVER describe or invite the listener
+  into a building's interior ("step inside and you'll find...", "the
+  interior features...", "once you're through the door..."), and never
+  claim to know what a CURRENT private residence or business looks like
+  inside. This is a hard rule regardless of mode or how good the story
+  would be — historical interior details are fine ONLY when framed as
+  clearly past ("in 1962, the ballroom inside sat 400 people" is OK as
+  history; "walk in and you'll see the ballroom" is not).
 - Use short sentences for impact. "Gone. Overnight. Nobody talked about it."
 - End by pulling them toward the next block with something specific and irresistible.
 
@@ -355,6 +365,15 @@ Write two things:
    specific from "SO FAR ON THIS TOUR" — not a generic "as we continue our
    walk" filler — and hand off naturally into the next block. Second person,
    present tense, matches the mood's voice.
+   BANNED OPENER: never start with "Just" (as in "Just steps from...",
+   "Just past...", "Just as...") — this is a crutch every model reaches
+   for by default, and it gets repetitive fast across a multi-block tour.
+   Vary the opener instead — rotate through different connective moves:
+   a direction/movement cue ("Cross to the far corner and..." / "Keep
+   walking and..."), a time cue ("A few decades later..." / "Fast forward
+   to now..."), a contrast ("But turn the corner, and..." / "Where that
+   story ended, this one begins..."), or a direct address ("Look up, and
+   you'll find..."). Never reuse the same opener style two blocks in a row.
 2. An updated rolling summary (2-3 sentences, under 60 words) of the tour
    so far, folding in what the next block is about to cover, written so it
    can be handed back to you as "SO FAR ON THIS TOUR" for the block after

@@ -350,6 +350,24 @@ shows it was originally a corner grocery."
 # Connector — stitches a block onto the tour's running story (cheap, tour-scoped)
 # =============================================================================
 
+# Each block's connector is a separate, stateless API call — the model has
+# no memory of what opener the previous block's connector used, so a
+# soft "vary your opener" instruction can't actually enforce variety
+# across a tour (confirmed live: 7 of 9 transitions in a real test tour
+# started with "Just"). Instead, app/services/openai_service.py's
+# generate_connector() picks one of these categories per call via a
+# code-level shuffle bag (tours.used_connector_openers, see migration
+# 011) and tells the model exactly which one to write in — "Just" is
+# still a legitimate category, just one of six instead of the default.
+CONNECTOR_OPENER_CATEGORIES = {
+    "direction": ["Cross to the far corner and...", "Keep walking and...", "Turn your head toward..."],
+    "time": ["A few decades later...", "Fast forward to now...", "Years before any of that..."],
+    "contrast": ["But turn the corner, and...", "Where that story ended, this one begins...", "Not everyone got that lucky..."],
+    "direct_address": ["Look up, and you'll find...", "Listen closely, because...", "Notice what's missing here..."],
+    "just": ["Just steps from...", "Just past...", "Just as..."],
+    "callback": ["Remember that story? Here's where it gets stranger...", "That same thread picks up again here..."],
+}
+
 _CONNECTOR_PROMPT = """
 You are writing ONE short transition line for a walking-tour narrator, in
 the same {mood} voice as the rest of the tour.
@@ -365,15 +383,9 @@ Write two things:
    specific from "SO FAR ON THIS TOUR" — not a generic "as we continue our
    walk" filler — and hand off naturally into the next block. Second person,
    present tense, matches the mood's voice.
-   VARY YOUR OPENER: "Just" (as in "Just steps from...", "Just past...",
-   "Just as...") is a crutch every model reaches for by default — it's a
-   fine opener occasionally, but it should NOT be your go-to move every
-   time. Rotate through other connective moves too: a direction/movement
-   cue ("Cross to the far corner and..." / "Keep walking and..."), a time
-   cue ("A few decades later..." / "Fast forward to now..."), a contrast
-   ("But turn the corner, and..." / "Where that story ended, this one
-   begins..."), or a direct address ("Look up, and you'll find...").
-   Never reuse the same opener style two blocks in a row.
+   YOUR ASSIGNED OPENER STYLE FOR THIS TRANSITION: {opener_category}.
+   Examples of that style (don't copy verbatim, just match the technique):
+   {opener_examples}
 2. An updated rolling summary (2-3 sentences, under 60 words) of the tour
    so far, folding in what the next block is about to cover, written so it
    can be handed back to you as "SO FAR ON THIS TOUR" for the block after
@@ -385,12 +397,15 @@ SUMMARY: <the updated summary>
 """
 
 
-def build_connector_prompt(prior_summary: str, mood: str, current_narration: str) -> str:
+def build_connector_prompt(prior_summary: str, mood: str, current_narration: str, opener_category: str) -> str:
     """Build the prompt for generating a cross-block transition + updated summary."""
+    examples = CONNECTOR_OPENER_CATEGORIES.get(opener_category, CONNECTOR_OPENER_CATEGORIES["direction"])
     return _CONNECTOR_PROMPT.format(
         prior_summary=prior_summary,
         mood=mood,
         current_narration=current_narration,
+        opener_category=opener_category,
+        opener_examples=", ".join(f'"{e}"' for e in examples),
     )
 
 

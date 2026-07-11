@@ -315,12 +315,15 @@ async def narrate_block(
 
         if owns_tour:
             prior_summary = tour.get("narrative_summary")
+            used_openers = tour.get("used_connector_openers") or []
+            new_used_openers = used_openers
 
             if prior_summary:
-                connector_text, updated_summary = await openai_service.generate_connector(
+                connector_text, updated_summary, new_used_openers = await openai_service.generate_connector(
                     prior_summary=prior_summary,
                     mood=request.mood.value,
                     current_narration=narration_text,
+                    used_openers=used_openers,
                 )
                 if connector_text:
                     final_narration_text = f"{connector_text} {narration_text}"
@@ -331,7 +334,9 @@ async def narrate_block(
                 # something to build on.
                 updated_summary = narration_text[:200]
 
-            await supabase_db.update_tour_narrative_summary(request.tour_id, updated_summary)
+            await supabase_db.update_tour_narrative_summary(
+                request.tour_id, updated_summary, used_connector_openers=new_used_openers
+            )
 
     # --- Step 7-8: Handle audio ---
     audio_url = None

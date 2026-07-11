@@ -9,11 +9,12 @@ uses REAL facts about the location instead of generic filler.
 """
 
 import logging
+import random
 import re
 from openai import AsyncOpenAI
 
 from app.config import settings
-from app.core.prompts import build_prompt, build_connector_prompt
+from app.core.prompts import build_prompt, build_connector_prompt, CONNECTOR_OPENER_CATEGORIES
 
 logger = logging.getLogger(__name__)
 
@@ -164,10 +165,33 @@ async def generate_narration(
         return None
 
 
+def _pick_opener_category(used_openers: list) -> tuple:
+    """
+    Shuffle-bag pick: don't repeat any opener category until all of them
+    have been used once this tour, then reshuffle. Guards the reshuffle
+    boundary itself against a back-to-back repeat by excluding whichever
+    category was used most recently from that one pick.
+
+    Returns (chosen_category, new_used_openers_list).
+    """
+    all_categories = list(CONNECTOR_OPENER_CATEGORIES.keys())
+    used_openers = used_openers or []
+
+    available = [c for c in all_categories if c not in used_openers]
+    if not available:
+        last = used_openers[-1] if used_openers else None
+        available = [c for c in all_categories if c != last]
+        used_openers = []  # starting a fresh cycle
+
+    chosen = random.choice(available)
+    return chosen, used_openers + [chosen]
+
+
 async def generate_connector(
     prior_summary: str,
     mood: str,
     current_narration: str,
+    used_openers: list = None,
 ) -> tuple:
     """
     Generate a short transition line connecting this block to the tour's
@@ -177,16 +201,19 @@ async def generate_connector(
     cheap, tour-scoped call, not a replacement for the main narration call.
 
     Returns:
-        (connector_text, updated_summary). connector_text is None if
-        generation/parsing failed — callers should skip stitching in that
-        case but can still persist updated_summary (falls back to a
-        truncated version of current_narration) so future blocks keep
-        building continuity.
+        (connector_text, updated_summary, new_used_openers). connector_text
+        is None if generation/parsing failed — callers should skip
+        stitching in that case but can still persist updated_summary
+        (falls back to a truncated version of current_narration) and
+        new_used_openers so future blocks keep building continuity and
+        the shuffle bag keeps advancing regardless.
     """
+    opener_category, new_used_openers = _pick_opener_category(used_openers)
     prompt = build_connector_prompt(
         prior_summary=prior_summary,
         mood=mood,
         current_narration=current_narration,
+        opener_category=opener_category,
     )
     fallback_summary = current_narration[:200]
 
@@ -233,13 +260,13 @@ async def generate_connector(
 
         if not transition:
             logger.warning("Connector generation returned no parseable TRANSITION line")
-            return None, summary or fallback_summary
+            return None, summary or fallback_summary, new_used_openers
 
-        return transition, summary or fallback_summary
+        return transition, summary or fallback_summary, new_used_openers
 
     except Exception as e:
         logger.error(f"Connector generation failed: {e}")
-        return None, fallback_summary
+        return None, fallback_summary, new_used_openers
 
 
 async def transcribe_audio(audio_bytes: bytes, filename: str = "question.m4a") -> str:

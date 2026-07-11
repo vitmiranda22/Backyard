@@ -361,15 +361,39 @@ async def get_tour(tour_id: str):
         return None
 
 
-async def update_tour_narrative_summary(tour_id: str, summary: str):
-    """Persist the tour's rolling narrative summary for the next block to build on."""
+async def update_tour_narrative_summary(tour_id: str, summary: str, used_connector_openers: list = None):
+    """
+    Persist the tour's rolling narrative summary for the next block to
+    build on, plus (optionally) the shuffle-bag state tracking which
+    connector opener categories have been used so far this tour — see
+    generate_connector() in app/services/openai_service.py.
+
+    Tries both fields in one update first (one round trip in the common
+    case), but falls back to persisting just the summary alone if that
+    fails — e.g. migrations/011_connector_opener_rotation.sql hasn't been
+    run yet and used_connector_openers doesn't exist as a column. Without
+    this fallback, a missing new column would silently break narrative
+    continuity entirely (not just the new shuffle-bag feature) during the
+    window between deploy and running the migration.
+    """
     try:
         client = _get_client()
-        client.table("tours").update({"narrative_summary": summary}).eq("id", tour_id).execute()
+        updates = {"narrative_summary": summary}
+        if used_connector_openers is not None:
+            updates["used_connector_openers"] = used_connector_openers
+        client.table("tours").update(updates).eq("id", tour_id).execute()
         return True
     except Exception as e:
-        logger.error(f"Failed to update narrative summary for tour {tour_id}: {e}")
-        return False
+        logger.error(f"Failed to update narrative summary (with openers) for tour {tour_id}: {e}")
+        if used_connector_openers is None:
+            return False
+        try:
+            client = _get_client()
+            client.table("tours").update({"narrative_summary": summary}).eq("id", tour_id).execute()
+            return True
+        except Exception as e2:
+            logger.error(f"Failed to update narrative summary (fallback) for tour {tour_id}: {e2}")
+            return False
 
 
 async def get_tours_by_user(creator_id: str, limit: int = 20):

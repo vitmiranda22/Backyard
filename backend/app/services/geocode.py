@@ -145,6 +145,15 @@ def _build_street_name(address: dict) -> str:
     house_number = address.get("house_number", "")
     road = address.get("road") or address.get("pedestrian") or address.get("path") or ""
 
+    # OSM tags some buildings with multiple mapped unit addresses as a single
+    # semicolon/comma-joined house_number (e.g. "4841;4843;4845;4847;4849"),
+    # and Nominatim passes that through unchanged. Using the whole jammed
+    # string as this block's title/anchor reads as garbled — take just the
+    # first address instead. A legitimate hyphenated range ("4841-4849")
+    # isn't touched, since that already reads fine as one address.
+    if house_number:
+        house_number = house_number.split(";")[0].split(",")[0].strip()
+
     if house_number:
         parts.append(house_number)
     if road:

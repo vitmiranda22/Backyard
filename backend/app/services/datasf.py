@@ -12,7 +12,13 @@ import httpx
 logger = logging.getLogger(__name__)
 
 TIMEOUT = 5.0
-RADIUS_METERS = 200
+# Sized to roughly match one geohash-7 zone (~153m x 153m, see
+# GEOHASH_PRECISION in app/api/narrate.py). This used to be 200m (400m
+# diameter) — comfortably wider than a zone, so adjacent zones' queries
+# overlapped and could pull the same top record, producing near-identical
+# narration for two different blocks in the same tour. Revisit this if
+# GEOHASH_PRECISION changes again.
+RADIUS_METERS = 100
 LIMIT = 10
 
 BASE_URL = "https://data.sfgov.org/resource"
@@ -140,9 +146,16 @@ async def fetch_civic_art(lat: float, lng: float, client: httpx.AsyncClient) -> 
 
 
 async def fetch_addresses(lat: float, lng: float, client: httpx.AsyncClient) -> list:
-    """Enterprise addressing — active addresses. ID: dv2e-n9cv"""
+    """
+    Enterprise addressing — active addresses. ID: dv2e-n9cv
+
+    Box half-width ~0.0009deg (~100m) — sized to match one geohash-7 zone,
+    same reasoning as RADIUS_METERS above. Used to be 0.002deg (~444m x
+    222m box), wide enough to overlap adjacent zones and pull the same
+    address into two different blocks' data.
+    """
     return await _query_soda_simple("dv2e-n9cv", {
-        "$where": f"latitude > {lat - 0.002} AND latitude < {lat + 0.002} AND longitude > {lng - 0.002} AND longitude < {lng + 0.002}",
+        "$where": f"latitude > {lat - 0.0009} AND latitude < {lat + 0.0009} AND longitude > {lng - 0.0009} AND longitude < {lng + 0.0009}",
     }, client)
 
 

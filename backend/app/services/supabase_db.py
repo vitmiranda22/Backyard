@@ -374,37 +374,31 @@ async def update_tour_narrative_summary(
     literal text of the most recent connector transition — see
     generate_connector() in app/services/openai_service.py.
 
-    Tries all fields in one update first (one round trip in the common
-    case), but falls back to persisting just the summary alone if that
-    fails — e.g. migrations/011_connector_opener_rotation.sql or
-    012_connector_last_transition.sql haven't been run yet and one of
-    the extra columns doesn't exist. Without this fallback, a missing
-    new column would silently break narrative continuity entirely (not
-    just the newer features) during the window between deploy and
-    running the migration.
+    Tries progressively smaller sets of fields, newest-first, and keeps
+    whichever subset the current schema actually supports — e.g. if
+    012_connector_last_transition.sql hasn't been run yet but
+    011_connector_opener_rotation.sql has, a single combined update
+    would fail on the missing column and (with a single all-or-nothing
+    fallback) silently drop used_connector_openers too, even though
+    that one IS supported. A layered fallback keeps each already-shipped
+    feature working independently of whether a newer one's migration
+    has landed yet.
     """
-    extras = {}
+    client = _get_client()
+    attempts = [{"narrative_summary": summary}]
     if used_connector_openers is not None:
-        extras["used_connector_openers"] = used_connector_openers
+        attempts.append({**attempts[-1], "used_connector_openers": used_connector_openers})
     if last_connector_transition is not None:
-        extras["last_connector_transition"] = last_connector_transition
+        attempts.append({**attempts[-1], "last_connector_transition": last_connector_transition})
 
-    try:
-        client = _get_client()
-        updates = {"narrative_summary": summary, **extras}
-        client.table("tours").update(updates).eq("id", tour_id).execute()
-        return True
-    except Exception as e:
-        logger.error(f"Failed to update narrative summary (with extras) for tour {tour_id}: {e}")
-        if not extras:
-            return False
+    for updates in reversed(attempts):
         try:
-            client = _get_client()
-            client.table("tours").update({"narrative_summary": summary}).eq("id", tour_id).execute()
+            client.table("tours").update(updates).eq("id", tour_id).execute()
             return True
-        except Exception as e2:
-            logger.error(f"Failed to update narrative summary (fallback) for tour {tour_id}: {e2}")
-            return False
+        except Exception as e:
+            logger.error(f"Failed to update narrative summary (fields={list(updates.keys())}) for tour {tour_id}: {e}")
+
+    return False
 
 
 async def get_tours_by_user(creator_id: str, limit: int = 20):

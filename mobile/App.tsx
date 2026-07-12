@@ -286,6 +286,7 @@ export default function App() {
           mood={selectedMood}
           voice={preferredVoice}
           contentSafety={false}
+          isPremium={isPremium}
           onEndTour={(id, blocks, start, path) => {
             setTourId(id);
             setBlocksVisited(blocks);

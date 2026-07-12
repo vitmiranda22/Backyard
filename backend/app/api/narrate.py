@@ -448,6 +448,7 @@ async def narrate_block(
     "/ask-question",
     response_model=AskQuestionResponse,
     responses={
+        403: {"model": ErrorResponse},
         429: {"model": ErrorResponse},
         408: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
@@ -468,12 +469,31 @@ async def ask_question(
     using the walker's current location as context, and speaks the answer
     back through the same TTS/R2 pipeline narration uses.
     """
+    is_premium = await supabase_db.get_user_premium_status(user_id)
+
+    # The costliest narration-adjacent feature in the app — fresh Whisper
+    # transcription + GPT answer + TTS on every single call, zero caching
+    # (unlike narrate-block, which reuses cached audio for a revisited
+    # zone). Gated behind Premium entirely, not just the mood/voice check
+    # further down — the client is expected to gate this before ever
+    # reaching here, so this only fires for a stale client or a direct
+    # API call.
+    if not is_premium:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "Asking questions is a premium feature. Upgrade to unlock it.",
+                "code": "premium_required",
+                "retry": False,
+            },
+        )
+
     # Unlike narrate-block, this has zero caching (fresh Whisper + GPT + TTS
     # on every call), so it gets its own tighter daily ceiling rather than
     # sharing the narration pool — still shares the minute limit, since
-    # that's about rapid-fire abuse, not daily cost.
-    is_premium = await supabase_db.get_user_premium_status(user_id)
-
+    # that's about rapid-fire abuse, not daily cost. (Kept as a backstop
+    # even though free users never reach it now that the whole feature is
+    # premium-gated above — cheap insurance if that gate ever regresses.)
     allowed, reason = await supabase_db.check_question_rate_limit(
         user_id,
         daily_limit=settings.DAILY_QUESTION_LIMIT_PREMIUM if is_premium else settings.DAILY_QUESTION_LIMIT_FREE,

@@ -18,6 +18,7 @@ const PERKS = [
   { emoji: "🕵️", label: "3 extra moods — Dark Side, Behind the Scenes, Unfiltered" },
   { emoji: "🎙️", label: "Dramatic and Warm narration voices" },
   { emoji: "⚡", label: "A higher daily narration limit" },
+  { emoji: "💬", label: "Ask questions anywhere on your walk" },
 ];
 
 interface PaywallScreenProps {

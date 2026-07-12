@@ -33,6 +33,7 @@ interface ActiveTourProps {
   mood: string;
   voice: string;
   contentSafety: boolean;
+  isPremium: boolean;
   onEndTour: (
     tourId: string,
     blocksVisited: number,
@@ -45,6 +46,7 @@ export default function ActiveTourScreen({
   mood,
   voice,
   contentSafety,
+  isPremium,
   onEndTour,
 }: ActiveTourProps) {
   const insets = useSafeAreaInsets();
@@ -286,6 +288,14 @@ export default function ActiveTourScreen({
 
   async function handleAskPressIn() {
     if (qaState !== "idle") return;
+    if (!isPremium) {
+      tap();
+      Alert.alert(
+        "Premium feature",
+        "Asking questions on a walk is a Premium feature — upgrade from your Profile to unlock it."
+      );
+      return;
+    }
     tap();
     const started = await startRecording();
     if (started) {
@@ -348,7 +358,9 @@ export default function ActiveTourScreen({
       ? "Listening to your question…"
       : qaState === "thinking"
       ? "Thinking…"
-      : "Hold to ask a question";
+      : isPremium
+      ? "Hold to ask a question"
+      : "Ask a question — Premium";
 
   return (
     <View style={styles.container}>
@@ -454,7 +466,7 @@ export default function ActiveTourScreen({
           onPressOut={handleAskPressOut}
           disabled={qaState === "thinking" || isLoading}
           accessibilityRole="button"
-          accessibilityLabel="Hold to ask a question"
+          accessibilityLabel={isPremium ? "Hold to ask a question" : "Ask a question, premium feature"}
         >
           <Animated.View
             style={[
@@ -469,6 +481,11 @@ export default function ActiveTourScreen({
               <Text style={styles.askBtnIcon}>🎙️</Text>
             )}
           </Animated.View>
+          {!isPremium && (
+            <View style={styles.askProBadge}>
+              <Text style={styles.askProBadgeText}>PRO</Text>
+            </View>
+          )}
         </Pressable>
         <Text style={styles.footerHint}>{askCaption}</Text>
       </View>
@@ -591,6 +608,20 @@ const styles = StyleSheet.create({
   },
   askBtnIcon: {
     fontSize: 26,
+  },
+  askProBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: colors.pro,
+    borderRadius: 5,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  askProBadgeText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: colors.proText,
   },
   footerHint: {
     marginTop: 8,

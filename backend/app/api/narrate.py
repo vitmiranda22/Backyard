@@ -317,6 +317,7 @@ async def narrate_block(
             prior_summary = tour.get("narrative_summary")
             used_openers = tour.get("used_connector_openers") or []
             new_used_openers = used_openers
+            last_transition = tour.get("last_connector_transition")
 
             if prior_summary:
                 connector_text, updated_summary, new_used_openers = await openai_service.generate_connector(
@@ -324,10 +325,15 @@ async def narrate_block(
                     mood=request.mood.value,
                     current_narration=narration_text,
                     used_openers=used_openers,
+                    last_transition=last_transition,
                 )
                 if connector_text:
                     final_narration_text = f"{connector_text} {narration_text}"
                     connector_added = True
+                    # Persist THIS transition so the next block's connector
+                    # can avoid repeating its sentence shape too — see
+                    # migration 012.
+                    last_transition = connector_text
             else:
                 # First block of this tour — nothing to connect to yet. Seed
                 # the summary from this block's own text so block 2 has
@@ -335,7 +341,10 @@ async def narrate_block(
                 updated_summary = narration_text[:200]
 
             await supabase_db.update_tour_narrative_summary(
-                request.tour_id, updated_summary, used_connector_openers=new_used_openers
+                request.tour_id,
+                updated_summary,
+                used_connector_openers=new_used_openers,
+                last_connector_transition=last_transition,
             )
 
     # --- Step 7-8: Handle audio ---

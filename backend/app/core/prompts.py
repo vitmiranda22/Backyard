@@ -386,6 +386,12 @@ Write two things:
    YOUR ASSIGNED OPENER STYLE FOR THIS TRANSITION: {opener_category}.
    Examples of that style (don't copy verbatim, just match the technique):
    {opener_examples}
+   PERMANENTLY BANNED TEMPLATE — never write anything shaped like "Just
+   beyond the [thing], you find yourself..." or "Just past the [thing],
+   you find yourself/step into...". This exact shape kept recurring across
+   different assigned styles in testing, so it's off-limits regardless of
+   which style you're assigned this time.
+   {avoid_repeat}
 2. An updated rolling summary (2-3 sentences, under 60 words) of the tour
    so far, folding in what the next block is about to cover, written so it
    can be handed back to you as "SO FAR ON THIS TOUR" for the block after
@@ -397,10 +403,23 @@ SUMMARY: <the updated summary>
 """
 
 
-def build_connector_prompt(prior_summary: str, mood: str, current_narration: str, opener_category: str) -> str:
+def build_connector_prompt(
+    prior_summary: str,
+    mood: str,
+    current_narration: str,
+    opener_category: str,
+    last_transition: str = None,
+) -> str:
     """Build the prompt for generating a cross-block transition + updated summary."""
     examples = CONNECTOR_OPENER_CATEGORIES.get(opener_category, CONNECTOR_OPENER_CATEGORIES["direction"])
+    avoid_repeat = (
+        f'ALSO AVOID THIS EXACT SHAPE — the previous block\'s transition was: '
+        f'"{last_transition}". Whatever category you write in, don\'t reuse that '
+        f"sentence's structure or rhythm, even loosely."
+        if last_transition else ""
+    )
     return _CONNECTOR_PROMPT.format(
+        avoid_repeat=avoid_repeat,
         prior_summary=prior_summary,
         mood=mood,
         current_narration=current_narration,

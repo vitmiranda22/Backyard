@@ -192,6 +192,7 @@ async def generate_connector(
     mood: str,
     current_narration: str,
     used_openers: list = None,
+    last_transition: str = None,
 ) -> tuple:
     """
     Generate a short transition line connecting this block to the tour's
@@ -199,6 +200,12 @@ async def generate_connector(
 
     Deliberately no search tool and a small-ish token budget — this is a
     cheap, tour-scoped call, not a replacement for the main narration call.
+
+    last_transition (the literal text of the PRIOR block's transition, not
+    just its category) is passed back in so the model can avoid repeating
+    its own sentence shape even when a different opener category was
+    assigned — category alone wasn't enough in testing, since the model
+    can converge on the same template under different nominal categories.
 
     Returns:
         (connector_text, updated_summary, new_used_openers). connector_text
@@ -214,6 +221,7 @@ async def generate_connector(
         mood=mood,
         current_narration=current_narration,
         opener_category=opener_category,
+        last_transition=last_transition,
     )
     fallback_summary = current_narration[:200]
 

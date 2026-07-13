@@ -401,6 +401,13 @@ The building on the corner got a permit in 1927."
 GOOD (specific): "That tree right there — it's a New Zealand Christmas Tree, planted in 1985.
 One of only twelve in the entire city. And the house behind it? A building permit from 1927
 shows it was originally a corner grocery."
+
+That GOOD example is written in a plain, neutral, explanatory tone ON PURPOSE —
+it's only there to show what SPECIFICITY looks like. It is NOT a model for how
+your narration should sound. Copy its level of detail, never its flat tone.
+Your actual sentences must sound like the MODE you were assigned above — cinematic,
+gleeful, tense, gossipy, or opinionated, whichever one applies — not like this
+neutral example.
 """
 
 
@@ -539,13 +546,14 @@ def build_prompt(
     # but-personality-free recitation, even with strong voice instructions
     # earlier in the prompt. One short reminder at the very end, after the
     # data, re-anchors on the assigned mode's voice right before generation.
+    mode_label = mood.replace("_", " ").upper()
     parts.append(
-        "FINAL REMINDER: everything above about specific facts and "
-        "structure exists to SERVE the MODE you were assigned above, not "
-        "to replace it. Before you write, re-read that mode's VOICE line "
-        "one more time. A technically accurate but flat, personality-free "
-        "recitation of facts is a FAILURE for this mode, no matter how "
-        "many correct details it contains."
+        f"FINAL REMINDER: you are writing in {mode_label} mode. Everything "
+        "above about specific facts and structure exists to SERVE that "
+        "mode's voice, not replace it. Before you write, re-read that "
+        "mode's VOICE line one more time. A technically accurate but flat, "
+        "personality-free recitation of facts — even a well-detailed one — "
+        "is a FAILURE here, no matter how many correct details it contains."
     )
 
     return "\n".join(parts)

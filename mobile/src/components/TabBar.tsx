@@ -5,15 +5,16 @@
 
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { colors } from "../theme";
 import { tap } from "../services/haptics";
 
 export type MainTab = "home" | "tours" | "profile";
 
-const TABS: { id: MainTab; icon: string; label: string }[] = [
-  { id: "home", icon: "⌂", label: "Home" },
-  { id: "tours", icon: "▤", label: "Tours" },
-  { id: "profile", icon: "◔", label: "Profile" },
+const TABS: { id: MainTab; icon: string; labelKey: string }[] = [
+  { id: "home", icon: "⌂", labelKey: "common.home" },
+  { id: "tours", icon: "▤", labelKey: "tours.header" },
+  { id: "profile", icon: "◔", labelKey: "profile.header" },
 ];
 
 export default function TabBar({
@@ -23,10 +24,12 @@ export default function TabBar({
   active: MainTab;
   onChange: (tab: MainTab) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.bar}>
       {TABS.map((tab) => {
         const isActive = tab.id === active;
+        const label = t(tab.labelKey);
         return (
           <TouchableOpacity
             key={tab.id}
@@ -37,10 +40,10 @@ export default function TabBar({
             }}
             accessibilityRole="tab"
             accessibilityState={{ selected: isActive }}
-            accessibilityLabel={`${tab.label} tab`}
+            accessibilityLabel={t("tabBar.tabA11y", { label })}
           >
             <Text style={[styles.icon, isActive && styles.iconActive]}>{tab.icon}</Text>
-            <Text style={[styles.label, isActive && styles.labelActive]}>{tab.label}</Text>
+            <Text style={[styles.label, isActive && styles.labelActive]}>{label}</Text>
           </TouchableOpacity>
         );
       })}

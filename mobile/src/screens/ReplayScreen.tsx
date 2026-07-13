@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { useTranslation } from "react-i18next";
 import MapView, { Marker } from "react-native-maps";
 import { watchPosition, getCurrentLocation } from "../services/location";
 import { getTourDetail, TourDetail, TourBlockDetail } from "../services/api";
@@ -20,6 +21,7 @@ interface ReplayScreenProps {
 }
 
 export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayScreenProps) {
+  const { t } = useTranslation();
   const [blocks, setBlocks] = useState<TourBlockDetail[]>(tour.blocks);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [targetIndex, setTargetIndex] = useState(0);
@@ -69,7 +71,7 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
         });
         subscriptionRef.current = sub;
       } catch (e: any) {
-        Alert.alert("Error", "Failed to get your location: " + e.message);
+        Alert.alert(t("common.error"), t("replay.failedToGetLocation", { error: e.message }));
       }
     }
     init();
@@ -109,7 +111,7 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
       setActiveBlock(refreshedTarget || null);
     } catch (e) {
       console.warn("Failed to refresh route audio:", e);
-      showToast("Couldn't refresh the audio — try again in a moment.");
+      showToast(t("replay.couldntRefreshAudio"));
     }
     setIsRefreshingAudio(false);
   }
@@ -141,17 +143,17 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
           </MapView>
         ) : (
           <View style={styles.mapPlaceholder}>
-            <Text style={styles.placeholderText}>Getting your location...</Text>
+            <Text style={styles.placeholderText}>{t("replay.gettingLocation")}</Text>
           </View>
         )}
       </View>
 
       <View style={styles.statsBar}>
-        <TouchableOpacity onPress={onExit} accessibilityRole="button" accessibilityLabel="Exit replay">
-          <Text style={styles.exitLink}>‹ Exit</Text>
+        <TouchableOpacity onPress={onExit} accessibilityRole="button" accessibilityLabel={t("replay.exitReplayA11y")}>
+          <Text style={styles.exitLink}>‹ {t("replay.exit")}</Text>
         </TouchableOpacity>
         <Text style={styles.statsText}>
-          📍 {Math.min(targetIndex + 1, blocks.length)} of {blocks.length}
+          📍 {t("replay.progress", { current: Math.min(targetIndex + 1, blocks.length), total: blocks.length })}
         </Text>
         <Text style={styles.title} numberOfLines={1}>
           {tour.title}
@@ -174,7 +176,7 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
         target && (
           <View style={styles.guideCard}>
             <Text style={styles.guideText}>
-              {isRefreshingAudio ? "Refreshing audio..." : `Walk toward ${target.street_name} to continue`}
+              {isRefreshingAudio ? t("replay.refreshingAudio") : t("replay.walkToward", { street: target.street_name })}
             </Text>
           </View>
         )

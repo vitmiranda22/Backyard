@@ -5,6 +5,7 @@
 
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { rateTour, TourDetail } from "../services/api";
 import StarRating from "../components/StarRating";
 import TourStatsGrid from "../components/TourStatsGrid";
@@ -18,6 +19,7 @@ interface RouteRatingScreenProps {
 }
 
 export default function RouteRatingScreen({ tour, onDone }: RouteRatingScreenProps) {
+  const { t } = useTranslation();
   const [score, setScore] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
@@ -32,7 +34,7 @@ export default function RouteRatingScreen({ tour, onDone }: RouteRatingScreenPro
       success();
     } catch (e: any) {
       console.warn("Failed to submit rating:", e.message);
-      showToast("Couldn't submit your rating.");
+      showToast(t("routeRating.couldntSubmit"));
     }
     setSubmitting(false);
     onDone();
@@ -41,10 +43,12 @@ export default function RouteRatingScreen({ tour, onDone }: RouteRatingScreenPro
   return (
     <View style={styles.container}>
       <Text style={styles.emoji}>🏁</Text>
-      <Text style={styles.title}>Route Complete!</Text>
+      <Text style={styles.title}>{t("routeRating.routeComplete")}</Text>
       <Text style={styles.tourTitle}>{tour.title}</Text>
       <Text style={styles.creator}>
-        By {tour.is_anonymous ? "Anonymous Explorer" : tour.creator_display_name || "Anonymous Explorer"}
+        {t("routeDetail.by", {
+          name: tour.is_anonymous ? t("routeDetail.anonymousExplorer") : tour.creator_display_name || t("routeDetail.anonymousExplorer"),
+        })}
       </Text>
 
       <TourStatsGrid
@@ -54,7 +58,7 @@ export default function RouteRatingScreen({ tour, onDone }: RouteRatingScreenPro
         mood={tour.mood}
       />
 
-      <Text style={styles.rateLabel}>How was this route?</Text>
+      <Text style={styles.rateLabel}>{t("routeRating.howWasThisRoute")}</Text>
       <StarRating value={score} onChange={setScore} size={36} />
 
       <TouchableOpacity
@@ -62,13 +66,13 @@ export default function RouteRatingScreen({ tour, onDone }: RouteRatingScreenPro
         onPress={handleSubmit}
         disabled={score === 0 || submitting}
         accessibilityRole="button"
-        accessibilityLabel="Submit rating"
+        accessibilityLabel={t("routeRating.submitRatingA11y")}
       >
-        <Text style={styles.submitBtnText}>{submitting ? "Submitting..." : "Submit Rating"}</Text>
+        <Text style={styles.submitBtnText}>{submitting ? t("routeRating.submitting") : t("routeRating.submitRating")}</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={onDone} disabled={submitting} accessibilityRole="button" accessibilityLabel="Skip rating">
-        <Text style={styles.skipLink}>Skip</Text>
+      <TouchableOpacity onPress={onDone} disabled={submitting} accessibilityRole="button" accessibilityLabel={t("routeRating.skipRatingA11y")}>
+        <Text style={styles.skipLink}>{t("routeRating.skip")}</Text>
       </TouchableOpacity>
     </View>
   );

@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import { getUserStats } from "../services/api";
 import { getAllBadges, BadgeStatus } from "../services/badges";
 import { colors, font, radius } from "../theme";
@@ -14,6 +15,7 @@ interface BadgeGalleryScreenProps {
 }
 
 export default function BadgeGalleryScreen({ onBack }: BadgeGalleryScreenProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [badges, setBadges] = useState<BadgeStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,7 +25,7 @@ export default function BadgeGalleryScreen({ onBack }: BadgeGalleryScreenProps) 
       .then((stats) => setBadges(getAllBadges(stats)))
       .catch((e: any) => {
         console.warn("Failed to load stats for badges:", e.message);
-        showToast("Couldn't load your badges.");
+        showToast(t("badgeGallery.couldntLoad"));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -42,13 +44,13 @@ export default function BadgeGalleryScreen({ onBack }: BadgeGalleryScreenProps) 
         style={[styles.backBtn, { top: Math.max(insets.top, 54) + 12 }]}
         onPress={onBack}
         accessibilityRole="button"
-        accessibilityLabel="Back"
+        accessibilityLabel={t("common.back")}
       >
-        <Text style={styles.backText}>‹ Back</Text>
+        <Text style={styles.backText}>‹ {t("common.back")}</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>Badges</Text>
-      <Text style={styles.subtitle}>Every badge you can earn walking with Backyard</Text>
+      <Text style={styles.title}>{t("badgeGallery.title")}</Text>
+      <Text style={styles.subtitle}>{t("badgeGallery.subtitle")}</Text>
 
       <ScrollView contentContainerStyle={styles.list}>
         {badges.map((badge) => (
@@ -57,9 +59,9 @@ export default function BadgeGalleryScreen({ onBack }: BadgeGalleryScreenProps) 
               <Text style={[styles.emoji, !badge.earned && styles.emojiLocked]}>{badge.emoji}</Text>
             </View>
             <View style={styles.info}>
-              <Text style={[styles.label, !badge.earned && styles.labelLocked]}>{badge.label}</Text>
+              <Text style={[styles.label, !badge.earned && styles.labelLocked]}>{t(`badges.${badge.id}.label`)}</Text>
               <Text style={styles.requirement}>
-                {badge.earned ? "Unlocked" : badge.requirement}
+                {badge.earned ? t("badgeGallery.unlocked") : t(`badges.${badge.id}.requirement`)}
               </Text>
             </View>
             {!badge.earned && <Text style={styles.lock}>🔒</Text>}

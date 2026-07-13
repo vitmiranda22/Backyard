@@ -3,6 +3,7 @@
 
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { colors, radius } from "../theme";
 
 interface TourStatsGridProps {
@@ -13,24 +14,25 @@ interface TourStatsGridProps {
 }
 
 export default function TourStatsGrid({ blocksVisited, distanceKm, durationMin, mood }: TourStatsGridProps) {
+  const { t } = useTranslation();
   return (
     <View style={styles.statsGrid}>
       <View style={styles.statCard}>
         <Text style={styles.statValue}>📍 {blocksVisited}</Text>
-        <Text style={styles.statLabel}>blocks narrated</Text>
+        <Text style={styles.statLabel}>{t("tourStats.blocksNarrated")}</Text>
       </View>
       <View style={styles.statCard}>
         <Text style={styles.statValue}>🚶 {distanceKm} km</Text>
-        <Text style={styles.statLabel}>walked</Text>
+        <Text style={styles.statLabel}>{t("tourStats.walked")}</Text>
       </View>
       <View style={styles.statCard}>
-        <Text style={styles.statValue}>⏱️ {durationMin} min</Text>
-        <Text style={styles.statLabel}>duration</Text>
+        <Text style={styles.statValue}>⏱️ {durationMin} {t("routeDetail.minAbbr")}</Text>
+        <Text style={styles.statLabel}>{t("tourStats.duration")}</Text>
       </View>
       {mood ? (
         <View style={styles.statCard}>
-          <Text style={styles.statValue}>🎭 {mood.replace("_", " ")}</Text>
-          <Text style={styles.statLabel}>mode</Text>
+          <Text style={styles.statValue}>🎭 {t(`moods.${mood}.label`)}</Text>
+          <Text style={styles.statLabel}>{t("tourStats.mode")}</Text>
         </View>
       ) : null}
     </View>

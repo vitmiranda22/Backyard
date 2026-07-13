@@ -4,40 +4,21 @@
 
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { colors, font, radius } from "../theme";
 import { tap } from "../services/haptics";
 
-const CARDS = [
-  {
-    emoji: "🚶",
-    title: "Welcome to Backyard",
-    body: "Walk anywhere, and hear real stories about the streets, buildings, and history around you — narrated as you go.",
-  },
-  {
-    emoji: "🎭",
-    title: "Pick a mood",
-    body: "Time Machine, Hidden City, Dark Side, Behind the Scenes, Unfiltered — same streets, completely different stories each time.",
-  },
-  {
-    emoji: "🗺️",
-    title: "Discover routes from others",
-    body: "Every walk can be published as a route for others to follow. Browse what's nearby, rated by the community.",
-  },
-  {
-    emoji: "✨",
-    title: "Ready to explore?",
-    body: "Pick a mood and start walking — narration triggers automatically as you approach each new spot.",
-  },
-];
+const CARD_KEYS = ["card1", "card2", "card3", "card4"];
+const CARD_EMOJI = ["🚶", "🎭", "🗺️", "✨"];
 
 interface OnboardingScreenProps {
   onDone: () => void;
 }
 
 export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
+  const { t } = useTranslation();
   const [index, setIndex] = useState(0);
-  const card = CARDS[index];
-  const isLast = index === CARDS.length - 1;
+  const isLast = index === CARD_KEYS.length - 1;
 
   function handleNext() {
     tap();
@@ -50,18 +31,18 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={onDone} accessibilityRole="button" accessibilityLabel="Skip onboarding">
-        <Text style={styles.skip}>Skip</Text>
+      <TouchableOpacity onPress={onDone} accessibilityRole="button" accessibilityLabel={t("onboarding.skipA11y")}>
+        <Text style={styles.skip}>{t("onboarding.skip")}</Text>
       </TouchableOpacity>
 
       <View style={styles.content}>
-        <Text style={styles.emoji}>{card.emoji}</Text>
-        <Text style={styles.title}>{card.title}</Text>
-        <Text style={styles.body}>{card.body}</Text>
+        <Text style={styles.emoji}>{CARD_EMOJI[index]}</Text>
+        <Text style={styles.title}>{t(`onboarding.${CARD_KEYS[index]}.title`)}</Text>
+        <Text style={styles.body}>{t(`onboarding.${CARD_KEYS[index]}.body`)}</Text>
       </View>
 
       <View style={styles.dots}>
-        {CARDS.map((_, i) => (
+        {CARD_KEYS.map((_, i) => (
           <View key={i} style={[styles.dot, i === index && styles.dotActive]} />
         ))}
       </View>
@@ -70,9 +51,9 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
         style={styles.nextBtn}
         onPress={handleNext}
         accessibilityRole="button"
-        accessibilityLabel={isLast ? "Get started" : "Next"}
+        accessibilityLabel={isLast ? t("onboarding.getStartedA11y") : t("onboarding.next")}
       >
-        <Text style={styles.nextBtnText}>{isLast ? "Get Started" : "Next"}</Text>
+        <Text style={styles.nextBtnText}>{isLast ? t("onboarding.getStarted") : t("onboarding.next")}</Text>
       </TouchableOpacity>
     </View>
   );

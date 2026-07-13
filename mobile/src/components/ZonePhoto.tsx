@@ -13,6 +13,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 import { colors } from "../theme";
 
 interface ZonePhotoProps {
@@ -21,6 +22,7 @@ interface ZonePhotoProps {
 }
 
 export default function ZonePhoto({ uri, thumbnailStyle }: ZonePhotoProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   return (
@@ -37,7 +39,7 @@ export default function ZonePhoto({ uri, thumbnailStyle }: ZonePhotoProps) {
               onPress={() => setOpen(false)}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               accessibilityRole="button"
-              accessibilityLabel="Close photo"
+              accessibilityLabel={t("zonePhoto.closeA11y")}
             >
               <Text style={styles.closeText}>✕</Text>
             </TouchableOpacity>

@@ -9,16 +9,17 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import { PurchasesPackage, PACKAGE_TYPE } from "react-native-purchases";
 import { colors, font, radius } from "../theme";
 import { getPackages, purchasePackage, restorePurchases } from "../services/purchases";
 import { track } from "../services/analytics";
 
-const PERKS = [
-  { emoji: "🕵️", label: "3 extra moods — Dark Side, Behind the Scenes, Unfiltered" },
-  { emoji: "🎙️", label: "Dramatic and Warm narration voices" },
-  { emoji: "⚡", label: "A higher daily narration limit" },
-  { emoji: "💬", label: "Ask questions anywhere on your walk" },
+const PERK_KEYS = [
+  { emoji: "🕵️", key: "paywall.perkMoods" },
+  { emoji: "🎙️", key: "paywall.perkVoices" },
+  { emoji: "⚡", key: "paywall.perkLimit" },
+  { emoji: "💬", key: "paywall.perkQuestions" },
 ];
 
 interface PaywallScreenProps {
@@ -27,6 +28,7 @@ interface PaywallScreenProps {
 }
 
 export default function PaywallScreen({ onClose, onPurchased }: PaywallScreenProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [packages, setPackages] = useState<PurchasesPackage[] | null>(null);
   const [purchasing, setPurchasing] = useState(false);
@@ -38,7 +40,7 @@ export default function PaywallScreen({ onClose, onPurchased }: PaywallScreenPro
 
   async function handleUpgrade(pkg: PurchasesPackage | null, planLabel: string) {
     if (!pkg) {
-      Alert.alert("Coming soon", "Payments aren't wired up yet — check back soon!");
+      Alert.alert(t("paywall.comingSoonTitle"), t("paywall.comingSoonBody"));
       return;
     }
     track("upgrade_tapped", { plan: planLabel });
@@ -51,7 +53,7 @@ export default function PaywallScreen({ onClose, onPurchased }: PaywallScreenPro
       onClose();
     } else if (!result.userCancelled) {
       track("purchase_failed", { plan: planLabel });
-      Alert.alert("Purchase failed", "Something went wrong — please try again.");
+      Alert.alert(t("paywall.purchaseFailedTitle"), t("paywall.purchaseFailedBody"));
     }
   }
 
@@ -63,7 +65,7 @@ export default function PaywallScreen({ onClose, onPurchased }: PaywallScreenPro
       onPurchased?.();
       onClose();
     } else {
-      Alert.alert("Nothing to restore", "We couldn't find a previous purchase for this account.");
+      Alert.alert(t("paywall.nothingToRestoreTitle"), t("paywall.nothingToRestoreBody"));
     }
   }
 
@@ -78,20 +80,20 @@ export default function PaywallScreen({ onClose, onPurchased }: PaywallScreenPro
         onPress={onClose}
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         accessibilityRole="button"
-        accessibilityLabel="Close"
+        accessibilityLabel={t("common.cancel")}
       >
         <Text style={styles.closeText}>✕</Text>
       </TouchableOpacity>
 
       <Text style={styles.emoji}>✨</Text>
-      <Text style={styles.title}>Backyard Premium</Text>
-      <Text style={styles.subtitle}>Unlock every mood and voice</Text>
+      <Text style={styles.title}>{t("paywall.title")}</Text>
+      <Text style={styles.subtitle}>{t("paywall.subtitle")}</Text>
 
       <View style={styles.perks}>
-        {PERKS.map((perk) => (
-          <View key={perk.label} style={styles.perkRow}>
+        {PERK_KEYS.map((perk) => (
+          <View key={perk.key} style={styles.perkRow}>
             <Text style={styles.perkEmoji}>{perk.emoji}</Text>
-            <Text style={styles.perkText}>{perk.label}</Text>
+            <Text style={styles.perkText}>{t(perk.key)}</Text>
           </View>
         ))}
       </View>
@@ -104,19 +106,23 @@ export default function PaywallScreen({ onClose, onPurchased }: PaywallScreenPro
             style={styles.planBtn}
             onPress={() => handleUpgrade(monthly, "monthly")}
             accessibilityRole="button"
-            accessibilityLabel={`Upgrade monthly, ${monthly?.product.priceString ?? "$4.99"} per month`}
+            accessibilityLabel={t("paywall.upgradeMonthlyA11y", { price: monthly?.product.priceString ?? "$4.99" })}
           >
-            <Text style={styles.planBtnText}>{monthly?.product.priceString ?? "$4.99"} / month</Text>
+            <Text style={styles.planBtnText}>
+              {monthly?.product.priceString ?? "$4.99"} {t("paywall.perMonth")}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.planBtnOutline}
             onPress={() => handleUpgrade(annual, "annual")}
             accessibilityRole="button"
-            accessibilityLabel={`Upgrade yearly, ${annual?.product.priceString ?? "$39.99"} per year, save 33%`}
+            accessibilityLabel={t("paywall.upgradeYearlyA11y", { price: annual?.product.priceString ?? "$39.99" })}
           >
-            <Text style={styles.planBtnOutlineText}>{annual?.product.priceString ?? "$39.99"} / year</Text>
-            <Text style={styles.planBtnSub}>Save 33%</Text>
+            <Text style={styles.planBtnOutlineText}>
+              {annual?.product.priceString ?? "$39.99"} {t("paywall.perYear")}
+            </Text>
+            <Text style={styles.planBtnSub}>{t("paywall.save33")}</Text>
           </TouchableOpacity>
         </>
       )}
@@ -126,14 +132,14 @@ export default function PaywallScreen({ onClose, onPurchased }: PaywallScreenPro
           onPress={handleRestore}
           disabled={purchasing}
           accessibilityRole="button"
-          accessibilityLabel="Restore purchases"
+          accessibilityLabel={t("paywall.restorePurchases")}
         >
-          <Text style={styles.restoreText}>Restore purchases</Text>
+          <Text style={styles.restoreText}>{t("paywall.restorePurchases")}</Text>
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Not now">
-        <Text style={styles.notNow}>Not now</Text>
+      <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel={t("paywall.notNow")}>
+        <Text style={styles.notNow}>{t("paywall.notNow")}</Text>
       </TouchableOpacity>
     </View>
   );

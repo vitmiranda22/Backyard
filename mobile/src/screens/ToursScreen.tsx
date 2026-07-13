@@ -64,7 +64,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
       setTours(result);
     } catch (e: any) {
       console.warn("Failed to load tours:", e.message);
-      showToast("Couldn't load your tours.");
+      showToast(t("tours.couldntLoadTours"));
       setTours([]);
     }
   }, []);
@@ -82,7 +82,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
       setRoutes(result);
     } catch (e: any) {
       console.warn("Failed to load nearby routes:", e.message);
-      showToast("Couldn't load nearby routes.");
+      showToast(t("home.couldntLoadRoutes"));
       setRoutes([]);
     }
   }, []);

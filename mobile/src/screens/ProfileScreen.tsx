@@ -59,7 +59,7 @@ export default function ProfileScreen({
       await updateSettings({ content_safety: value });
     } catch (e: any) {
       console.warn("Failed to update settings:", e.message);
-      showToast("Couldn't save that setting.");
+      showToast(t("profile.couldntSaveSetting"));
     }
   }
 
@@ -111,7 +111,7 @@ export default function ProfileScreen({
       onSignedOut();
     } catch (e: any) {
       console.warn("Failed to delete account:", e.message);
-      showToast("Couldn't delete your account — try again in a moment.");
+      showToast(t("profile.couldntDeleteAccount"));
       setDeleting(false);
     }
   }
@@ -164,7 +164,7 @@ export default function ProfileScreen({
         style={styles.card}
         onPress={onOpenVoicePicker}
         accessibilityRole="button"
-        accessibilityLabel="Narration voice settings"
+        accessibilityLabel={t("profile.narrationVoiceSettingsA11y")}
       >
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
@@ -200,7 +200,7 @@ export default function ProfileScreen({
             value={contentSafety}
             onValueChange={toggleContentSafety}
             trackColor={{ false: colors.border, true: colors.accent }}
-            accessibilityLabel="Mature content toggle"
+            accessibilityLabel={t("profile.matureContentToggleA11y")}
           />
         </View>
       </View>
@@ -230,7 +230,7 @@ export default function ProfileScreen({
           style={styles.card}
           onPress={onOpenBadges}
           accessibilityRole="button"
-          accessibilityLabel="View all badges"
+          accessibilityLabel={t("profile.viewAllBadgesA11y")}
         >
           <View style={styles.badgeHeaderRow}>
             <Text style={[styles.label, styles.centerText]}>{t("profile.badges")}</Text>
@@ -240,7 +240,7 @@ export default function ProfileScreen({
             {badges.map((b) => (
               <View key={b.id} style={styles.badgeChip}>
                 <Text style={styles.badgeEmoji}>{b.emoji}</Text>
-                <Text style={styles.badgeLabel}>{b.label}</Text>
+                <Text style={styles.badgeLabel}>{t(`badges.${b.id}.label`)}</Text>
               </View>
             ))}
           </View>
@@ -251,7 +251,7 @@ export default function ProfileScreen({
         style={styles.signOutBtn}
         onPress={handleSignOut}
         accessibilityRole="button"
-        accessibilityLabel="Sign out"
+        accessibilityLabel={t("profile.signOut")}
       >
         <Text style={styles.signOutText}>{t("profile.signOut")}</Text>
       </TouchableOpacity>
@@ -261,7 +261,7 @@ export default function ProfileScreen({
         onPress={handleDeleteAccount}
         disabled={deleting}
         accessibilityRole="button"
-        accessibilityLabel="Delete account"
+        accessibilityLabel={t("profile.deleteAccount")}
       >
         <Text style={styles.deleteText}>{deleting ? t("profile.deleting") : t("profile.deleteAccount")}</Text>
       </TouchableOpacity>

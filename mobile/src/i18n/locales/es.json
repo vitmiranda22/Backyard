@@ -7,7 +7,10 @@
     "pro": "PRO",
     "free": "GRATIS",
     "start": "Inicio",
-    "endOfRoute": "Fin de la ruta"
+    "endOfRoute": "Fin de la ruta",
+    "soon": "PRONTO",
+    "back": "Atrás",
+    "home": "Inicio"
   },
   "login": {
     "title": "Backyard",
@@ -31,7 +34,8 @@
     "pickYourStory": "Elige tu historia",
     "startWalkingTour": "Comenzar recorrido",
     "notYetRated": "Aún sin calificar — toca el marcador para ver la ruta, toca la tarjeta para más detalles",
-    "end": "Finalizar"
+    "end": "Finalizar",
+    "couldntLoadRoutes": "No se pudieron cargar las rutas cercanas."
   },
   "tours": {
     "header": "Recorridos",
@@ -41,7 +45,8 @@
     "noRoutesNearby": "Aún no hay rutas públicas cerca de ti — ¡sé el primero en compartir una!",
     "locationRequiredTitle": "Ubicación requerida",
     "locationRequiredBody": "Activa la ubicación para descubrir rutas cercanas.",
-    "inProgress": "En curso"
+    "inProgress": "En curso",
+    "couldntLoadTours": "No se pudieron cargar tus recorridos."
   },
   "profile": {
     "header": "Perfil",
@@ -67,7 +72,12 @@
     "delete": "Eliminar",
     "deleteConfirmTitle": "¿Estás seguro?",
     "deleteConfirmBody": "Última oportunidad — esto realmente no se puede deshacer.",
-    "deleteMyAccount": "Eliminar mi cuenta"
+    "deleteMyAccount": "Eliminar mi cuenta",
+    "couldntSaveSetting": "No se pudo guardar esa configuración.",
+    "couldntDeleteAccount": "No se pudo eliminar tu cuenta — inténtalo de nuevo en un momento.",
+    "narrationVoiceSettingsA11y": "Configuración de voz de narración",
+    "matureContentToggleA11y": "Interruptor de contenido para adultos",
+    "viewAllBadgesA11y": "Ver todas las insignias"
   },
   "moods": {
     "time_machine": { "label": "Máquina del tiempo", "desc": "Descubre cómo se veía este lugar hace décadas" },
@@ -79,5 +89,202 @@
   "moodPicker": {
     "title": "Elige tu experiencia",
     "subtitle": "Las mismas calles. Historias completamente distintas."
+  },
+  "voices": {
+    "neutral": { "label": "Neutral", "desc": "Narración clara y equilibrada" },
+    "dramatic": { "label": "Dramática", "desc": "Entrega audaz y cinematográfica" },
+    "warm": { "label": "Cálida", "desc": "Tono amistoso y conversacional" },
+    "signature": { "label": "Firma", "desc": "Nuestra voz más realista — recorridos completos próximamente" }
+  },
+  "voicePicker": {
+    "title": "Voz de narración",
+    "subtitle": "Elige quién cuenta tu historia",
+    "couldntLoad": "No se pudo cargar tu configuración de voz.",
+    "couldntPreview": "No se pudo reproducir una vista previa en este momento.",
+    "couldntSave": "No se pudo guardar tu elección de voz.",
+    "previewOnlyToast": "La narración completa con esta voz estará disponible pronto — toca ▶ para escuchar una vista previa.",
+    "voiceSuffix": "voz",
+    "previewOnlySuffix": "solo vista previa, recorridos completos próximamente",
+    "premiumSuffix": "premium",
+    "selectedSuffix": "seleccionada",
+    "previewA11y": "Vista previa de la voz {{voice}}"
+  },
+  "paywall": {
+    "title": "Backyard Premium",
+    "subtitle": "Desbloquea todos los estados de ánimo y voces",
+    "perkMoods": "3 estados de ánimo adicionales — Lado Oscuro, Detrás de Escena, Sin Filtro",
+    "perkVoices": "Voces de narración Dramática y Cálida",
+    "perkLimit": "Un límite diario de narración más alto",
+    "perkQuestions": "Haz preguntas en cualquier momento de tu recorrido",
+    "perMonth": "/ mes",
+    "perYear": "/ año",
+    "save33": "Ahorra 33%",
+    "restorePurchases": "Restaurar compras",
+    "notNow": "Ahora no",
+    "comingSoonTitle": "Próximamente",
+    "comingSoonBody": "Los pagos aún no están habilitados — ¡vuelve pronto!",
+    "purchaseFailedTitle": "Compra fallida",
+    "purchaseFailedBody": "Algo salió mal — inténtalo de nuevo.",
+    "nothingToRestoreTitle": "Nada que restaurar",
+    "nothingToRestoreBody": "No encontramos una compra anterior para esta cuenta.",
+    "upgradeMonthlyA11y": "Actualizar mensualmente, {{price}} por mes",
+    "upgradeYearlyA11y": "Actualizar anualmente, {{price}} por año, ahorra 33%"
+  },
+  "badgeGallery": {
+    "title": "Insignias",
+    "subtitle": "Cada insignia que puedes ganar caminando con Backyard",
+    "unlocked": "Desbloqueada",
+    "couldntLoad": "No se pudieron cargar tus insignias."
+  },
+  "badges": {
+    "first_steps": { "label": "Primeros Pasos", "requirement": "Completa 1 recorrido" },
+    "regular_walker": { "label": "Caminante Regular", "requirement": "Completa 5 recorridos" },
+    "marathoner": { "label": "Maratonista", "requirement": "Camina 42km en total" },
+    "explorer": { "label": "Explorador", "requirement": "Visita 3 ciudades distintas" },
+    "century_club": { "label": "Club del Centenario", "requirement": "Camina 100km en total" },
+    "world_traveler": { "label": "Viajero Mundial", "requirement": "Visita 5 ciudades distintas" },
+    "completionist": { "label": "Completista", "requirement": "Prueba los 5 estados de ánimo" },
+    "night_owl": { "label": "Ave Nocturna", "requirement": "Camina un recorrido después de las 8pm" },
+    "early_bird": { "label": "Madrugador", "requirement": "Camina un recorrido antes de las 8am" },
+    "storyteller": { "label": "Narrador", "requirement": "Publica 3 rutas" },
+    "crowd_favorite": { "label": "Favorito del Público", "requirement": "Consigue 10 me gusta en tus rutas" }
+  },
+  "activeTour": {
+    "startFailed": "No se pudo iniciar el recorrido: {{error}}",
+    "blockSaveError": "No se pudo guardar ese bloque — tu caminata continúa.",
+    "narrationError": "Problemas para encontrar historias. ¡Sigue caminando!",
+    "premiumFeatureTitle": "Función premium",
+    "premiumFeatureBody": "Hacer preguntas durante una caminata es una función Premium — actualiza desde tu Perfil para desbloquearla.",
+    "answerError": "No se pudo obtener una respuesta a eso — inténtalo de nuevo.",
+    "listening": "Escuchando tu pregunta…",
+    "thinking": "Pensando…",
+    "holdToAsk": "Mantén presionado para preguntar",
+    "askPremium": "Haz una pregunta — Premium",
+    "askPremiumA11y": "Haz una pregunta, función premium",
+    "gettingLocation": "Obteniendo ubicación...",
+    "endTourA11y": "Finalizar recorrido",
+    "dismissAnswer": "Descartar respuesta",
+    "blocksCount": "{{count}} cuadras"
+  },
+  "tourComplete": {
+    "finishingUp": "Terminando...",
+    "whatWasThisWalk": "¿Qué fue esta caminata?",
+    "nameSubtitle": "Dale un nombre antes de continuar",
+    "titlePlaceholder": "ej. Paseo al atardecer por Hayes Valley",
+    "tourTitleA11y": "Título del recorrido",
+    "continue": "Continuar",
+    "savedPublished": "¡Guardado y publicado!",
+    "shareToWalkToo": "Compártelo para que otros también puedan caminarlo.",
+    "share": "Compartir",
+    "shareThisRouteA11y": "Compartir esta ruta",
+    "editNamePlaceholder": "Nombra tu recorrido",
+    "editNameA11y": "Editar título del recorrido",
+    "shareAsRouteQuestion": "¿Compartir esto como una ruta pública?",
+    "shareAsRouteDesc": "Otros pueden descubrirla y caminarla ellos mismos",
+    "publishToggleA11y": "Interruptor de publicar como ruta pública",
+    "saving": "Guardando...",
+    "save": "Guardar",
+    "saveTourA11y": "Guardar recorrido",
+    "discarding": "Descartando...",
+    "discardThisWalk": "Descartar esta caminata",
+    "discardConfirmTitle": "¿Descartar esta caminata?",
+    "discardConfirmBody": "Esto la elimina permanentemente — no se guardará en tu historial ni se publicará.",
+    "discard": "Descartar",
+    "couldntSaveDetails": "No se pudieron guardar los detalles de tu recorrido, pero tu caminata quedó registrada.",
+    "couldntDiscard": "No se pudo descartar esta caminata — inténtalo de nuevo en un momento.",
+    "shareMessage": "¡Acabo de caminar \"{{title}}\" en Backyard! Míralo: backyard://route/{{tourId}}"
+  },
+  "routeDetail": {
+    "failedToLoad": "No se pudo cargar la ruta",
+    "couldntUpdateLike": "No se pudo actualizar tu me gusta.",
+    "by": "Por {{name}}",
+    "anonymousExplorer": "Explorador Anónimo",
+    "ratingCount_one": "{{count}} calificación",
+    "ratingCount_other": "{{count}} calificaciones",
+    "likeThisRoute": "Dar me gusta a esta ruta",
+    "unlikeThisRoute": "Quitar me gusta a esta ruta",
+    "stopsCount_one": "{{count}} parada",
+    "stopsCount_other": "{{count}} paradas",
+    "minAbbr": "min",
+    "audioUnavailable": "El audio de esta ruta no está disponible en este momento — aún puedes caminarla y leer el texto de la narración.",
+    "yourWalkLog": "Tu registro de caminata",
+    "shareMessage": "Mira \"{{title}}\" en Backyard: backyard://route/{{tourId}}",
+    "shareA11y": "Compartir esta ruta",
+    "startReplay": "Iniciar Repetición"
+  },
+  "replay": {
+    "failedToGetLocation": "No se pudo obtener tu ubicación: {{error}}",
+    "couldntRefreshAudio": "No se pudo actualizar el audio — inténtalo de nuevo en un momento.",
+    "gettingLocation": "Obteniendo tu ubicación...",
+    "exitReplayA11y": "Salir de la repetición",
+    "exit": "Salir",
+    "progress": "{{current}} de {{total}}",
+    "refreshingAudio": "Actualizando audio...",
+    "walkToward": "Camina hacia {{street}} para continuar"
+  },
+  "routeRating": {
+    "routeComplete": "¡Ruta completada!",
+    "howWasThisRoute": "¿Qué te pareció esta ruta?",
+    "submitRating": "Enviar calificación",
+    "submitRatingA11y": "Enviar calificación",
+    "submitting": "Enviando...",
+    "couldntSubmit": "No se pudo enviar tu calificación.",
+    "skip": "Omitir",
+    "skipRatingA11y": "Omitir calificación"
+  },
+  "onboarding": {
+    "skip": "Omitir",
+    "skipA11y": "Omitir introducción",
+    "next": "Siguiente",
+    "getStarted": "Comenzar",
+    "getStartedA11y": "Comenzar",
+    "card1": {
+      "title": "Bienvenido a Backyard",
+      "body": "Camina donde sea, y escucha historias reales sobre las calles, edificios e historia a tu alrededor — narradas mientras avanzas."
+    },
+    "card2": {
+      "title": "Elige un estado de ánimo",
+      "body": "Máquina del Tiempo, Ciudad Oculta, Lado Oscuro, Detrás de Escena, Sin Filtro — las mismas calles, historias completamente distintas cada vez."
+    },
+    "card3": {
+      "title": "Descubre rutas de otros",
+      "body": "Cada caminata se puede publicar como una ruta para que otros la sigan. Explora lo que hay cerca, calificado por la comunidad."
+    },
+    "card4": {
+      "title": "¿Listo para explorar?",
+      "body": "Elige un estado de ánimo y comienza a caminar — la narración se activa automáticamente al acercarte a cada nuevo lugar."
+    }
+  },
+  "tabBar": {
+    "tabA11y": "pestaña {{label}}"
+  },
+  "comments": {
+    "header": "Comentarios",
+    "noneYet": "Aún no hay comentarios — sé el primero en decir algo.",
+    "couldntPost": "No se pudo publicar tu comentario.",
+    "addPlaceholder": "Agrega un comentario...",
+    "inputA11y": "Campo de comentario",
+    "post": "Publicar",
+    "postA11y": "Publicar comentario"
+  },
+  "tourStats": {
+    "blocksNarrated": "cuadras narradas",
+    "walked": "caminado",
+    "duration": "duración",
+    "mode": "modo"
+  },
+  "starRating": {
+    "rateA11y": "Calificar {{star}} de 5 estrellas"
+  },
+  "narrationCard": {
+    "finding": "Buscando historias sobre esta cuadra...",
+    "walkAround": "Camina para escuchar historias sobre tu entorno...",
+    "readFullStoryA11y": "Leer la historia completa",
+    "swipeUpHint": "▲ desliza hacia arriba para la historia completa",
+    "closeFullStoryA11y": "Cerrar historia completa",
+    "close": "Cerrar"
+  },
+  "zonePhoto": {
+    "closeA11y": "Cerrar foto"
   }
 }

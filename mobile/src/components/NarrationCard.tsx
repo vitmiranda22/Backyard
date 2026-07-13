@@ -6,6 +6,7 @@
 
 import React, { useState } from "react";
 import { View, Text, StyleSheet, ActivityIndicator, Modal, TouchableOpacity, ScrollView } from "react-native";
+import { useTranslation } from "react-i18next";
 import AudioPlayer from "./AudioPlayer";
 import ZonePhoto from "./ZonePhoto";
 import { colors, radius } from "../theme";
@@ -33,6 +34,7 @@ export default function NarrationCard({
   onSkip,
   onAudioError,
 }: NarrationCardProps) {
+  const { t } = useTranslation();
   const [fullTextOpen, setFullTextOpen] = useState(false);
 
   if (isLoading) {
@@ -40,7 +42,7 @@ export default function NarrationCard({
       <View style={styles.card}>
         <View style={styles.content}>
           <ActivityIndicator size="small" color={colors.accent} />
-          <Text style={styles.loadingText}>Finding stories about this block...</Text>
+          <Text style={styles.loadingText}>{t("narrationCard.finding")}</Text>
         </View>
       </View>
     );
@@ -61,7 +63,7 @@ export default function NarrationCard({
       <View style={styles.card}>
         <View style={styles.content}>
           <Text style={styles.emptyText}>
-            Walk around to hear stories about your surroundings...
+            {t("narrationCard.walkAround")}
           </Text>
         </View>
       </View>
@@ -80,12 +82,12 @@ export default function NarrationCard({
             activeOpacity={0.7}
             onPress={() => setFullTextOpen(true)}
             accessibilityRole="button"
-            accessibilityLabel="Read the full story"
+            accessibilityLabel={t("narrationCard.readFullStoryA11y")}
           >
             <Text style={styles.narrationText} numberOfLines={3} ellipsizeMode="tail">
               {narrationText}
             </Text>
-            <Text style={styles.expandHint}>▲ swipe up for the full story</Text>
+            <Text style={styles.expandHint}>{t("narrationCard.swipeUpHint")}</Text>
           </TouchableOpacity>
 
           {/* Audio controls */}
@@ -123,9 +125,9 @@ export default function NarrationCard({
               style={styles.modalCloseBtn}
               onPress={() => setFullTextOpen(false)}
               accessibilityRole="button"
-              accessibilityLabel="Close full story"
+              accessibilityLabel={t("narrationCard.closeFullStoryA11y")}
             >
-              <Text style={styles.modalCloseBtnText}>Close</Text>
+              <Text style={styles.modalCloseBtnText}>{t("narrationCard.close")}</Text>
             </TouchableOpacity>
           </View>
         </View>

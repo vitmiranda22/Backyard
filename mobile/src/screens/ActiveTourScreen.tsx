@@ -8,6 +8,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, Pressable, StyleSheet, Alert, Animated, Easing, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import MapView from "react-native-maps";
 import RoutePolyline from "../components/RoutePolyline";
 import { useZoneTracker } from "../hooks/useZoneTracker";
@@ -50,6 +51,7 @@ export default function ActiveTourScreen({
   isPremium,
   onEndTour,
 }: ActiveTourProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [heading, setHeading] = useState(0);
@@ -181,7 +183,7 @@ export default function ActiveTourScreen({
         const headingSub = await watchHeading((deg) => setHeading(deg));
         headingSubRef.current = headingSub;
       } catch (e: any) {
-        Alert.alert("Error", "Failed to start tour: " + e.message);
+        Alert.alert(t("common.error"), t("activeTour.startFailed", { error: e.message }));
       }
     }
     init();
@@ -266,11 +268,11 @@ export default function ActiveTourScreen({
           });
         } catch (e) {
           console.warn("Failed to save block (tour continues):", e);
-          showToast("Couldn't save that block — your walk continues.");
+          showToast(t("activeTour.blockSaveError"));
         }
       }
     } catch (e: any) {
-      setError("Having trouble finding stories. Keep walking!");
+      setError(t("activeTour.narrationError"));
       console.error("Narration failed:", e.message);
     }
 
@@ -291,10 +293,7 @@ export default function ActiveTourScreen({
     if (qaState !== "idle") return;
     if (!isPremium) {
       tap();
-      Alert.alert(
-        "Premium feature",
-        "Asking questions on a walk is a Premium feature — upgrade from your Profile to unlock it."
-      );
+      Alert.alert(t("activeTour.premiumFeatureTitle"), t("activeTour.premiumFeatureBody"));
       return;
     }
     tap();
@@ -328,7 +327,7 @@ export default function ActiveTourScreen({
       });
     } catch (e: any) {
       console.warn("Failed to get an answer:", e.message);
-      showToast("Couldn't get an answer to that — try again.");
+      showToast(t("activeTour.answerError"));
     }
     setQaState("idle");
   }
@@ -356,12 +355,12 @@ export default function ActiveTourScreen({
 
   const askCaption =
     qaState === "recording"
-      ? "Listening to your question…"
+      ? t("activeTour.listening")
       : qaState === "thinking"
-      ? "Thinking…"
+      ? t("activeTour.thinking")
       : isPremium
-      ? "Hold to ask a question"
-      : "Ask a question — Premium";
+      ? t("activeTour.holdToAsk")
+      : t("activeTour.askPremium");
 
   return (
     <View style={styles.container}>
@@ -382,7 +381,7 @@ export default function ActiveTourScreen({
           </MapView>
         ) : (
           <View style={styles.mapPlaceholder}>
-            <Text style={styles.placeholderText}>Getting location...</Text>
+            <Text style={styles.placeholderText}>{t("activeTour.gettingLocation")}</Text>
           </View>
         )}
 
@@ -390,9 +389,9 @@ export default function ActiveTourScreen({
           style={[styles.endLink, { top: Math.max(insets.top, 54) + 10 }]}
           onPress={handleEndTour}
           accessibilityRole="button"
-          accessibilityLabel="End tour"
+          accessibilityLabel={t("activeTour.endTourA11y")}
         >
-          <Text style={styles.endLinkText}>End</Text>
+          <Text style={styles.endLinkText}>{t("home.end")}</Text>
         </TouchableOpacity>
 
         {blockOrigin && targetBearing !== null && (
@@ -407,8 +406,8 @@ export default function ActiveTourScreen({
 
       {/* Blocks counter */}
       <View style={styles.statsBar}>
-        <Text style={styles.statsText}>📍 {blocksVisited} blocks</Text>
-        <Text style={styles.moodBadge}>{mood.replace("_", " ")}</Text>
+        <Text style={styles.statsText}>📍 {t("activeTour.blocksCount", { count: blocksVisited })}</Text>
+        <Text style={styles.moodBadge}>{t(`moods.${mood}.label`)}</Text>
       </View>
 
       {/* Narration card */}
@@ -441,7 +440,7 @@ export default function ActiveTourScreen({
             <TouchableOpacity
               onPress={() => setQaAnswer(null)}
               accessibilityRole="button"
-              accessibilityLabel="Dismiss answer"
+              accessibilityLabel={t("activeTour.dismissAnswer")}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Text style={styles.answerClose}>✕</Text>
@@ -459,7 +458,7 @@ export default function ActiveTourScreen({
           onPressOut={handleAskPressOut}
           disabled={qaState === "thinking" || isLoading}
           accessibilityRole="button"
-          accessibilityLabel={isPremium ? "Hold to ask a question" : "Ask a question, premium feature"}
+          accessibilityLabel={isPremium ? t("activeTour.holdToAsk") : t("activeTour.askPremiumA11y")}
         >
           <Animated.View
             style={[

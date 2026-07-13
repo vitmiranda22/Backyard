@@ -95,7 +95,7 @@ export default function HomeScreen({
             .then(setNearbyRoutes)
             .catch((e) => {
               console.warn("Failed to load nearby routes:", e.message);
-              showToast("Couldn't load nearby routes.");
+              showToast(t("home.couldntLoadRoutes"));
             });
         } catch (e) {
           console.error("Failed to get location:", e);

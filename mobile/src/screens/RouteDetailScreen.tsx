@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Share } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import MapView, { Marker } from "react-native-maps";
 import RoutePolyline from "../components/RoutePolyline";
 import { getTourDetail, TourDetail, toggleLike } from "../services/api";
@@ -45,6 +46,7 @@ function regionForBlocks(blocks: { lat: number; lng: number }[]) {
 }
 
 export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: RouteDetailScreenProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [tour, setTour] = useState<TourDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +60,7 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
         setLiked(t.liked_by_me);
         setLikeCount(t.like_count);
       })
-      .catch((e: any) => setError(e.message || "Failed to load route"));
+      .catch((e: any) => setError(e.message || t("routeDetail.failedToLoad")));
   }, [tourId]);
 
   async function handleToggleLike() {
@@ -69,7 +71,7 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
       setLikeCount(result.like_count);
     } catch (e: any) {
       console.warn("Failed to toggle like:", e.message);
-      showToast("Couldn't update your like.");
+      showToast(t("routeDetail.couldntUpdateLike"));
     }
   }
 
@@ -78,7 +80,7 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
       <View style={styles.centered}>
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.backBtn} onPress={onBack}>
-          <Text style={styles.backBtnText}>Back</Text>
+          <Text style={styles.backBtnText}>{t("common.back")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -108,7 +110,7 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
   async function handleShare() {
     try {
       await Share.share({
-        message: `Check out "${tour!.title}" on Backyard: backyard://route/${tourId}`,
+        message: t("routeDetail.shareMessage", { title: tour!.title, tourId }),
       });
     } catch (e) {
       console.warn("Share failed:", e);
@@ -118,11 +120,11 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 54) + 10 }]}>
-        <TouchableOpacity onPress={onBack} accessibilityRole="button" accessibilityLabel="Back">
-          <Text style={styles.backLink}>‹ Back</Text>
+        <TouchableOpacity onPress={onBack} accessibilityRole="button" accessibilityLabel={t("common.back")}>
+          <Text style={styles.backLink}>‹ {t("common.back")}</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleShare} accessibilityRole="button" accessibilityLabel="Share this route">
-          <Text style={styles.shareLink}>Share</Text>
+        <TouchableOpacity onPress={handleShare} accessibilityRole="button" accessibilityLabel={t("routeDetail.shareA11y")}>
+          <Text style={styles.shareLink}>{t("tourComplete.share")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -130,14 +132,16 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
         <Text style={styles.emoji}>{MOOD_EMOJI[tour.mood] ?? "🗺️"}</Text>
         <Text style={styles.title}>{tour.title}</Text>
         <Text style={styles.creator}>
-          By {tour.is_anonymous ? "Anonymous Explorer" : tour.creator_display_name || "Anonymous Explorer"}
+          {t("routeDetail.by", {
+            name: tour.is_anonymous ? t("routeDetail.anonymousExplorer") : tour.creator_display_name || t("routeDetail.anonymousExplorer"),
+          })}
         </Text>
 
         {tour.rating_count > 0 && (
           <View style={styles.ratingRow}>
             <StarRating value={tour.avg_rating} size={18} />
             <Text style={styles.ratingCount}>
-              {tour.avg_rating.toFixed(1)} ({tour.rating_count} rating{tour.rating_count === 1 ? "" : "s"})
+              {tour.avg_rating.toFixed(1)} ({t("routeDetail.ratingCount", { count: tour.rating_count })})
             </Text>
           </View>
         )}
@@ -146,15 +150,15 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
           style={styles.likeBtn}
           onPress={handleToggleLike}
           accessibilityRole="button"
-          accessibilityLabel={liked ? "Unlike this route" : "Like this route"}
+          accessibilityLabel={liked ? t("routeDetail.unlikeThisRoute") : t("routeDetail.likeThisRoute")}
         >
           <Text style={styles.likeBtnText}>{liked ? "❤️" : "🤍"} {likeCount}</Text>
         </TouchableOpacity>
 
         <View style={styles.statsRow}>
-          <Text style={styles.statText}>📍 {tour.blocks_visited} stops</Text>
+          <Text style={styles.statText}>📍 {t("routeDetail.stopsCount", { count: tour.blocks_visited })}</Text>
           {distanceKm && <Text style={styles.statText}>🚶 {distanceKm} km</Text>}
-          {durationMin && <Text style={styles.statText}>⏱️ {durationMin} min</Text>}
+          {durationMin && <Text style={styles.statText}>⏱️ {durationMin} {t("routeDetail.minAbbr")}</Text>}
         </View>
 
         {routeCoords.length > 0 && (
@@ -169,12 +173,12 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
               pointerEvents="none"
             >
               {routeCoords.length > 1 && <RoutePolyline coordinates={routeCoords} />}
-              <Marker coordinate={routeCoords[0]} pinColor={colors.accent} title="Start" />
+              <Marker coordinate={routeCoords[0]} pinColor={colors.accent} title={t("common.start")} />
               {routeCoords.length > 1 && (
                 <Marker
                   coordinate={routeCoords[routeCoords.length - 1]}
                   pinColor={colors.pro}
-                  title="End of route"
+                  title={t("common.endOfRoute")}
                 />
               )}
             </MapView>
@@ -183,13 +187,13 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
 
         {!hasAudio && (
           <Text style={styles.warning}>
-            This route's audio isn't available right now — you can still walk it and read the narration text.
+            {t("routeDetail.audioUnavailable")}
           </Text>
         )}
 
         {tour.is_own_tour && tour.blocks.length > 0 && (
           <View style={styles.logSection}>
-            <Text style={styles.logHeader}>Your walk log</Text>
+            <Text style={styles.logHeader}>{t("routeDetail.yourWalkLog")}</Text>
             {tour.blocks.map((block) => (
               <View key={block.block_id} style={styles.logCard}>
                 {block.image_url && (
@@ -211,7 +215,7 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
       </ScrollView>
 
       <TouchableOpacity style={styles.startBtn} onPress={() => onStartReplay(tour)}>
-        <Text style={styles.startBtnText}>Start Replay</Text>
+        <Text style={styles.startBtnText}>{t("routeDetail.startReplay")}</Text>
       </TouchableOpacity>
     </View>
   );

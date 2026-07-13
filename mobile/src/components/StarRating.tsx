@@ -2,6 +2,7 @@
 
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { colors } from "../theme";
 import { tap } from "../services/haptics";
 
@@ -12,6 +13,7 @@ interface StarRatingProps {
 }
 
 export default function StarRating({ value, onChange, size = 16 }: StarRatingProps) {
+  const { t } = useTranslation();
   const rounded = Math.round(value);
   const interactive = !!onChange;
 
@@ -36,7 +38,7 @@ export default function StarRating({ value, onChange, size = 16 }: StarRatingPro
               onChange!(star);
             }}
             accessibilityRole="button"
-            accessibilityLabel={`Rate ${star} out of 5 stars`}
+            accessibilityLabel={t("starRating.rateA11y", { star })}
           >
             <Text style={[styles.star, { fontSize: size, color: filled ? colors.accent : colors.border }]}>
               {filled ? "★" : "☆"}

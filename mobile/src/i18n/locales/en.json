@@ -7,7 +7,10 @@
     "pro": "PRO",
     "free": "FREE",
     "start": "Start",
-    "endOfRoute": "End of route"
+    "endOfRoute": "End of route",
+    "soon": "SOON",
+    "back": "Back",
+    "home": "Home"
   },
   "login": {
     "title": "Backyard",
@@ -31,7 +34,8 @@
     "pickYourStory": "Pick your story",
     "startWalkingTour": "Start Walking Tour",
     "notYetRated": "Not yet rated — tap the marker to see the path, tap the card for details",
-    "end": "End"
+    "end": "End",
+    "couldntLoadRoutes": "Couldn't load nearby routes."
   },
   "tours": {
     "header": "Tours",
@@ -41,7 +45,8 @@
     "noRoutesNearby": "No public routes near you yet — be the first to share one!",
     "locationRequiredTitle": "Location Required",
     "locationRequiredBody": "Enable location to discover nearby routes.",
-    "inProgress": "In progress"
+    "inProgress": "In progress",
+    "couldntLoadTours": "Couldn't load your tours."
   },
   "profile": {
     "header": "Profile",
@@ -67,7 +72,12 @@
     "delete": "Delete",
     "deleteConfirmTitle": "Are you sure?",
     "deleteConfirmBody": "Last chance — this really can't be undone.",
-    "deleteMyAccount": "Delete my account"
+    "deleteMyAccount": "Delete my account",
+    "couldntSaveSetting": "Couldn't save that setting.",
+    "couldntDeleteAccount": "Couldn't delete your account — try again in a moment.",
+    "narrationVoiceSettingsA11y": "Narration voice settings",
+    "matureContentToggleA11y": "Mature content toggle",
+    "viewAllBadgesA11y": "View all badges"
   },
   "moods": {
     "time_machine": { "label": "Time Machine", "desc": "Get transported to what this spot looked like decades ago" },
@@ -79,5 +89,202 @@
   "moodPicker": {
     "title": "Choose your experience",
     "subtitle": "Same streets. Completely different stories."
+  },
+  "voices": {
+    "neutral": { "label": "Neutral", "desc": "Clear and balanced narration" },
+    "dramatic": { "label": "Dramatic", "desc": "Bold, cinematic delivery" },
+    "warm": { "label": "Warm", "desc": "Friendly, conversational tone" },
+    "signature": { "label": "Signature", "desc": "Our most lifelike voice — full tours coming soon" }
+  },
+  "voicePicker": {
+    "title": "Narration voice",
+    "subtitle": "Pick who tells your story",
+    "couldntLoad": "Couldn't load your voice setting.",
+    "couldntPreview": "Couldn't play a preview right now.",
+    "couldntSave": "Couldn't save your voice choice.",
+    "previewOnlyToast": "Full tour narration with this voice is coming soon — tap ▶ to hear a preview.",
+    "voiceSuffix": "voice",
+    "previewOnlySuffix": "preview only, full tours coming soon",
+    "premiumSuffix": "premium",
+    "selectedSuffix": "selected",
+    "previewA11y": "Preview {{voice}} voice"
+  },
+  "paywall": {
+    "title": "Backyard Premium",
+    "subtitle": "Unlock every mood and voice",
+    "perkMoods": "3 extra moods — Dark Side, Behind the Scenes, Unfiltered",
+    "perkVoices": "Dramatic and Warm narration voices",
+    "perkLimit": "A higher daily narration limit",
+    "perkQuestions": "Ask questions anywhere on your walk",
+    "perMonth": "/ month",
+    "perYear": "/ year",
+    "save33": "Save 33%",
+    "restorePurchases": "Restore purchases",
+    "notNow": "Not now",
+    "comingSoonTitle": "Coming soon",
+    "comingSoonBody": "Payments aren't wired up yet — check back soon!",
+    "purchaseFailedTitle": "Purchase failed",
+    "purchaseFailedBody": "Something went wrong — please try again.",
+    "nothingToRestoreTitle": "Nothing to restore",
+    "nothingToRestoreBody": "We couldn't find a previous purchase for this account.",
+    "upgradeMonthlyA11y": "Upgrade monthly, {{price}} per month",
+    "upgradeYearlyA11y": "Upgrade yearly, {{price}} per year, save 33%"
+  },
+  "badgeGallery": {
+    "title": "Badges",
+    "subtitle": "Every badge you can earn walking with Backyard",
+    "unlocked": "Unlocked",
+    "couldntLoad": "Couldn't load your badges."
+  },
+  "badges": {
+    "first_steps": { "label": "First Steps", "requirement": "Complete 1 tour" },
+    "regular_walker": { "label": "Regular Walker", "requirement": "Complete 5 tours" },
+    "marathoner": { "label": "Marathoner", "requirement": "Walk 42km total" },
+    "explorer": { "label": "Explorer", "requirement": "Visit 3 different cities" },
+    "century_club": { "label": "Century Club", "requirement": "Walk 100km total" },
+    "world_traveler": { "label": "World Traveler", "requirement": "Visit 5 different cities" },
+    "completionist": { "label": "Completionist", "requirement": "Try all 5 moods" },
+    "night_owl": { "label": "Night Owl", "requirement": "Walk a tour after 8pm" },
+    "early_bird": { "label": "Early Bird", "requirement": "Walk a tour before 8am" },
+    "storyteller": { "label": "Storyteller", "requirement": "Publish 3 routes" },
+    "crowd_favorite": { "label": "Crowd Favorite", "requirement": "Get 10 likes on your routes" }
+  },
+  "activeTour": {
+    "startFailed": "Failed to start tour: {{error}}",
+    "blockSaveError": "Couldn't save that block — your walk continues.",
+    "narrationError": "Having trouble finding stories. Keep walking!",
+    "premiumFeatureTitle": "Premium feature",
+    "premiumFeatureBody": "Asking questions on a walk is a Premium feature — upgrade from your Profile to unlock it.",
+    "answerError": "Couldn't get an answer to that — try again.",
+    "listening": "Listening to your question…",
+    "thinking": "Thinking…",
+    "holdToAsk": "Hold to ask a question",
+    "askPremium": "Ask a question — Premium",
+    "askPremiumA11y": "Ask a question, premium feature",
+    "gettingLocation": "Getting location...",
+    "endTourA11y": "End tour",
+    "dismissAnswer": "Dismiss answer",
+    "blocksCount": "{{count}} blocks"
+  },
+  "tourComplete": {
+    "finishingUp": "Finishing up...",
+    "whatWasThisWalk": "What was this walk?",
+    "nameSubtitle": "Give it a name before you move on",
+    "titlePlaceholder": "e.g. Sunset stroll through Hayes Valley",
+    "tourTitleA11y": "Tour title",
+    "continue": "Continue",
+    "savedPublished": "Saved & published!",
+    "shareToWalkToo": "Share it so others can walk it too.",
+    "share": "Share",
+    "shareThisRouteA11y": "Share this route",
+    "editNamePlaceholder": "Name your tour",
+    "editNameA11y": "Edit tour title",
+    "shareAsRouteQuestion": "Share this as a public route?",
+    "shareAsRouteDesc": "Others can discover and walk it themselves",
+    "publishToggleA11y": "Publish as public route toggle",
+    "saving": "Saving...",
+    "save": "Save",
+    "saveTourA11y": "Save tour",
+    "discarding": "Discarding...",
+    "discardThisWalk": "Discard this walk",
+    "discardConfirmTitle": "Discard this walk?",
+    "discardConfirmBody": "This deletes it permanently — it won't be saved to your history or published.",
+    "discard": "Discard",
+    "couldntSaveDetails": "Couldn't save your tour details, but your walk is recorded.",
+    "couldntDiscard": "Couldn't discard this walk — try again in a moment.",
+    "shareMessage": "I just walked \"{{title}}\" on Backyard! Check it out: backyard://route/{{tourId}}"
+  },
+  "routeDetail": {
+    "failedToLoad": "Failed to load route",
+    "couldntUpdateLike": "Couldn't update your like.",
+    "by": "By {{name}}",
+    "anonymousExplorer": "Anonymous Explorer",
+    "ratingCount_one": "{{count}} rating",
+    "ratingCount_other": "{{count}} ratings",
+    "likeThisRoute": "Like this route",
+    "unlikeThisRoute": "Unlike this route",
+    "stopsCount_one": "{{count}} stop",
+    "stopsCount_other": "{{count}} stops",
+    "minAbbr": "min",
+    "audioUnavailable": "This route's audio isn't available right now — you can still walk it and read the narration text.",
+    "yourWalkLog": "Your walk log",
+    "shareMessage": "Check out \"{{title}}\" on Backyard: backyard://route/{{tourId}}",
+    "shareA11y": "Share this route",
+    "startReplay": "Start Replay"
+  },
+  "replay": {
+    "failedToGetLocation": "Failed to get your location: {{error}}",
+    "couldntRefreshAudio": "Couldn't refresh the audio — try again in a moment.",
+    "gettingLocation": "Getting your location...",
+    "exitReplayA11y": "Exit replay",
+    "exit": "Exit",
+    "progress": "{{current}} of {{total}}",
+    "refreshingAudio": "Refreshing audio...",
+    "walkToward": "Walk toward {{street}} to continue"
+  },
+  "routeRating": {
+    "routeComplete": "Route Complete!",
+    "howWasThisRoute": "How was this route?",
+    "submitRating": "Submit Rating",
+    "submitRatingA11y": "Submit rating",
+    "submitting": "Submitting...",
+    "couldntSubmit": "Couldn't submit your rating.",
+    "skip": "Skip",
+    "skipRatingA11y": "Skip rating"
+  },
+  "onboarding": {
+    "skip": "Skip",
+    "skipA11y": "Skip onboarding",
+    "next": "Next",
+    "getStarted": "Get Started",
+    "getStartedA11y": "Get started",
+    "card1": {
+      "title": "Welcome to Backyard",
+      "body": "Walk anywhere, and hear real stories about the streets, buildings, and history around you — narrated as you go."
+    },
+    "card2": {
+      "title": "Pick a mood",
+      "body": "Time Machine, Hidden City, Dark Side, Behind the Scenes, Unfiltered — same streets, completely different stories each time."
+    },
+    "card3": {
+      "title": "Discover routes from others",
+      "body": "Every walk can be published as a route for others to follow. Browse what's nearby, rated by the community."
+    },
+    "card4": {
+      "title": "Ready to explore?",
+      "body": "Pick a mood and start walking — narration triggers automatically as you approach each new spot."
+    }
+  },
+  "tabBar": {
+    "tabA11y": "{{label}} tab"
+  },
+  "comments": {
+    "header": "Comments",
+    "noneYet": "No comments yet — be the first to say something.",
+    "couldntPost": "Couldn't post your comment.",
+    "addPlaceholder": "Add a comment...",
+    "inputA11y": "Comment input",
+    "post": "Post",
+    "postA11y": "Post comment"
+  },
+  "tourStats": {
+    "blocksNarrated": "blocks narrated",
+    "walked": "walked",
+    "duration": "duration",
+    "mode": "mode"
+  },
+  "starRating": {
+    "rateA11y": "Rate {{star}} out of 5 stars"
+  },
+  "narrationCard": {
+    "finding": "Finding stories about this block...",
+    "walkAround": "Walk around to hear stories about your surroundings...",
+    "readFullStoryA11y": "Read the full story",
+    "swipeUpHint": "▲ swipe up for the full story",
+    "closeFullStoryA11y": "Close full story",
+    "close": "Close"
+  },
+  "zonePhoto": {
+    "closeA11y": "Close photo"
   }
 }

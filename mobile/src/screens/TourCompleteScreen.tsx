@@ -13,6 +13,7 @@ import {
   Share,
   Alert,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 import { endTour, publishTour, deleteTour } from "../services/api";
 import TourStatsGrid from "../components/TourStatsGrid";
 import { colors, font, radius } from "../theme";
@@ -35,6 +36,7 @@ export default function TourCompleteScreen({
   path,
   onDone,
 }: TourCompleteProps) {
+  const { t } = useTranslation();
   // Naming is its own forced first step — no auto-generated default to
   // fall back on, so there's nothing to silently skip. The endTour() call
   // (which needs a couple seconds and gives us `mood` for the stats grid)
@@ -116,7 +118,7 @@ export default function TourCompleteScreen({
       }
     } catch (e: any) {
       console.warn("Failed to publish tour:", e.message);
-      showToast("Couldn't save your tour details, but your walk is recorded.");
+      showToast(t("tourComplete.couldntSaveDetails"));
     }
     setSaving(false);
     onDone();
@@ -124,11 +126,11 @@ export default function TourCompleteScreen({
 
   function handleDiscard() {
     Alert.alert(
-      "Discard this walk?",
-      "This deletes it permanently — it won't be saved to your history or published.",
+      t("tourComplete.discardConfirmTitle"),
+      t("tourComplete.discardConfirmBody"),
       [
-        { text: "Cancel", style: "cancel" },
-        { text: "Discard", style: "destructive", onPress: confirmDiscard },
+        { text: t("common.cancel"), style: "cancel" },
+        { text: t("tourComplete.discard"), style: "destructive", onPress: confirmDiscard },
       ]
     );
   }
@@ -140,7 +142,7 @@ export default function TourCompleteScreen({
       onDone();
     } catch (e: any) {
       console.warn("Failed to discard tour:", e.message);
-      showToast("Couldn't discard this walk — try again in a moment.");
+      showToast(t("tourComplete.couldntDiscard"));
       setDiscarding(false);
     }
   }
@@ -148,7 +150,7 @@ export default function TourCompleteScreen({
   async function handleShare() {
     try {
       await Share.share({
-        message: `I just walked "${title}" on Backyard! Check it out: backyard://route/${tourId}`,
+        message: t("tourComplete.shareMessage", { title, tourId }),
       });
       track("route_shared", { source: "tour_complete" });
     } catch (e) {
@@ -161,23 +163,23 @@ export default function TourCompleteScreen({
       return (
         <View style={styles.container}>
           <ActivityIndicator size="large" color={colors.accent} />
-          <Text style={styles.loadingText}>Finishing up...</Text>
+          <Text style={styles.loadingText}>{t("tourComplete.finishingUp")}</Text>
         </View>
       );
     }
     return (
       <View style={styles.container}>
         <Text style={styles.emoji}>🎉</Text>
-        <Text style={styles.title}>What was this walk?</Text>
-        <Text style={styles.nameSubtitle}>Give it a name before you move on</Text>
+        <Text style={styles.title}>{t("tourComplete.whatWasThisWalk")}</Text>
+        <Text style={styles.nameSubtitle}>{t("tourComplete.nameSubtitle")}</Text>
 
         <TextInput
           style={styles.titleInput}
           value={title}
           onChangeText={setTitle}
-          placeholder="e.g. Sunset stroll through Hayes Valley"
+          placeholder={t("tourComplete.titlePlaceholder")}
           placeholderTextColor={colors.muted}
-          accessibilityLabel="Tour title"
+          accessibilityLabel={t("tourComplete.tourTitleA11y")}
           autoFocus
           returnKeyType="done"
           onSubmitEditing={handleContinueFromName}
@@ -188,9 +190,9 @@ export default function TourCompleteScreen({
           onPress={handleContinueFromName}
           disabled={!title.trim()}
           accessibilityRole="button"
-          accessibilityLabel="Continue"
+          accessibilityLabel={t("tourComplete.continue")}
         >
-          <Text style={styles.doneBtnText}>Continue</Text>
+          <Text style={styles.doneBtnText}>{t("tourComplete.continue")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -200,8 +202,8 @@ export default function TourCompleteScreen({
     return (
       <View style={styles.container}>
         <Text style={styles.emoji}>✅</Text>
-        <Text style={styles.title}>Saved &amp; published!</Text>
-        <Text style={styles.loadingText}>Share it so others can walk it too.</Text>
+        <Text style={styles.title}>{t("tourComplete.savedPublished")}</Text>
+        <Text style={styles.loadingText}>{t("tourComplete.shareToWalkToo")}</Text>
 
         <TouchableOpacity
           style={styles.doneBtn}
@@ -210,18 +212,18 @@ export default function TourCompleteScreen({
             handleShare();
           }}
           accessibilityRole="button"
-          accessibilityLabel="Share this route"
+          accessibilityLabel={t("tourComplete.shareThisRouteA11y")}
         >
-          <Text style={styles.doneBtnText}>Share</Text>
+          <Text style={styles.doneBtnText}>{t("tourComplete.share")}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={onDone}
           accessibilityRole="button"
-          accessibilityLabel="Continue"
+          accessibilityLabel={t("tourComplete.continue")}
           style={{ marginTop: 16 }}
         >
-          <Text style={styles.shareDesc}>Continue</Text>
+          <Text style={styles.shareDesc}>{t("tourComplete.continue")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -238,9 +240,9 @@ export default function TourCompleteScreen({
         style={styles.editNameInput}
         value={title}
         onChangeText={setTitle}
-        placeholder="Name your tour"
+        placeholder={t("tourComplete.editNamePlaceholder")}
         placeholderTextColor={colors.muted}
-        accessibilityLabel="Edit tour title"
+        accessibilityLabel={t("tourComplete.editNameA11y")}
       />
 
       <TourStatsGrid
@@ -252,14 +254,14 @@ export default function TourCompleteScreen({
 
       <View style={styles.shareRow}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.shareTitle}>Share this as a public route?</Text>
-          <Text style={styles.shareDesc}>Others can discover and walk it themselves</Text>
+          <Text style={styles.shareTitle}>{t("tourComplete.shareAsRouteQuestion")}</Text>
+          <Text style={styles.shareDesc}>{t("tourComplete.shareAsRouteDesc")}</Text>
         </View>
         <Switch
           value={shareAsRoute}
           onValueChange={setShareAsRoute}
           trackColor={{ false: colors.border, true: colors.accent }}
-          accessibilityLabel="Publish as public route toggle"
+          accessibilityLabel={t("tourComplete.publishToggleA11y")}
         />
       </View>
 
@@ -268,20 +270,20 @@ export default function TourCompleteScreen({
         onPress={handleSave}
         disabled={saving || discarding}
         accessibilityRole="button"
-        accessibilityLabel="Save tour"
+        accessibilityLabel={t("tourComplete.saveTourA11y")}
       >
-        <Text style={styles.doneBtnText}>{saving ? "Saving..." : "Save"}</Text>
+        <Text style={styles.doneBtnText}>{saving ? t("tourComplete.saving") : t("tourComplete.save")}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         onPress={handleDiscard}
         disabled={saving || discarding}
         accessibilityRole="button"
-        accessibilityLabel="Discard this walk"
+        accessibilityLabel={t("tourComplete.discardThisWalk")}
         style={styles.discardBtn}
       >
         <Text style={styles.discardBtnText}>
-          {discarding ? "Discarding..." : "Discard this walk"}
+          {discarding ? t("tourComplete.discarding") : t("tourComplete.discardThisWalk")}
         </Text>
       </TouchableOpacity>
     </View>

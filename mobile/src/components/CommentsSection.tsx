@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import { useTranslation } from "react-i18next";
 import { getComments, postComment, Comment } from "../services/api";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
@@ -17,6 +18,7 @@ interface CommentsSectionProps {
 }
 
 export default function CommentsSection({ tourId }: CommentsSectionProps) {
+  const { t } = useTranslation();
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [body, setBody] = useState("");
   const [posting, setPosting] = useState(false);
@@ -41,24 +43,24 @@ export default function CommentsSection({ tourId }: CommentsSectionProps) {
       setBody("");
     } catch (e: any) {
       console.warn("Failed to post comment:", e.message);
-      showToast("Couldn't post your comment.");
+      showToast(t("comments.couldntPost"));
     }
     setPosting(false);
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Comments</Text>
+      <Text style={styles.header}>{t("comments.header")}</Text>
 
       {comments === null ? (
         <ActivityIndicator color={colors.accent} />
       ) : comments.length === 0 ? (
-        <Text style={styles.emptyText}>No comments yet — be the first to say something.</Text>
+        <Text style={styles.emptyText}>{t("comments.noneYet")}</Text>
       ) : (
         comments.map((c) => (
           <View key={c.comment_id} style={styles.commentCard}>
             <View style={styles.commentHeader}>
-              <Text style={styles.commentAuthor}>{c.display_name || "Anonymous Explorer"}</Text>
+              <Text style={styles.commentAuthor}>{c.display_name || t("routeDetail.anonymousExplorer")}</Text>
               <Text style={styles.commentDate}>{formatDate(c.created_at)}</Text>
             </View>
             <Text style={styles.commentBody}>{c.body}</Text>
@@ -71,20 +73,20 @@ export default function CommentsSection({ tourId }: CommentsSectionProps) {
           style={styles.input}
           value={body}
           onChangeText={setBody}
-          placeholder="Add a comment..."
+          placeholder={t("comments.addPlaceholder")}
           placeholderTextColor={colors.muted}
           maxLength={500}
           multiline
-          accessibilityLabel="Comment input"
+          accessibilityLabel={t("comments.inputA11y")}
         />
         <TouchableOpacity
           style={[styles.postBtn, !body.trim() && styles.postBtnDisabled]}
           onPress={handlePost}
           disabled={!body.trim() || posting}
           accessibilityRole="button"
-          accessibilityLabel="Post comment"
+          accessibilityLabel={t("comments.postA11y")}
         >
-          <Text style={styles.postBtnText}>{posting ? "..." : "Post"}</Text>
+          <Text style={styles.postBtnText}>{posting ? "..." : t("comments.post")}</Text>
         </TouchableOpacity>
       </View>
     </View>

@@ -5,6 +5,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ImageSourcePropType } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import { Audio } from "expo-av";
 import { getSettings, updateSettings, getVoiceSample } from "../services/api";
 import { colors, font, radius } from "../theme";
@@ -18,25 +19,16 @@ const VOICES: {
   id: string;
   emoji: string;
   avatarUri?: ImageSourcePropType;
-  label: string;
-  desc: string;
   premium: boolean;
   // Can be previewed but not yet selected as an active narration voice —
   // real tour narration doesn't support it yet (see backend
   // app/services/elevenlabs_service.py for why).
   previewOnly?: boolean;
 }[] = [
-  { id: "neutral", emoji: "🎙️", label: "Neutral", desc: "Clear and balanced narration", premium: false },
-  { id: "dramatic", emoji: "🎭", label: "Dramatic", desc: "Bold, cinematic delivery", premium: true },
-  { id: "warm", emoji: "☕", label: "Warm", desc: "Friendly, conversational tone", premium: true },
-  {
-    id: "signature",
-    emoji: "🌟",
-    label: "Signature",
-    desc: "Our most lifelike voice — full tours coming soon",
-    premium: true,
-    previewOnly: true,
-  },
+  { id: "neutral", emoji: "🎙️", premium: false },
+  { id: "dramatic", emoji: "🎭", premium: true },
+  { id: "warm", emoji: "☕", premium: true },
+  { id: "signature", emoji: "🌟", premium: true, previewOnly: true },
 ];
 
 interface VoicePickerScreenProps {
@@ -46,6 +38,7 @@ interface VoicePickerScreenProps {
 }
 
 export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: VoicePickerScreenProps) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [current, setCurrent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,7 +51,7 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
       .then((s) => setCurrent(s.preferred_voice))
       .catch((e) => {
         console.warn("Failed to load voice setting:", e.message);
-        showToast("Couldn't load your voice setting.");
+        showToast(t("voicePicker.couldntLoad"));
       })
       .finally(() => setLoading(false));
 
@@ -85,7 +78,7 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
       });
     } catch (e: any) {
       console.warn("Failed to preview voice:", e.message);
-      showToast("Couldn't play a preview right now.");
+      showToast(t("voicePicker.couldntPreview"));
       setPreviewing(null);
     }
   }
@@ -93,7 +86,7 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
   async function handleSelect(voiceId: string, premium: boolean, previewOnly?: boolean) {
     tap();
     if (previewOnly) {
-      showToast("Full tour narration with this voice is coming soon — tap ▶ to hear a preview.");
+      showToast(t("voicePicker.previewOnlyToast"));
       return;
     }
     if (premium && !isPremium) {
@@ -106,7 +99,7 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
       await updateSettings({ preferred_voice: voiceId });
     } catch (e: any) {
       console.warn("Failed to update voice:", e.message);
-      showToast("Couldn't save your voice choice.");
+      showToast(t("voicePicker.couldntSave"));
     } finally {
       setSaving(false);
     }
@@ -126,17 +119,18 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
         style={[styles.backBtn, { top: Math.max(insets.top, 54) + 12 }]}
         onPress={onBack}
         accessibilityRole="button"
-        accessibilityLabel="Back"
+        accessibilityLabel={t("common.back")}
       >
-        <Text style={styles.backText}>‹ Back</Text>
+        <Text style={styles.backText}>‹ {t("common.back")}</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>Narration voice</Text>
-      <Text style={styles.subtitle}>Pick who tells your story</Text>
+      <Text style={styles.title}>{t("voicePicker.title")}</Text>
+      <Text style={styles.subtitle}>{t("voicePicker.subtitle")}</Text>
 
       {VOICES.map((voice) => {
         const locked = voice.premium && !isPremium;
         const selected = current === voice.id;
+        const label = t(`voices.${voice.id}.label`);
         return (
           <TouchableOpacity
             key={voice.id}
@@ -144,7 +138,7 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
             onPress={() => handleSelect(voice.id, voice.premium, voice.previewOnly)}
             disabled={saving}
             accessibilityRole="button"
-            accessibilityLabel={`${voice.label} voice${voice.previewOnly ? ", preview only, full tours coming soon" : locked ? ", premium" : ""}${selected ? ", selected" : ""}`}
+            accessibilityLabel={`${label} ${t("voicePicker.voiceSuffix")}${voice.previewOnly ? `, ${t("voicePicker.previewOnlySuffix")}` : locked ? `, ${t("voicePicker.premiumSuffix")}` : ""}${selected ? `, ${t("voicePicker.selectedSuffix")}` : ""}`}
           >
             <View style={styles.avatarWrap}>
               {voice.avatarUri ? (
@@ -155,20 +149,20 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
             </View>
             <View style={styles.info}>
               <View style={styles.labelRow}>
-                <Text style={styles.label}>{voice.label}</Text>
+                <Text style={styles.label}>{label}</Text>
                 {voice.previewOnly ? (
                   <View style={styles.soonBadge}>
-                    <Text style={styles.soonBadgeText}>SOON</Text>
+                    <Text style={styles.soonBadgeText}>{t("common.soon")}</Text>
                   </View>
                 ) : (
                   voice.premium && (
                     <View style={styles.premiumBadge}>
-                      <Text style={styles.premiumBadgeText}>{locked ? "PRO" : "PRO ✓"}</Text>
+                      <Text style={styles.premiumBadgeText}>{locked ? t("common.pro") : `${t("common.pro")} ✓`}</Text>
                     </View>
                   )
                 )}
               </View>
-              <Text style={styles.desc}>{voice.desc}</Text>
+              <Text style={styles.desc}>{t(`voices.${voice.id}.desc`)}</Text>
             </View>
             <TouchableOpacity
               style={styles.previewBtn}
@@ -176,7 +170,7 @@ export default function VoicePickerScreen({ isPremium, onOpenPaywall, onBack }: 
               disabled={previewing === voice.id}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               accessibilityRole="button"
-              accessibilityLabel={`Preview ${voice.label} voice`}
+              accessibilityLabel={t("voicePicker.previewA11y", { voice: label })}
             >
               <Text style={styles.previewBtnText}>{previewing === voice.id ? "…" : "▶"}</Text>
             </TouchableOpacity>

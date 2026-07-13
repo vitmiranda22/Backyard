@@ -32,6 +32,17 @@ client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY, timeout=45.0)
 
 MODEL = "gpt-4.1-mini"
 
+# gpt-4.1-mini reliably follows fact-grounding instructions but, confirmed
+# via live A/B testing, does NOT reliably follow "have opinions/personality"
+# instructions once web_search is in play — it defaults to a neutral,
+# encyclopedic report-the-facts register no matter how the prompt is worded.
+# The full gpt-4.1 model handles the same prompt correctly. All 3 premium
+# modes lean hardest on voice over raw fact density, and are already
+# Premium-gated (lower volume, paying tier), so the cost increase is scoped
+# to them rather than applied to the free tier.
+PREMIUM_VOICE_MODEL = "gpt-4.1"
+PREMIUM_VOICE_MOODS = {"dark_side", "behind_scenes", "unfiltered"}
+
 
 def _strip_citations(text: str) -> str:
     """
@@ -111,7 +122,7 @@ async def generate_narration(
         logger.info(f"USER MESSAGE: {user_message}")
 
         response = await client.responses.create(
-            model=MODEL,
+            model=PREMIUM_VOICE_MODEL if mood in PREMIUM_VOICE_MOODS else MODEL,
             instructions=system_prompt,
             input=user_message,
             tools=[{"type": "web_search"}],

@@ -239,6 +239,7 @@ async def narrate_block(
                 street_name=street_name,
                 neighborhood=neighborhood,
                 city=city,
+                country=country,
             )
 
             raw_data = result["zone_data"]

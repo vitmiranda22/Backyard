@@ -25,6 +25,12 @@ All free. Wikipedia/Wikivoyage/Wikimedia/OSM/Wikidata/UNESCO/iNaturalist
 need no API key. Knowledge Graph reuses your Google Cloud TTS key. TMDb,
 GeoNames, and Europeana each need their own free key/username (optional —
 each source is skipped entirely if its credential is unset).
+
+Plus one country-gated source, `fetch_uk_police_data` — not global, but
+not city-specific either: it's a single API covering all of the UK at
+once, so it lives here rather than in city_data.py's per-city registry.
+Gates itself internally (returns [] with no network call outside the UK)
+rather than needing zone_data.py's task-dict-level gating.
 """
 
 import logging
@@ -635,4 +641,47 @@ async def fetch_inaturalist(lat: float, lng: float, client: httpx.AsyncClient) -
 
     except Exception as e:
         logger.warning(f"iNaturalist lookup failed: {e}")
+        return []
+
+
+async def fetch_uk_police_data(lat: float, lng: float, country: str, client: httpx.AsyncClient) -> list:
+    """
+    UK Police street-level crime data (data.police.uk) — free, keyless,
+    no rate limit, and NOT a per-city integration: one endpoint covers
+    London, Manchester, Birmingham, Edinburgh, and every other UK city at
+    once. Gated on country (checked here, not in zone_data.py's task
+    dict) since this is a single source — an early return achieves the
+    same zero-wasted-network-calls result as DataSF's dict-level gate did
+    for its 15 sources, without needing the same dict-construction
+    machinery for just one function. Defaults to the latest available
+    month if no date is given.
+    """
+    if not country or "united kingdom" not in country.lower():
+        return []
+
+    try:
+        r = await client.get(
+            "https://data.police.uk/api/crimes-street/all-crime",
+            params={"lat": lat, "lng": lng},
+            timeout=TIMEOUT,
+        )
+        if r.status_code != 200:
+            return []
+
+        results = []
+        for crime in r.json()[:10]:
+            category = crime.get("category", "")
+            street = (crime.get("location") or {}).get("street", {}).get("name", "")
+            month = crime.get("month", "")
+            if not category:
+                continue
+            results.append({
+                "category": category.replace("-", " "),
+                "street": street,
+                "month": month,
+            })
+        return results
+
+    except Exception as e:
+        logger.warning(f"UK Police data lookup failed: {e}")
         return []

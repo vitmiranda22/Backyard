@@ -48,6 +48,7 @@ async def fetch_all_zone_data(
     street_name: str,
     neighborhood: str,
     city: str,
+    country: str = "",
 ) -> dict:
     """
     Query all data sources in parallel for a geographic zone.
@@ -101,6 +102,7 @@ async def fetch_all_zone_data(
             "europeana": global_sources.fetch_europeana(lat, lng, client),
             "wikivoyage": global_sources.fetch_wikivoyage(lat, lng, client),
             "inaturalist": global_sources.fetch_inaturalist(lat, lng, client),
+            "uk_police": global_sources.fetch_uk_police_data(lat, lng, country, client),
         })
 
         # --- Other-city Socrata (gated on city match — NYC/Chicago/LA/
@@ -192,6 +194,7 @@ def format_zone_data_for_prompt(zone_data: dict) -> str:
         "city_police_incidents": ("🚔 POLICE INCIDENTS", _format_generic),
         "city_fire_incidents": ("🔥 FIRE INCIDENTS", _format_generic),
         "city_street_trees": ("🌳 STREET TREES", _format_generic),
+        "uk_police": ("🚔 POLICE INCIDENTS (UK-wide)", _format_uk_police),
     }
 
     for key, (header, formatter) in formatters.items():
@@ -424,6 +427,18 @@ def _format_inaturalist(data: list) -> str:
     return "\n".join(lines)
 
 
+def _format_uk_police(data: list) -> str:
+    lines = []
+    for c in data[:8]:
+        category = c.get("category", "")
+        street = c.get("street", "")
+        line = f"- {category}"
+        if street:
+            line += f" (near {street})"
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def _format_city_311(data: list) -> str:
     lines = []
     for c in data[:8]:
@@ -477,7 +492,10 @@ def _format_generic(data: list) -> str:
                          # city fire datasets (Austin)
                          "issue_reported",
                          # city tree datasets (Austin)
-                         "species"]:
+                         "species",
+                         # Paris (OpenDataSoft, French field names)
+                         "espece", "libellefrancais", "objet", "adresse",
+                         "type_dossier"]:
                 val = item.get(key, "")
                 if val and str(val).strip():
                     parts.append(f"{key}: {str(val)[:100]}")

@@ -1,12 +1,20 @@
 """
-Multi-city Socrata open data — extends DataSF's approach to other major
-US cities that run the same Socrata/SODA platform, under different domains
-and dataset IDs. Currently covers New York City, Chicago, Los Angeles,
-Seattle, and Austin.
+Multi-city open municipal data — extends DataSF's approach to other major
+cities, gated on the geocoded city name matching the registry below (for
+any other city, [] immediately, no network call — same principle as
+DataSF's SF-only gate in zone_data.py, just at per-city granularity).
 
-Unlike DataSF (always queried, since our origin city is SF), these sources
-are gated on the geocoded city name matching the registry below — for any
-other city they return [] immediately without making a network call.
+Platform-aware: most registered cities run Socrata/SODA (the same
+platform as DataSF, different domain/dataset IDs). Paris runs
+OpenDataSoft instead — the same platform this codebase already queries
+in production for `global_sources.fetch_unesco_heritage` (data.unesco.org).
+Each `CITY_DATASETS` entry declares its `platform` (defaults to
+"socrata" if omitted) and `fetch_city_category()` dispatches to the
+matching query helper — adding a new platform means one new query
+function, not a rewrite of the registry shape.
+
+Currently covers New York City, Chicago, Los Angeles, Seattle, Austin
+(Socrata) and Paris (OpenDataSoft).
 
 Dataset IDs verified live against each city's open data portal (each
 checked with a real API request, not assumed from documentation):
@@ -65,6 +73,23 @@ Checked and deliberately excluded (verified live, not a fit):
 - Washington DC: opendata.dc.gov does not respond to Socrata's
   `/resource/*.json` pattern at all (confirmed via direct request) despite
   some documentation suggesting otherwise — not Socrata.
+- London (data.london.gov.uk) and CKAN generally: real and responsive,
+  but CKAN's dataset search returns metadata about datasets, not a direct
+  data-query endpoint — finding an actual geo-queryable resource inside a
+  dataset (does it have "datastore active" status, does it expose lat/lon
+  columns) needs per-dataset digging that Socrata/OpenDataSoft don't
+  require. Deferred, not attempted blind. (London's crime data is covered
+  anyway — see `global_sources.fetch_uk_police_data`, a UK-wide source,
+  not part of this per-city registry.)
+
+Paris (OpenDataSoft) — verified live against opendata.paris.fr's own API:
+- Les arbres (street trees): les-arbres — 1,429 hits within 500m of
+  central Paris in verification
+- Autorisations d'urbanisme récentes (recent building/urban-planning
+  authorizations — the building_permits equivalent): dossiers-recents-durbanisme
+Both use the exact `geofilter.distance` query shape already proven live
+by `fetch_unesco_heritage`, just against Paris's own OpenDataSoft domain
+instead of data.unesco.org.
 """
 
 import logging
@@ -129,6 +154,14 @@ CITY_DATASETS = {
         "fire_incidents": ("wpu4-x69d", "latitude", "longitude"),
         "street_trees": ("wrik-xasw", "latitude", "longtitude"),
     },
+    "paris": {
+        "platform": "opendatasoft",
+        "domain": "opendata.paris.fr",
+        # OpenDataSoft entries are just a dataset ID — no lat/lon field
+        # names needed, geofilter.distance handles the geo query itself.
+        "building_permits": "dossiers-recents-durbanisme",
+        "street_trees": "les-arbres",
+    },
 }
 
 
@@ -168,17 +201,54 @@ async def _query_box(
         return []
 
 
+async def _query_opendatasoft(domain: str, dataset_id: str, lat: float, lng: float, client: httpx.AsyncClient) -> list:
+    """
+    Query an OpenDataSoft-hosted portal via its native geo-distance
+    filter — same API shape already proven live in production by
+    global_sources.fetch_unesco_heritage (data.unesco.org), just pointed
+    at a different OpenDataSoft domain. RADIUS_METERS mirrors the value
+    used elsewhere for a ~one-geohash-zone-wide query.
+    """
+    RADIUS_METERS = 150
+    url = f"https://{domain}/api/records/1.0/search/"
+    try:
+        r = await client.get(
+            url,
+            params={
+                "dataset": dataset_id,
+                "rows": LIMIT,
+                "geofilter.distance": f"{lat},{lng},{RADIUS_METERS}",
+            },
+            timeout=TIMEOUT,
+        )
+        if r.status_code == 200:
+            records = r.json().get("records", [])
+            return [rec.get("fields", {}) for rec in records if rec.get("fields")]
+        logger.warning(f"{domain}/{dataset_id} returned {r.status_code}")
+        return []
+    except Exception as e:
+        logger.warning(f"{domain}/{dataset_id} failed: {e}")
+        return []
+
+
 async def fetch_city_category(lat: float, lng: float, city: str, category: str, client: httpx.AsyncClient) -> list:
     """
     Generic dispatcher for any verified category (complaints_311,
     building_permits, police_incidents, fire_incidents, parks,
-    street_trees, ...) in any registered city. Returns [] immediately,
-    with no network call, if the city doesn't match the registry OR if
-    that category was never verified/added for this particular city —
-    partial per-city coverage is expected and fine, not an error state.
+    street_trees, ...) in any registered city, on any registered
+    platform. Returns [] immediately, with no network call, if the city
+    doesn't match the registry OR if that category was never verified/
+    added for this particular city — partial per-city coverage is
+    expected and fine, not an error state.
     """
     config = _match_city(city)
     if not config or category not in config:
         return []
+
+    platform = config.get("platform", "socrata")
+    if platform == "opendatasoft":
+        dataset_id = config[category]
+        return await _query_opendatasoft(config["domain"], dataset_id, lat, lng, client)
+
     dataset_id, lat_field, lon_field = config[category]
     return await _query_box(config["domain"], dataset_id, lat_field, lon_field, lat, lng, client)

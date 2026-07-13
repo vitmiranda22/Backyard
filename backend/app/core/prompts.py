@@ -533,4 +533,19 @@ def build_prompt(
     if zone_data:
         parts.append(_ZONE_DATA_SECTION.format(zone_data=zone_data))
 
+    # The zone-data rules above are dense and accuracy-focused, and they're
+    # the last thing before generation — in testing, that recency pulled
+    # Unfiltered (and, less severely, other modes) toward a flat, correct-
+    # but-personality-free recitation, even with strong voice instructions
+    # earlier in the prompt. One short reminder at the very end, after the
+    # data, re-anchors on the assigned mode's voice right before generation.
+    parts.append(
+        "FINAL REMINDER: everything above about specific facts and "
+        "structure exists to SERVE the MODE you were assigned above, not "
+        "to replace it. Before you write, re-read that mode's VOICE line "
+        "one more time. A technically accurate but flat, personality-free "
+        "recitation of facts is a FAILURE for this mode, no matter how "
+        "many correct details it contains."
+    )
+
     return "\n".join(parts)

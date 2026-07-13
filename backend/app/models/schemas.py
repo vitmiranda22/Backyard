@@ -61,6 +61,7 @@ class NarrateBlockRequest(BaseModel):
 
 class ZoneDataUsed(BaseModel):
     sources_hit: List[str] = Field(default_factory=list)
+    sources_skipped: List[str] = Field(default_factory=list)
 
 
 class NarrateBlockResponse(BaseModel):

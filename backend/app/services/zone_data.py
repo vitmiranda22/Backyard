@@ -1,10 +1,12 @@
 """
-Zone data fetcher — orchestrates ALL 26 data sources in parallel.
+Zone data fetcher — orchestrates all data sources in parallel.
 
-This is the core of Week 3. For any geographic zone, we:
-1. Fire off 15 DataSF queries + 9 global queries + 2 other-city queries
-   simultaneously (the other-city ones no-op instantly unless the geocoded
-   city matches the NYC/Chicago registry in city_data.py; GeoNames/
+For any geographic zone, we:
+1. Fire off 15 DataSF queries (only when the geocoded city is San
+   Francisco — see `is_san_francisco`/`DATASF_SOURCE_NAMES`, skipped
+   entirely with zero network calls everywhere else) + 11 always-on
+   global queries + 2 other-city queries (no-op instantly unless the
+   geocoded city matches the registry in city_data.py; GeoNames/
    Europeana no-op instantly unless their optional API keys are set)
 2. Wait for all of them (with timeouts — if one fails, others continue)
 3. Bundle everything into a single JSON blob
@@ -23,6 +25,23 @@ from app.services import datasf, global_sources, city_data
 logger = logging.getLogger(__name__)
 
 
+# DataSF's 15 fetchers hit data.sfgov.org directly with no location check
+# of their own — unlike city_data.py's NYC/Chicago sources, which gate on
+# a city-name match before making any network call. Gating here, once,
+# before the task dict is even built, means a non-SF location makes zero
+# of these 15 HTTP calls instead of 15 calls that always come back empty.
+DATASF_SOURCE_NAMES = [
+    "film_locations", "landmarks", "cultural_districts", "building_permits",
+    "businesses", "police_incidents", "street_trees", "public_art",
+    "complaints_311", "evictions", "parks", "fire_incidents", "civic_art",
+    "addresses", "neighborhoods",
+]
+
+
+def is_san_francisco(city: str) -> bool:
+    return bool(city) and "san francisco" in city.lower()
+
+
 async def fetch_all_zone_data(
     lat: float,
     lng: float,
@@ -31,34 +50,46 @@ async def fetch_all_zone_data(
     city: str,
 ) -> dict:
     """
-    Query all 26 data sources in parallel for a geographic zone.
+    Query all data sources in parallel for a geographic zone.
 
     Returns a dict with all results bundled together, plus metadata
-    about which sources succeeded and which failed.
+    about which sources succeeded, failed, or were skipped as
+    regionally irrelevant (e.g. DataSF outside San Francisco).
     """
     sources_queried = []
     sources_failed = []
+    sources_skipped = []
+
+    is_sf = is_san_francisco(city)
+    if not is_sf:
+        sources_skipped.extend(DATASF_SOURCE_NAMES)
 
     async with httpx.AsyncClient() as client:
         # Define all tasks — each returns (name, result)
-        tasks = {
+        tasks = {}
+
+        if is_sf:
             # --- DataSF (15 sources, SF only) ---
-            "film_locations": datasf.fetch_film_locations(lat, lng, client),
-            "landmarks": datasf.fetch_landmarks(lat, lng, client),
-            "cultural_districts": datasf.fetch_cultural_districts(lat, lng, client),
-            "building_permits": datasf.fetch_building_permits(lat, lng, client),
-            "businesses": datasf.fetch_businesses(lat, lng, client),
-            "police_incidents": datasf.fetch_police_incidents(lat, lng, client),
-            "street_trees": datasf.fetch_street_trees(lat, lng, client),
-            "public_art": datasf.fetch_public_art(lat, lng, client),
-            "complaints_311": datasf.fetch_311_complaints(lat, lng, client),
-            "evictions": datasf.fetch_evictions(lat, lng, client),
-            "parks": datasf.fetch_parks(lat, lng, client),
-            "fire_incidents": datasf.fetch_fire_incidents(lat, lng, client),
-            "civic_art": datasf.fetch_civic_art(lat, lng, client),
-            "addresses": datasf.fetch_addresses(lat, lng, client),
-            "neighborhoods": datasf.fetch_neighborhoods(lat, lng, client),
-            # --- Global sources (6 sources, any city) ---
+            tasks.update({
+                "film_locations": datasf.fetch_film_locations(lat, lng, client),
+                "landmarks": datasf.fetch_landmarks(lat, lng, client),
+                "cultural_districts": datasf.fetch_cultural_districts(lat, lng, client),
+                "building_permits": datasf.fetch_building_permits(lat, lng, client),
+                "businesses": datasf.fetch_businesses(lat, lng, client),
+                "police_incidents": datasf.fetch_police_incidents(lat, lng, client),
+                "street_trees": datasf.fetch_street_trees(lat, lng, client),
+                "public_art": datasf.fetch_public_art(lat, lng, client),
+                "complaints_311": datasf.fetch_311_complaints(lat, lng, client),
+                "evictions": datasf.fetch_evictions(lat, lng, client),
+                "parks": datasf.fetch_parks(lat, lng, client),
+                "fire_incidents": datasf.fetch_fire_incidents(lat, lng, client),
+                "civic_art": datasf.fetch_civic_art(lat, lng, client),
+                "addresses": datasf.fetch_addresses(lat, lng, client),
+                "neighborhoods": datasf.fetch_neighborhoods(lat, lng, client),
+            })
+
+        tasks.update({
+            # --- Global sources (11 sources, any city, zero gating) ---
             "wikipedia": global_sources.fetch_wikipedia(lat, lng, client),
             "wikimedia_photos": global_sources.fetch_wikimedia_commons(lat, lng, client),
             "osm_buildings": global_sources.fetch_osm_buildings(lat, lng, client),
@@ -68,10 +99,12 @@ async def fetch_all_zone_data(
             "unesco_heritage": global_sources.fetch_unesco_heritage(lat, lng, client),
             "geonames": global_sources.fetch_geonames(lat, lng, client),
             "europeana": global_sources.fetch_europeana(lat, lng, client),
-            # --- Other-city Socrata (2 sources, gated on city match — NYC/Chicago only) ---
+            "wikivoyage": global_sources.fetch_wikivoyage(lat, lng, client),
+            "inaturalist": global_sources.fetch_inaturalist(lat, lng, client),
+            # --- Other-city Socrata (gated on city match — NYC/Chicago/etc.) ---
             "city_311": city_data.fetch_city_311(lat, lng, city, client),
             "city_building_permits": city_data.fetch_city_building_permits(lat, lng, city, client),
-        }
+        })
 
         # Run all in parallel
         names = list(tasks.keys())
@@ -81,7 +114,7 @@ async def fetch_all_zone_data(
         )
 
         # Bundle results
-        zone_data = {}
+        zone_data = {name: [] for name in sources_skipped}
         for name, result in zip(names, results):
             if isinstance(result, Exception):
                 logger.warning(f"Source '{name}' failed: {result}")
@@ -100,13 +133,14 @@ async def fetch_all_zone_data(
     logger.info(
         f"Zone data for ({lat:.4f}, {lng:.4f}): "
         f"{hit_count}/{total} sources returned data, "
-        f"{len(sources_failed)} failed"
+        f"{len(sources_failed)} failed, {len(sources_skipped)} skipped (regional)"
     )
 
     return {
         "zone_data": zone_data,
         "sources_queried": sources_queried,
         "sources_failed": sources_failed,
+        "sources_skipped": sources_skipped,
     }
 
 
@@ -144,6 +178,8 @@ def format_zone_data_for_prompt(zone_data: dict) -> str:
         "unesco_heritage": ("🏛️ UNESCO WORLD HERITAGE", _format_unesco),
         "geonames": ("📌 NEARBY NAMED PLACES (GeoNames)", _format_geonames),
         "europeana": ("🏺 EUROPEAN CULTURAL HERITAGE (Europeana)", _format_europeana),
+        "wikivoyage": ("🧭 TRAVEL-GUIDE NOTES NEARBY (Wikivoyage)", _format_wikivoyage),
+        "inaturalist": ("🦋 WILDLIFE SPOTTED NEARBY (iNaturalist)", _format_inaturalist),
         "city_311": ("📞 311 COMPLAINTS", _format_city_311),
         "city_building_permits": ("🏗️ BUILDING PERMITS", _format_city_permits),
     }
@@ -351,6 +387,29 @@ def _format_europeana(data: list) -> str:
         details = [d for d in (year, provider) if d]
         if details:
             line += f" ({', '.join(details)})"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_wikivoyage(data: list) -> str:
+    lines = []
+    for a in data[:3]:
+        title = a.get("title", "")
+        extract = a.get("extract", "")
+        dist = a.get("dist_m", 0)
+        line = f"- \"{title}\" ({dist}m away): {extract[:200]}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_inaturalist(data: list) -> str:
+    lines = []
+    for obs in data[:5]:
+        common_name = obs.get("common_name", "")
+        scientific_name = obs.get("scientific_name", "")
+        line = f"- {common_name}"
+        if scientific_name:
+            line += f" ({scientific_name})"
         lines.append(line)
     return "\n".join(lines)
 

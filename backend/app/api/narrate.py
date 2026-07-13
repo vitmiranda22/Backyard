@@ -48,7 +48,12 @@ from app.models.schemas import (
     ZoneDataUsed,
 )
 from app.services import geocode, openai_service, tts, r2, supabase_db, streetview
-from app.services.zone_data import fetch_all_zone_data, format_zone_data_for_prompt
+from app.services.zone_data import (
+    fetch_all_zone_data,
+    format_zone_data_for_prompt,
+    DATASF_SOURCE_NAMES,
+    is_san_francisco,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -220,8 +225,10 @@ async def narrate_block(
             zone_data_str = format_zone_data_for_prompt(raw_data)
 
             sources_hit = [k for k, v in raw_data.items() if v]
+            skipped = [] if is_san_francisco(city) else DATASF_SOURCE_NAMES
             zone_data_used = ZoneDataUsed(
                 sources_hit=sources_hit,
+                sources_skipped=skipped,
             )
         else:
             # Step 5: Fetch ALL 26 sources in parallel
@@ -237,6 +244,7 @@ async def narrate_block(
             raw_data = result["zone_data"]
             sources_queried = result["sources_queried"]
             sources_failed = result["sources_failed"]
+            sources_skipped = result["sources_skipped"]
 
             # Format for prompt
             zone_data_str = format_zone_data_for_prompt(raw_data)
@@ -256,6 +264,7 @@ async def narrate_block(
             sources_hit = [k for k, v in raw_data.items() if v]
             zone_data_used = ZoneDataUsed(
                 sources_hit=sources_hit,
+                sources_skipped=sources_skipped,
             )
 
             logger.info(

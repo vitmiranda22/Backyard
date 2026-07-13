@@ -1,8 +1,10 @@
 """
 Global data sources — work in ANY city worldwide.
 
-9 sources:
+11 sources:
 - Wikipedia Geosearch: articles about places within 200m
+- Wikivoyage Geosearch: travel-guide entries near these coordinates —
+  local-color/"what to notice" voice, distinct from Wikipedia's tone
 - Wikimedia Commons: historical photos near coordinates
 - OpenStreetMap Overpass: building + memorial + mural + ghost-sign +
   park/garden metadata
@@ -16,11 +18,13 @@ Global data sources — work in ANY city worldwide.
 - UNESCO World Heritage List: ~1,250 sites worldwide, live geo-distance query
 - GeoNames: nearby named places/features from the global gazetteer
 - Europeana: digitized European museum/archive/library items near this spot
+- iNaturalist: nearby wildlife/plant observations — a nature angle for
+  cities with no municipal tree/park dataset (everywhere except SF today)
 
-All free. Wikipedia/Wikimedia/OSM/Wikidata/UNESCO need no API key.
-Knowledge Graph reuses your Google Cloud TTS key. TMDb, GeoNames, and
-Europeana each need their own free key/username (optional — each source
-is skipped entirely if its credential is unset).
+All free. Wikipedia/Wikivoyage/Wikimedia/OSM/Wikidata/UNESCO/iNaturalist
+need no API key. Knowledge Graph reuses your Google Cloud TTS key. TMDb,
+GeoNames, and Europeana each need their own free key/username (optional —
+each source is skipped entirely if its credential is unset).
 """
 
 import logging
@@ -524,4 +528,111 @@ async def fetch_tmdb_films(city: str, client: httpx.AsyncClient) -> list:
 
     except Exception as e:
         logger.warning(f"TMDb lookup failed: {e}")
+        return []
+
+
+async def fetch_wikivoyage(lat: float, lng: float, client: httpx.AsyncClient) -> list:
+    """
+    Wikivoyage Geosearch — travel-guide entries near these coordinates.
+    Same MediaWiki geosearch+extracts pattern as fetch_wikipedia, pointed
+    at Wikivoyage instead — a local-color, "what to notice/do here" voice
+    distinct from Wikipedia's encyclopedic tone. No API key, works anywhere
+    Wikivoyage has coverage (dense in touristed areas, thin elsewhere).
+    """
+    headers = {"User-Agent": "BackyardApp/1.0 (tour guide app; contact@backyard.app)"}
+    try:
+        r = await client.get(
+            "https://en.wikivoyage.org/w/api.php",
+            params={
+                "action": "query",
+                "list": "geosearch",
+                "gscoord": f"{lat}|{lng}",
+                "gsradius": str(RADIUS_METERS),
+                "gslimit": "3",
+                "format": "json",
+            },
+            headers=headers,
+            timeout=TIMEOUT,
+        )
+        if r.status_code != 200:
+            return []
+
+        articles = r.json().get("query", {}).get("geosearch", [])
+        if not articles:
+            return []
+
+        page_ids = "|".join(str(a["pageid"]) for a in articles)
+        r2 = await client.get(
+            "https://en.wikivoyage.org/w/api.php",
+            params={
+                "action": "query",
+                "pageids": page_ids,
+                "prop": "extracts",
+                "exintro": "true",
+                "explaintext": "true",
+                "exsentences": "3",
+                "format": "json",
+            },
+            headers=headers,
+            timeout=TIMEOUT,
+        )
+        if r2.status_code != 200:
+            return [{"title": a["title"], "dist_m": a.get("dist", 0)} for a in articles]
+
+        pages = r2.json().get("query", {}).get("pages", {})
+        results = []
+        for a in articles:
+            page = pages.get(str(a["pageid"]), {})
+            results.append({
+                "title": a["title"],
+                "extract": page.get("extract", ""),
+                "dist_m": a.get("dist", 0),
+            })
+        return results
+
+    except Exception as e:
+        logger.warning(f"Wikivoyage geosearch failed: {e}")
+        return []
+
+
+async def fetch_inaturalist(lat: float, lng: float, client: httpx.AsyncClient) -> list:
+    """
+    iNaturalist — nearby wildlife/plant observations, free and keyless.
+    A "notice this" nature angle (a species spotted right here) for cities
+    with no municipal tree/park dataset — i.e. every city except SF today.
+    Restricted to research-grade observations with a common name, so the
+    model gets a real, verifiable species rather than a raw taxon ID.
+    """
+    try:
+        r = await client.get(
+            "https://api.inaturalist.org/v1/observations",
+            params={
+                "lat": lat,
+                "lng": lng,
+                "radius": "0.2",  # km
+                "quality_grade": "research",
+                "order_by": "observed_on",
+                "order": "desc",
+                "per_page": "8",
+            },
+            timeout=TIMEOUT,
+        )
+        if r.status_code != 200:
+            return []
+
+        results = []
+        for obs in r.json().get("results", []):
+            taxon = obs.get("taxon") or {}
+            common_name = taxon.get("preferred_common_name")
+            if not common_name:
+                continue
+            results.append({
+                "common_name": common_name,
+                "scientific_name": taxon.get("name", ""),
+                "observed_on": obs.get("observed_on", ""),
+            })
+        return results
+
+    except Exception as e:
+        logger.warning(f"iNaturalist lookup failed: {e}")
         return []

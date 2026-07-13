@@ -101,10 +101,17 @@ async def fetch_all_zone_data(
             "europeana": global_sources.fetch_europeana(lat, lng, client),
             "wikivoyage": global_sources.fetch_wikivoyage(lat, lng, client),
             "inaturalist": global_sources.fetch_inaturalist(lat, lng, client),
-            # --- Other-city Socrata (gated on city match — NYC/Chicago/etc.) ---
-            "city_311": city_data.fetch_city_311(lat, lng, city, client),
-            "city_building_permits": city_data.fetch_city_building_permits(lat, lng, city, client),
         })
+
+        # --- Other-city Socrata (gated on city match — NYC/Chicago/LA/
+        # Seattle/Austin today). One task per category in CITY_CATEGORIES;
+        # fetch_city_category() itself returns [] with zero network call
+        # for any (city, category) pair that was never verified/added to
+        # city_data.CITY_DATASETS, so partial per-city coverage is free —
+        # adding a new category to the list is the only step needed to
+        # roll it out everywhere it's been verified.
+        for category in city_data.CITY_CATEGORIES:
+            tasks[f"city_{category}"] = city_data.fetch_city_category(lat, lng, city, category, client)
 
         # Run all in parallel
         names = list(tasks.keys())
@@ -182,6 +189,9 @@ def format_zone_data_for_prompt(zone_data: dict) -> str:
         "inaturalist": ("🦋 WILDLIFE SPOTTED NEARBY (iNaturalist)", _format_inaturalist),
         "city_311": ("📞 311 COMPLAINTS", _format_city_311),
         "city_building_permits": ("🏗️ BUILDING PERMITS", _format_city_permits),
+        "city_police_incidents": ("🚔 POLICE INCIDENTS", _format_generic),
+        "city_fire_incidents": ("🔥 FIRE INCIDENTS", _format_generic),
+        "city_street_trees": ("🌳 STREET TREES", _format_generic),
     }
 
     for key, (header, formatter) in formatters.items():
@@ -444,7 +454,14 @@ def _format_city_permits(data: list) -> str:
 
 
 def _format_generic(data: list) -> str:
-    """Fallback formatter — dumps key fields from each record."""
+    """
+    Fallback formatter — dumps key fields from each record. Also the
+    formatter for every city_data.py category beyond 311/permits (police,
+    fire, trees): field names vary meaningfully city to city, so rather
+    than hand-write a bespoke formatter per city per category, this key
+    list is kept broad enough to catch the useful field under whatever
+    name each city happens to use for it.
+    """
     lines = []
     for item in data[:8]:
         if isinstance(item, dict):
@@ -452,7 +469,15 @@ def _format_generic(data: list) -> str:
             parts = []
             for key in ["name", "title", "description", "category", "type",
                          "address", "location_description", "dba_name",
-                         "landmark_name", "art_title"]:
+                         "landmark_name", "art_title",
+                         # city police/crime datasets (NYC, Chicago, LA, Seattle)
+                         "primary_type", "crm_cd_desc", "ofns_desc",
+                         "offense_sub_category", "nibrs_offense_code_description",
+                         "block", "block_address",
+                         # city fire datasets (Austin)
+                         "issue_reported",
+                         # city tree datasets (Austin)
+                         "species"]:
                 val = item.get(key, "")
                 if val and str(val).strip():
                     parts.append(f"{key}: {str(val)[:100]}")

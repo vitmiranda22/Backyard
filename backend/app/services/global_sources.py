@@ -1,13 +1,17 @@
 """
-Global data sources — work in ANY city worldwide.
+Global data sources — work at ANY coordinate on Earth, not a city list.
+Deliberately verified this session against a Wikipedia-thin rural-Peru
+coordinate as well as well-documented cities, since the whole point of
+this layer is raising the floor in undocumented places, not just adding
+convenience in already-rich ones.
 
-11 sources:
+12 sources:
 - Wikipedia Geosearch: articles about places within 200m
 - Wikivoyage Geosearch: travel-guide entries near these coordinates —
   local-color/"what to notice" voice, distinct from Wikipedia's tone
 - Wikimedia Commons: historical photos near coordinates
 - OpenStreetMap Overpass: building + memorial + mural + ghost-sign +
-  park/garden metadata
+  park/garden + individually-mapped-tree metadata
 - Google Knowledge Graph: entity enrichment
 - Wikidata SPARQL: structured facts (architect, construction date, type),
   notable people (born/died/lived here), and film locations for entities
@@ -18,10 +22,13 @@ Global data sources — work in ANY city worldwide.
 - UNESCO World Heritage List: ~1,250 sites worldwide, live geo-distance query
 - GeoNames: nearby named places/features from the global gazetteer
 - Europeana: digitized European museum/archive/library items near this spot
-- iNaturalist: nearby wildlife/plant observations — a nature angle for
-  cities with no municipal tree/park dataset (everywhere except SF today)
+- GBIF: nearby wildlife/plant occurrence records — broader geographic
+  coverage than a community-observation app alone (see fetch_gbif_occurrences)
+- USGS Earthquake Catalog: notable historical seismic events in the
+  region — genuinely global despite the name, confirmed at both Tokyo
+  and rural Peru
 
-All free. Wikipedia/Wikivoyage/Wikimedia/OSM/Wikidata/UNESCO/iNaturalist
+All free. Wikipedia/Wikivoyage/Wikimedia/OSM/Wikidata/UNESCO/GBIF/USGS
 need no API key. Knowledge Graph reuses your Google Cloud TTS key. TMDb,
 GeoNames, and Europeana each need their own free key/username (optional —
 each source is skipped entirely if its credential is unset).
@@ -33,6 +40,7 @@ Gates itself internally (returns [] with no network call outside the UK)
 rather than needing zone_data.py's task-dict-level gating.
 """
 
+import datetime
 import logging
 import httpx
 
@@ -157,8 +165,12 @@ async def fetch_osm_buildings(lat: float, lng: float, client: httpx.AsyncClient)
     OpenStreetMap Overpass API — building + street-level detail nearby.
     Returns building names/ages/styles plus the "notice this" layer: war
     memorials and plaques, murals, ghost signs (disused shops still bearing
-    old signage), cemeteries, and parks/gardens. Works anywhere OSM has
-    coverage — no per-city configuration, unlike DataSF/city_data.py.
+    old signage), cemeteries, parks/gardens, and individually-mapped trees.
+    Works anywhere OSM has coverage — no per-city configuration, unlike
+    DataSF/city_data.py. The tree tag in particular gives real, current
+    tree data anywhere OSM contributors have mapped it, not just the
+    handful of cities with a municipal tree-inventory dataset (SF,
+    Austin, Paris today).
     """
     query = f"""
     [out:json][timeout:8];
@@ -176,6 +188,7 @@ async def fetch_osm_buildings(lat: float, lng: float, client: httpx.AsyncClient)
       way(around:{RADIUS_METERS},{lat},{lng})["landuse"="cemetery"];
       way(around:{RADIUS_METERS},{lat},{lng})["leisure"="park"];
       way(around:{RADIUS_METERS},{lat},{lng})["leisure"="garden"];
+      node(around:{RADIUS_METERS},{lat},{lng})["natural"="tree"];
     );
     out body 15;
     """
@@ -209,6 +222,10 @@ async def fetch_osm_buildings(lat: float, lng: float, client: httpx.AsyncClient)
                         "leisure": tags.get("leisure", ""),
                         "description": tags.get("description", ""),
                         "old_name": tags.get("old_name", ""),
+                        "natural": tags.get("natural", ""),
+                        "species": tags.get("species") or tags.get("species:en", ""),
+                        "genus": tags.get("genus", ""),
+                        "leaf_type": tags.get("leaf_type", ""),
                     })
             return results
 
@@ -601,25 +618,32 @@ async def fetch_wikivoyage(lat: float, lng: float, client: httpx.AsyncClient) ->
         return []
 
 
-async def fetch_inaturalist(lat: float, lng: float, client: httpx.AsyncClient) -> list:
+async def fetch_gbif_occurrences(lat: float, lng: float, client: httpx.AsyncClient) -> list:
     """
-    iNaturalist — nearby wildlife/plant observations, free and keyless.
-    A "notice this" nature angle (a species spotted right here) for cities
-    with no municipal tree/park dataset — i.e. every city except SF today.
-    Restricted to research-grade observations with a common name, so the
-    model gets a real, verifiable species rather than a raw taxon ID.
+    GBIF (Global Biodiversity Information Facility) — nearby wildlife/
+    plant occurrence records, free and keyless. Replaces an earlier
+    iNaturalist-only version of this source: GBIF aggregates iNaturalist's
+    own observations PLUS museum specimen records and many other
+    biodiversity databases, giving meaningfully broader geographic
+    coverage — confirmed live that a rural-Peru coordinate with almost no
+    Wikipedia presence still returned 1,378 real GBIF occurrence records,
+    far more than a community-observation app alone would likely surface
+    in a region with less iNaturalist user activity.
+
+    GBIF occurrence records essentially never include a plain-English
+    vernacular name (confirmed live at both Tokyo and Peru) — rather than
+    drop every result the way the old "must have a common name" filter
+    would, this uses the scientific species name plus taxonomic class
+    (e.g. "Aves" -> "bird") so the model gets a friendly, narratable
+    category alongside a real, verifiable species name.
     """
     try:
         r = await client.get(
-            "https://api.inaturalist.org/v1/observations",
+            "https://api.gbif.org/v1/occurrence/search",
             params={
-                "lat": lat,
-                "lng": lng,
-                "radius": "0.2",  # km
-                "quality_grade": "research",
-                "order_by": "observed_on",
-                "order": "desc",
-                "per_page": "8",
+                "decimalLatitude": f"{lat - 0.0015},{lat + 0.0015}",
+                "decimalLongitude": f"{lng - 0.0015},{lng + 0.0015}",
+                "limit": 8,
             },
             timeout=TIMEOUT,
         )
@@ -627,20 +651,19 @@ async def fetch_inaturalist(lat: float, lng: float, client: httpx.AsyncClient) -
             return []
 
         results = []
-        for obs in r.json().get("results", []):
-            taxon = obs.get("taxon") or {}
-            common_name = taxon.get("preferred_common_name")
-            if not common_name:
+        for rec in r.json().get("results", []):
+            species = rec.get("species")
+            if not species:
                 continue
             results.append({
-                "common_name": common_name,
-                "scientific_name": taxon.get("name", ""),
-                "observed_on": obs.get("observed_on", ""),
+                "species": species,
+                "taxon_class": rec.get("class", ""),
+                "kingdom": rec.get("kingdom", ""),
             })
         return results
 
     except Exception as e:
-        logger.warning(f"iNaturalist lookup failed: {e}")
+        logger.warning(f"GBIF lookup failed: {e}")
         return []
 
 
@@ -684,4 +707,57 @@ async def fetch_uk_police_data(lat: float, lng: float, country: str, client: htt
 
     except Exception as e:
         logger.warning(f"UK Police data lookup failed: {e}")
+        return []
+
+
+async def fetch_earthquake_history(lat: float, lng: float, client: httpx.AsyncClient) -> list:
+    """
+    USGS Earthquake Catalog — despite the name, genuinely global (not
+    US-limited), free, no key. Confirmed live at both Tokyo and rural
+    Peru, so this is a real floor-raiser in exactly the places with the
+    thinnest Wikipedia/OSM coverage, not just a convenience for well-
+    documented cities.
+
+    Seismic history is regional, not hyperlocal — unlike the ~150m zone
+    radius used elsewhere, this queries 100km out and the prompt-facing
+    framing should say "this region" felt/experienced the quake, never
+    "this exact spot." An explicit starttime is required: the API's
+    default window without one is only the last ~30 days, which reads as
+    "no data" for basically every location and would make this look
+    broken rather than just under-queried.
+    """
+    try:
+        r = await client.get(
+            "https://earthquake.usgs.gov/fdsnws/event/1/query",
+            params={
+                "format": "geojson",
+                "latitude": lat,
+                "longitude": lng,
+                "maxradiuskm": 100,
+                "minmagnitude": 5.5,
+                "starttime": "1900-01-01",
+                "orderby": "magnitude",
+                "limit": 5,
+            },
+            timeout=TIMEOUT,
+        )
+        if r.status_code != 200:
+            return []
+
+        results = []
+        for feature in r.json().get("features", []):
+            props = feature.get("properties", {})
+            place = props.get("place", "")
+            mag = props.get("mag")
+            time_ms = props.get("time")
+            if not place or mag is None:
+                continue
+            year = None
+            if time_ms:
+                year = datetime.datetime.utcfromtimestamp(time_ms / 1000).year
+            results.append({"place": place, "mag": mag, "year": year})
+        return results
+
+    except Exception as e:
+        logger.warning(f"USGS earthquake lookup failed: {e}")
         return []

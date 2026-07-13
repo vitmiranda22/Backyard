@@ -4,10 +4,12 @@ Zone data fetcher — orchestrates all data sources in parallel.
 For any geographic zone, we:
 1. Fire off 15 DataSF queries (only when the geocoded city is San
    Francisco — see `is_san_francisco`/`DATASF_SOURCE_NAMES`, skipped
-   entirely with zero network calls everywhere else) + 11 always-on
-   global queries + 2 other-city queries (no-op instantly unless the
-   geocoded city matches the registry in city_data.py; GeoNames/
-   Europeana no-op instantly unless their optional API keys are set)
+   entirely with zero network calls everywhere else) + 12 always-on
+   global queries + 1 UK-gated query + N other-city queries (no-op
+   instantly unless the geocoded city matches the registry in
+   city_data.py, which now spans multiple platforms — Socrata and
+   OpenDataSoft; GeoNames/Europeana no-op instantly unless their
+   optional API keys are set)
 2. Wait for all of them (with timeouts — if one fails, others continue)
 3. Bundle everything into a single JSON blob
 4. Store it in zone_data_cache (reused across all moods for 30 days)
@@ -101,7 +103,8 @@ async def fetch_all_zone_data(
             "geonames": global_sources.fetch_geonames(lat, lng, client),
             "europeana": global_sources.fetch_europeana(lat, lng, client),
             "wikivoyage": global_sources.fetch_wikivoyage(lat, lng, client),
-            "inaturalist": global_sources.fetch_inaturalist(lat, lng, client),
+            "gbif": global_sources.fetch_gbif_occurrences(lat, lng, client),
+            "earthquake_history": global_sources.fetch_earthquake_history(lat, lng, client),
             "uk_police": global_sources.fetch_uk_police_data(lat, lng, country, client),
         })
 
@@ -188,7 +191,8 @@ def format_zone_data_for_prompt(zone_data: dict) -> str:
         "geonames": ("📌 NEARBY NAMED PLACES (GeoNames)", _format_geonames),
         "europeana": ("🏺 EUROPEAN CULTURAL HERITAGE (Europeana)", _format_europeana),
         "wikivoyage": ("🧭 TRAVEL-GUIDE NOTES NEARBY (Wikivoyage)", _format_wikivoyage),
-        "inaturalist": ("🦋 WILDLIFE SPOTTED NEARBY (iNaturalist)", _format_inaturalist),
+        "gbif": ("🦋 WILDLIFE RECORDED NEARBY (GBIF)", _format_gbif),
+        "earthquake_history": ("🌎 NOTABLE EARTHQUAKES IN THIS REGION (USGS)", _format_earthquakes),
         "city_311": ("📞 311 COMPLAINTS", _format_city_311),
         "city_building_permits": ("🏗️ BUILDING PERMITS", _format_city_permits),
         "city_police_incidents": ("🚔 POLICE INCIDENTS", _format_generic),
@@ -278,7 +282,14 @@ def _format_osm(data: list) -> str:
         amenity = b.get("amenity", "")
         landuse = b.get("landuse", "")
         leisure = b.get("leisure", "")
+        natural = b.get("natural", "")
+        species = b.get("species", "")
+        genus = b.get("genus", "")
+        leaf_type = b.get("leaf_type", "")
         parts = []
+        if natural == "tree":
+            tree_desc = species or genus or (f"{leaf_type} tree" if leaf_type else "a mapped tree")
+            parts.append(f"tree: {tree_desc}")
         if name:
             parts.append(name)
         if building_type and building_type != "yes":
@@ -415,14 +426,27 @@ def _format_wikivoyage(data: list) -> str:
     return "\n".join(lines)
 
 
-def _format_inaturalist(data: list) -> str:
+def _format_gbif(data: list) -> str:
     lines = []
     for obs in data[:5]:
-        common_name = obs.get("common_name", "")
-        scientific_name = obs.get("scientific_name", "")
-        line = f"- {common_name}"
-        if scientific_name:
-            line += f" ({scientific_name})"
+        species = obs.get("species", "")
+        taxon_class = obs.get("taxon_class", "")
+        line = f"- {species}"
+        if taxon_class:
+            line += f" ({taxon_class})"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_earthquakes(data: list) -> str:
+    lines = []
+    for eq in data[:5]:
+        place = eq.get("place", "")
+        mag = eq.get("mag")
+        year = eq.get("year")
+        line = f"- M{mag} — {place}" if mag is not None else f"- {place}"
+        if year:
+            line += f" ({year})"
         lines.append(line)
     return "\n".join(lines)
 

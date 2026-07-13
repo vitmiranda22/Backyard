@@ -7,7 +7,8 @@ import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Image } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import MapView, { Marker, Polyline } from "react-native-maps";
+import MapView, { Marker } from "react-native-maps";
+import RoutePolyline from "../components/RoutePolyline";
 import {
   requestLocationPermission,
   getCurrentLocation,
@@ -143,13 +144,7 @@ export default function HomeScreen({
 
           {selectedPath.length > 1 && (
             <>
-              <Polyline
-                coordinates={selectedPath}
-                strokeColor="rgba(255, 107, 74, 0.6)"
-                strokeWidth={14}
-                lineCap="round"
-                lineJoin="round"
-              />
+              <RoutePolyline coordinates={selectedPath} />
               <Marker coordinate={selectedPath[0]} pinColor={colors.accent} title={t("common.start")} />
               <Marker
                 coordinate={selectedPath[selectedPath.length - 1]}

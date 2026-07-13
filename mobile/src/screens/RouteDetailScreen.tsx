@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Share } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import MapView, { Marker, Polyline } from "react-native-maps";
+import MapView, { Marker } from "react-native-maps";
+import RoutePolyline from "../components/RoutePolyline";
 import { getTourDetail, TourDetail, toggleLike } from "../services/api";
 import StarRating from "../components/StarRating";
 import ZonePhoto from "../components/ZonePhoto";
@@ -167,15 +168,7 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
               zoomEnabled={false}
               pointerEvents="none"
             >
-              {routeCoords.length > 1 && (
-                <Polyline
-                  coordinates={routeCoords}
-                  strokeColor="rgba(255, 107, 74, 0.6)"
-                  strokeWidth={14}
-                  lineCap="round"
-                  lineJoin="round"
-                />
-              )}
+              {routeCoords.length > 1 && <RoutePolyline coordinates={routeCoords} />}
               <Marker coordinate={routeCoords[0]} pinColor={colors.accent} title="Start" />
               {routeCoords.length > 1 && (
                 <Marker

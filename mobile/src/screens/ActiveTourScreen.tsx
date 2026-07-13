@@ -8,7 +8,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, Pressable, StyleSheet, Alert, Animated, Easing, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import MapView, { Polyline } from "react-native-maps";
+import MapView from "react-native-maps";
+import RoutePolyline from "../components/RoutePolyline";
 import { useZoneTracker } from "../hooks/useZoneTracker";
 import {
   watchPosition,
@@ -377,15 +378,7 @@ export default function ActiveTourScreen({
             }}
             showsUserLocation
           >
-            {path.length > 1 && (
-              <Polyline
-                coordinates={path}
-                strokeColor="rgba(255, 107, 74, 0.6)"
-                strokeWidth={14}
-                lineCap="round"
-                lineJoin="round"
-              />
-            )}
+            {path.length > 1 && <RoutePolyline coordinates={path} />}
           </MapView>
         ) : (
           <View style={styles.mapPlaceholder}>

@@ -95,7 +95,12 @@ async def generate_narration(
         f"source names, or markdown links like [text](url) anywhere in your "
         f"response, even when using web search. Write the fact directly as "
         f"spoken narration with no attribution attached. "
-        f"60-90 seconds of spoken audio."
+        f"60-90 seconds of spoken audio. "
+        f"Getting the facts right is only half the job — this MUST also sound "
+        f"like the {mood} mode's VOICE from your instructions, not a neutral "
+        f"recitation of those facts. If {mood} calls for humor, opinion, dread, "
+        f"or gossip, that tone needs to be audible in every sentence, even when "
+        f"the underlying facts are plain history."
     )
 
     try:

@@ -115,7 +115,12 @@ async def generate_narration(
             instructions=system_prompt,
             input=user_message,
             tools=[{"type": "web_search"}],
-            temperature=0.8,
+            # Unfiltered's job is opinion injection, not fact retrieval — a
+            # web-search-heavy call tends to pull the model toward summarizing
+            # its source in a neutral, encyclopedic register no matter what
+            # the persona instructions say. A higher temperature here gives
+            # it more room to actually editorialize instead of paraphrase.
+            temperature=1.0 if mood == "unfiltered" else 0.8,
             # Same class of issue Gemini had: some of this budget goes to
             # tool-call/reasoning overhead before the model writes the
             # actual narration, and that overhead varies call to call.

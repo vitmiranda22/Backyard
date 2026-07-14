@@ -497,7 +497,7 @@ export default function ActiveTourScreen({
           </Animated.View>
           {!isPremium && (
             <View style={styles.askProBadge}>
-              <Text style={styles.askProBadgeText}>PRO</Text>
+              <Text style={styles.askProBadgeText}>{t("common.pro")}</Text>
             </View>
           )}
         </Pressable>

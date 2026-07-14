@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Audio } from "expo-av";
+import { useTranslation } from "react-i18next";
 import { colors } from "../theme";
 
 interface AudioPlayerProps {
@@ -20,6 +21,7 @@ export default function AudioPlayer({
   onSkip,
   onError,
 }: AudioPlayerProps) {
+  const { t } = useTranslation();
   const [isPlaying, setIsPlaying] = useState(false);
   const [positionMs, setPositionMs] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
@@ -113,7 +115,7 @@ export default function AudioPlayer({
   if (!audioUrl) {
     return (
       <View style={styles.container}>
-        <Text style={styles.fallbackText}>🔇 Audio unavailable — reading mode</Text>
+        <Text style={styles.fallbackText}>{t("audioPlayer.unavailableFallback")}</Text>
       </View>
     );
   }

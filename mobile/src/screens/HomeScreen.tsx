@@ -20,11 +20,11 @@ import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
 
 const MOODS = [
-  { id: "time_machine", emoji: "🕰️", label: "Time Machine" },
-  { id: "hidden_city", emoji: "🔮", label: "Hidden City" },
-  { id: "dark_side", emoji: "🕵️", label: "Dark Side", pro: true },
-  { id: "behind_scenes", emoji: "🎬", label: "Behind the Scenes", pro: true },
-  { id: "unfiltered", emoji: "🎭", label: "Unfiltered", pro: true },
+  { id: "time_machine", emoji: "🕰️" },
+  { id: "hidden_city", emoji: "🔮" },
+  { id: "dark_side", emoji: "🕵️", pro: true },
+  { id: "behind_scenes", emoji: "🎬", pro: true },
+  { id: "unfiltered", emoji: "🎭", pro: true },
 ];
 
 interface HomeScreenProps {

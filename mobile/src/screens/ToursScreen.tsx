@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { getTours, TourSummary, getNearbyRoutes, NearbyRoute } from "../services/api";
 import { requestLocationPermission, getCurrentLocation } from "../services/location";
 import StarRating from "../components/StarRating";
@@ -33,16 +34,17 @@ function formatDate(iso: string) {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function formatStats(tour: TourSummary) {
+function formatStats(t: TFunction, tour: TourSummary) {
   const parts: string[] = [];
-  if (tour.blocks_visited) parts.push(`${tour.blocks_visited} blocks`);
-  if (tour.duration_sec) parts.push(`${Math.round(tour.duration_sec / 60)} min`);
+  if (tour.blocks_visited) parts.push(t("tours.blocksCount", { count: tour.blocks_visited }));
+  if (tour.duration_sec) parts.push(`${Math.round(tour.duration_sec / 60)} ${t("routeDetail.minAbbr")}`);
   if (tour.total_distance_m) parts.push(`${(tour.total_distance_m / 1000).toFixed(1)} km`);
   return parts.join(" · ");
 }
 
-function formatDistance(distanceM: number) {
-  return distanceM < 1000 ? `${Math.round(distanceM)} m away` : `${(distanceM / 1000).toFixed(1)} km away`;
+function formatDistance(t: TFunction, distanceM: number) {
+  const distance = distanceM < 1000 ? `${Math.round(distanceM)} m` : `${(distanceM / 1000).toFixed(1)} km`;
+  return t("tours.distanceAway", { distance });
 }
 
 type Segment = "mine" | "discover";
@@ -163,7 +165,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
                   <Text style={styles.title} numberOfLines={1}>
                     {item.title}
                   </Text>
-                  <Text style={styles.meta}>{formatStats(item) || t("tours.inProgress")}</Text>
+                  <Text style={styles.meta}>{formatStats(t, item) || t("tours.inProgress")}</Text>
                 </View>
                 <Text style={styles.date}>{formatDate(item.created_at)}</Text>
               </TouchableOpacity>
@@ -195,7 +197,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
                   {item.title}
                 </Text>
                 <Text style={styles.meta}>
-                  {item.creator_display_name || "Anonymous Explorer"} · {formatDistance(item.distance_m)}
+                  {item.creator_display_name || t("routeDetail.anonymousExplorer")} · {formatDistance(t, item.distance_m)}
                 </Text>
                 {item.rating_count > 0 && (
                   <View style={styles.ratingRow}>

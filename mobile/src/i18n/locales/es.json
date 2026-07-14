@@ -10,7 +10,8 @@
     "endOfRoute": "Fin de la ruta",
     "soon": "PRONTO",
     "back": "Atrás",
-    "home": "Inicio"
+    "home": "Inicio",
+    "unknown": "Desconocido"
   },
   "login": {
     "title": "Backyard",
@@ -46,7 +47,10 @@
     "locationRequiredTitle": "Ubicación requerida",
     "locationRequiredBody": "Activa la ubicación para descubrir rutas cercanas.",
     "inProgress": "En curso",
-    "couldntLoadTours": "No se pudieron cargar tus recorridos."
+    "couldntLoadTours": "No se pudieron cargar tus recorridos.",
+    "blocksCount_one": "{{count}} cuadra",
+    "blocksCount_other": "{{count}} cuadras",
+    "distanceAway": "{{distance}} de distancia"
   },
   "profile": {
     "header": "Perfil",
@@ -288,5 +292,12 @@
   },
   "zonePhoto": {
     "closeA11y": "Cerrar foto"
+  },
+  "audioPlayer": {
+    "unavailableFallback": "🔇 Audio no disponible — modo lectura"
+  },
+  "notifications": {
+    "unfinishedTourTitle": "¿Sigues por ahí?",
+    "unfinishedTourBody": "Vuelve y termina tu recorrido a pie cuando estés listo."
   }
 }

@@ -10,7 +10,8 @@
     "endOfRoute": "End of route",
     "soon": "SOON",
     "back": "Back",
-    "home": "Home"
+    "home": "Home",
+    "unknown": "Unknown"
   },
   "login": {
     "title": "Backyard",
@@ -46,7 +47,10 @@
     "locationRequiredTitle": "Location Required",
     "locationRequiredBody": "Enable location to discover nearby routes.",
     "inProgress": "In progress",
-    "couldntLoadTours": "Couldn't load your tours."
+    "couldntLoadTours": "Couldn't load your tours.",
+    "blocksCount_one": "{{count}} block",
+    "blocksCount_other": "{{count}} blocks",
+    "distanceAway": "{{distance}} away"
   },
   "profile": {
     "header": "Profile",
@@ -288,5 +292,12 @@
   },
   "zonePhoto": {
     "closeA11y": "Close photo"
+  },
+  "audioPlayer": {
+    "unavailableFallback": "🔇 Audio unavailable — reading mode"
+  },
+  "notifications": {
+    "unfinishedTourTitle": "Still out there?",
+    "unfinishedTourBody": "Come back and finish your walking tour when you're ready."
   }
 }

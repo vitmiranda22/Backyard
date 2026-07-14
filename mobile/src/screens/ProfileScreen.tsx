@@ -134,7 +134,7 @@ export default function ProfileScreen({
 
       <View style={styles.card}>
         <Text style={styles.label}>{t("profile.signedInAs")}</Text>
-        <Text style={styles.email}>{email || "Unknown"}</Text>
+        <Text style={styles.email}>{email || t("common.unknown")}</Text>
       </View>
 
       {isPremium ? (

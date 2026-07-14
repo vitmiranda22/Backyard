@@ -3,6 +3,7 @@
 // unfinished for a while.
 
 import * as Notifications from "expo-notifications";
+import i18next from "../i18n";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -33,8 +34,8 @@ export async function scheduleUnfinishedTourReminder(tourId: string) {
     if (!granted) return;
     const id = await Notifications.scheduleNotificationAsync({
       content: {
-        title: "Still out there?",
-        body: "Come back and finish your walking tour when you're ready.",
+        title: i18next.t("notifications.unfinishedTourTitle"),
+        body: i18next.t("notifications.unfinishedTourBody"),
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,

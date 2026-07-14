@@ -4,17 +4,29 @@ Text-to-Speech service using Google Cloud TTS.
 Converts narration text → MP3 audio bytes. The audio is then uploaded to
 Cloudflare R2 and served to the client via a signed URL.
 
-We use Journey voices — they're Google's newest, most natural-sounding voices.
-Each of our three voice presets maps to a different Journey voice:
+Two voice tiers, chosen per-call by is_premium:
 
-  neutral  → en-US-Journey-D  (calm, measured, documentary narrator)
-  dramatic → en-US-Journey-F  (deeper, suspenseful, storyteller)
-  warm     → en-US-Journey-O  (friendly, enthusiastic, conversational)
+  Premium (Journey — Google's newest, most natural-sounding, and priced
+  in the same expensive bracket as WaveNet/Neural2):
+    neutral  → en-US-Journey-D  (calm, measured, documentary narrator)
+    dramatic → en-US-Journey-F  (deeper, suspenseful, storyteller)
+    warm     → en-US-Journey-O  (friendly, enthusiastic, conversational)
 
-The free tier gives us 1M characters/month. A 90-second narration is about
-2,000 characters, so we get ~500 narrations/month for free. With caching,
-the same narration+voice combo is generated ONCE and then served from R2
-forever (until the 30-day cache expires).
+  Standard (meaningfully cheaper per character — the real lever here.
+  Only "neutral" is reachable by a free request today, since dramatic/
+  warm are premium-gated via PREMIUM_VOICES, but all three are mapped
+  for completeness in case that gating ever changes):
+    neutral  → en-US-Standard-D
+    dramatic → en-US-Standard-B
+    warm     → en-US-Standard-F
+
+The free tier gives us 1M characters/month of the pricier tiers. A
+90-second narration is about 2,000 characters, so we get ~500
+narrations/month for free at that rate — Standard voices get their own,
+much larger free allowance. With caching, the same narration+voice+tier
+combo is generated ONCE and then served from R2 forever (until the
+30-day cache expires) — see narrate.py's cache_voice_key() for why the
+cache key has to include tier, not just voice.
 """
 
 import asyncio
@@ -27,13 +39,21 @@ logger = logging.getLogger(__name__)
 
 # Map our voice presets to Google TTS voice names.
 # You can preview these at https://cloud.google.com/text-to-speech#demo
-VOICE_MAP = {
+VOICE_MAP_PREMIUM = {
     "neutral": "en-US-Journey-D",
     "dramatic": "en-US-Journey-F",
     "warm": "en-US-Journey-O",
 }
 
-# If Journey voices aren't available, fall back to WaveNet (still good quality)
+VOICE_MAP_STANDARD = {
+    "neutral": "en-US-Standard-D",
+    "dramatic": "en-US-Standard-B",
+    "warm": "en-US-Standard-F",
+}
+
+# If the selected tier's voice isn't available, fall back to WaveNet
+# (still good quality) regardless of tier — a rare failure path, not a
+# cost-relevant one, so it isn't worth a separate fallback per tier.
 VOICE_FALLBACK_MAP = {
     "neutral": "en-US-Wavenet-D",
     "dramatic": "en-US-Wavenet-A",
@@ -54,13 +74,19 @@ def _get_tts_client():
     )
 
 
-async def synthesize_speech(text: str, voice: str = "neutral"):
+async def synthesize_speech(text: str, voice: str = "neutral", is_premium: bool = True):
     """
     Convert text to MP3 audio.
 
     Args:
-        text: The narration text to speak. Should be 150-225 words.
+        text: The narration text to speak. Should be 120-150 words for
+            premium narration, 90-115 for free (see prompts.build_prompt).
         voice: One of "neutral", "dramatic", "warm".
+        is_premium: True = Journey voice tier, False = the cheaper
+            Standard tier. Defaults to True so any caller that doesn't
+            pass this explicitly (e.g. a voice preview) keeps full
+            quality — only narrate.py's actual per-block synthesis opts
+            a free user into the cheaper tier.
 
     Returns:
         MP3 audio as bytes, or None if synthesis failed.
@@ -71,11 +97,12 @@ async def synthesize_speech(text: str, voice: str = "neutral"):
     # asyncio event loop uvicorn runs here — a blocked loop can't answer
     # Render's health check either, which was causing the instance to be
     # cycled as "unhealthy" mid-request.
-    return await asyncio.to_thread(_synthesize_speech_sync, text, voice)
+    return await asyncio.to_thread(_synthesize_speech_sync, text, voice, is_premium)
 
 
-def _synthesize_speech_sync(text: str, voice: str):
-    voice_name = VOICE_MAP.get(voice, VOICE_MAP["neutral"])
+def _synthesize_speech_sync(text: str, voice: str, is_premium: bool = True):
+    voice_map = VOICE_MAP_PREMIUM if is_premium else VOICE_MAP_STANDARD
+    voice_name = voice_map.get(voice, voice_map["neutral"])
 
     try:
         client = _get_tts_client()
@@ -116,7 +143,7 @@ def _synthesize_speech_sync(text: str, voice: str):
 
         logger.info(
             f"Generated TTS audio: {len(audio_bytes)} bytes, "
-            f"voice={voice_name}"
+            f"voice={voice_name} tier={'premium' if is_premium else 'standard'}"
         )
         return audio_bytes
 
@@ -189,3 +216,23 @@ def estimate_duration_ms(text: str, voice: str = "neutral") -> int:
     wps = (150 / 60) * rate
     duration_seconds = word_count / wps
     return int(duration_seconds * 1000)
+
+
+def cache_voice_key(voice: str, is_premium: bool) -> str:
+    """
+    Audio cache identity for a (voice, tier) pair — NOT the same as the
+    voice preset name passed to synthesize_speech.
+
+    Audio is cached and shared across users (R2 key + audio_files table,
+    both keyed by geo_hash/mood/safety/voice, mood-agnostic and
+    user-agnostic — see narrate.py). "neutral" is reachable by both free
+    and premium users, so without this, whichever tier generated it
+    first would silently serve its audio to the other tier too (a free
+    user's Standard-tier clip to a premium user, or vice versa). Only
+    "neutral" needs the suffix: "dramatic"/"warm" are already
+    premium-gated (PREMIUM_VOICES), so their cached audio is always
+    premium-tier already and doesn't need disambiguating.
+    """
+    if voice == "neutral" and not is_premium:
+        return "neutral-standard"
+    return voice

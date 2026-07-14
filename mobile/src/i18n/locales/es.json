@@ -164,7 +164,9 @@
     "gettingLocation": "Obteniendo ubicación...",
     "endTourA11y": "Finalizar recorrido",
     "dismissAnswer": "Descartar respuesta",
-    "blocksCount": "{{count}} cuadras"
+    "blocksCount": "{{count}} cuadras",
+    "autoCompleteFree": "¡Recorrido completo! Vuelve mañana, o mejora a Premium para 3 recorridos al día.",
+    "autoCompletePremium": "¡Recorrido completo! Empieza otro — hasta 3 recorridos al día."
   },
   "tourComplete": {
     "finishingUp": "Terminando...",

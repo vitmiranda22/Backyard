@@ -53,6 +53,7 @@ from app.services.zone_data import (
     format_zone_data_for_prompt,
     DATASF_SOURCE_NAMES,
     is_san_francisco,
+    should_skip_web_search,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,26 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 GEOHASH_PRECISION = 7  # ~153m x 153m zones (must match tours.py and mobile/src/config.ts)
+
+
+def _cache_mood_key(mood: str, is_premium: bool) -> str:
+    """
+    narration_cache identity for a (mood, length-tier) pair — NOT the
+    same as the true mood passed everywhere else (OpenAI, the response,
+    tour_blocks, r2 keys for audio).
+
+    narration_cache is shared across every user who hits this
+    geohash+mood+safety (see build_prompt's is_premium: free tier now
+    gets a genuinely shorter 90-115 word narration, not just a shorter
+    voice). Without a tier-aware cache identity, whichever tier generated
+    a zone first would permanently serve its length to the other tier
+    too. Requires narration_cache_mood_check (migration 014) to allow
+    these "-short" suffixed values alongside the 5 real moods — the
+    UNIQUE(geo_hash, mood, content_safety) constraint needs no change,
+    since a suffixed string is already a distinct value from the
+    unsuffixed one.
+    """
+    return mood if is_premium else f"{mood}-short"
 
 
 async def _resolve_zone_photo(geo_hash: str, lat: float, lng: float, existing_image_r2_key: str = None):
@@ -177,9 +198,10 @@ async def narrate_block(
     )
 
     # --- Step 2: Check narration cache ---
+    cache_mood = _cache_mood_key(request.mood.value, is_premium)
     cached_narration = await supabase_db.get_cached_narration(
         geo_hash=geo_hash,
-        mood=request.mood.value,
+        mood=cache_mood,
         content_safety=request.content_safety,
     )
 
@@ -230,6 +252,11 @@ async def narrate_block(
                 sources_hit=sources_hit,
                 sources_skipped=skipped,
             )
+
+            # None for any row cached before migration 013 — treated as
+            # "richness unknown" by should_skip_web_search(), not "thin".
+            zone_hit_count = cached_zone.get("sources_hit_count")
+            zone_eligible_count = cached_zone.get("sources_eligible_count")
         else:
             # Step 5: Fetch ALL 26 sources in parallel
             logger.info(f"Zone data cache MISS for {geo_hash} — fetching all sources...")
@@ -246,8 +273,8 @@ async def narrate_block(
             sources_queried = result["sources_queried"]
             sources_failed = result["sources_failed"]
             sources_skipped = result["sources_skipped"]
-            hit_count = result["hit_count"]
-            total = result["total"]
+            zone_hit_count = result["hit_count"]
+            zone_eligible_count = result["total"] - len(sources_skipped)
 
             # Format for prompt
             zone_data_str = format_zone_data_for_prompt(raw_data)
@@ -262,8 +289,8 @@ async def narrate_block(
                 raw_data=raw_data,
                 sources_queried=sources_queried,
                 sources_failed=sources_failed,
-                sources_hit_count=hit_count,
-                sources_eligible_count=total - len(sources_skipped),
+                sources_hit_count=zone_hit_count,
+                sources_eligible_count=zone_eligible_count,
                 sources_skipped=sources_skipped,
             )
 
@@ -287,6 +314,8 @@ async def narrate_block(
             mood=request.mood.value,
             content_safety=request.content_safety,
             zone_data=zone_data_str,
+            skip_web_search=should_skip_web_search(zone_hit_count, zone_eligible_count),
+            is_premium=is_premium,
         )
 
         if narration_text is None:
@@ -302,7 +331,7 @@ async def narrate_block(
         # Cache the narration
         stored = await supabase_db.store_narration(
             geo_hash=geo_hash,
-            mood=request.mood.value,
+            mood=cache_mood,
             content_safety=request.content_safety,
             narration_text=narration_text,
         )
@@ -370,7 +399,10 @@ async def narrate_block(
         # This block's audio is stitched with a tour-specific transition, so
         # it can never be shared across tours at the same geohash — always
         # synthesize fresh and store it under a tour-scoped key instead of
-        # the shared narration_cache/audio_files path.
+        # the shared narration_cache/audio_files path. No cache-key tier
+        # disambiguation needed here (unlike the shared path below) since
+        # this key is already unique per tour, and one tour belongs to one
+        # user/tier.
         r2_key = r2.build_tour_r2_key(
             tour_id=request.tour_id,
             geo_hash=geo_hash,
@@ -380,6 +412,7 @@ async def narrate_block(
         audio_bytes = await tts.synthesize_speech(
             text=final_narration_text,
             voice=request.voice.value,
+            is_premium=is_premium,
         )
         if audio_bytes:
             upload_ok = await r2.upload_audio(audio_bytes, r2_key)
@@ -389,11 +422,18 @@ async def narrate_block(
         else:
             logger.warning("TTS failed — returning text-only response")
     else:
+        # This audio is cached and shared across every user who hits this
+        # geohash+mood+safety+voice — "neutral" is reachable by both free
+        # and premium requests, so the cache identity has to fold in tier
+        # too (tts.cache_voice_key), or whichever tier generates it first
+        # would silently serve its audio quality to the other tier.
+        cache_voice = tts.cache_voice_key(request.voice.value, is_premium)
+
         r2_key = r2.build_r2_key(
             geo_hash=geo_hash,
             mood=request.mood.value,
             content_safety=request.content_safety,
-            voice=request.voice.value,
+            voice=cache_voice,
         )
 
         # Only reuse R2 audio when the DB confirms it was generated for THIS
@@ -405,7 +445,7 @@ async def narrate_block(
         # geohash+mood+safety+voice path.
         cached_audio = None
         if narration_cache_id:
-            cached_audio = await supabase_db.get_cached_audio(narration_cache_id, request.voice.value)
+            cached_audio = await supabase_db.get_cached_audio(narration_cache_id, cache_voice)
 
         if cached_audio:
             audio_url = r2.generate_signed_url(r2_key)
@@ -416,6 +456,7 @@ async def narrate_block(
             audio_bytes = await tts.synthesize_speech(
                 text=final_narration_text,
                 voice=request.voice.value,
+                is_premium=is_premium,
             )
 
             if audio_bytes:
@@ -427,7 +468,7 @@ async def narrate_block(
                     if narration_cache_id:
                         await supabase_db.store_audio_file(
                             narration_cache_id=narration_cache_id,
-                            voice=request.voice.value,
+                            voice=cache_voice,
                             r2_key=r2_key,
                             file_size_bytes=len(audio_bytes),
                             duration_ms=audio_duration_ms,

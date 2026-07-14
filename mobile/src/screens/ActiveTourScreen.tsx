@@ -31,6 +31,11 @@ import { tap } from "../services/haptics";
 import { scheduleUnfinishedTourReminder, cancelReminder } from "../services/notifications";
 import { cacheAudio } from "../services/audioCache";
 
+// A tour auto-completes once it reaches this many blocks — must match
+// backend/app/config.py's FREE_TOUR_BLOCK_LIMIT/PREMIUM_TOUR_BLOCK_LIMIT.
+const FREE_MAX_BLOCKS = 5;
+const PREMIUM_MAX_BLOCKS = 12;
+
 interface ActiveTourProps {
   mood: string;
   voice: string;
@@ -53,6 +58,7 @@ export default function ActiveTourScreen({
 }: ActiveTourProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const MAX_BLOCKS = isPremium ? PREMIUM_MAX_BLOCKS : FREE_MAX_BLOCKS;
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [heading, setHeading] = useState(0);
   const [tourId, setTourId] = useState<string | null>(null);
@@ -203,6 +209,10 @@ export default function ActiveTourScreen({
     // Double-check we're not already loading
     if (isLoadingRef.current) return;
 
+    // Tour already hit its block cap — don't let a GPS zone crossing fire
+    // one more block while auto-completion is still in flight.
+    if (sequenceRef.current >= MAX_BLOCKS) return;
+
     isLoadingRef.current = true;
     lastTriggerTime.current = Date.now();
     setIsLoading(true);
@@ -270,6 +280,14 @@ export default function ActiveTourScreen({
           console.warn("Failed to save block (tour continues):", e);
           showToast(t("activeTour.blockSaveError"));
         }
+      }
+
+      // Reached the tour's block cap. If there's no audio to let the
+      // walker finish listening to first, complete right away — otherwise
+      // NarrationCard's onAudioFinished handles it once playback ends.
+      if (sequenceRef.current >= MAX_BLOCKS && !result.audio_url) {
+        showToast(isPremium ? t("activeTour.autoCompletePremium") : t("activeTour.autoCompleteFree"));
+        handleEndTour();
       }
     } catch (e: any) {
       setError(t("activeTour.narrationError"));
@@ -420,6 +438,10 @@ export default function ActiveTourScreen({
         imageUrl={imageUrl}
         onAudioFinished={() => {
           hasActiveAudioRef.current = false;
+          if (sequenceRef.current >= MAX_BLOCKS) {
+            showToast(isPremium ? t("activeTour.autoCompletePremium") : t("activeTour.autoCompleteFree"));
+            handleEndTour();
+          }
         }}
         onAudioError={handleAudioError}
         onSkip={() => {

@@ -69,6 +69,8 @@ async def generate_narration(
     mood: str,
     content_safety: bool,
     zone_data: str = None,
+    skip_web_search: bool = False,
+    is_premium: bool = True,
 ) -> str:
     """
     Generate a narration for a specific location and mood.
@@ -81,9 +83,19 @@ async def generate_narration(
         mood: One of "time_machine", "hidden_city", "dark_side", "behind_scenes", "unfiltered"
         content_safety: True = allow mature content, False = family-friendly
         zone_data: Formatted string of zone data from 26 sources
+        skip_web_search: True when zone_data.should_skip_web_search() found
+            enough real facts already in zone_data that the separately-billed
+            web_search tool call isn't worth its cost for this block.
+        is_premium: True = 120-150 words/45-60s target. False = a shorter
+            90-115 word/35-45s target — fewer completion tokens and a
+            shorter TTS script for both tiers vs. the original 150-225
+            word length, real cost savings either way. Defaults to True
+            so any caller that doesn't pass this explicitly keeps the
+            (now-shorter-than-original) premium length.
 
     Returns:
-        The narration text (150-225 words, ready for TTS), or None if generation failed.
+        The narration text (120-150 words for premium, 90-115 for free,
+        ready for TTS), or None if generation failed.
     """
     system_prompt = build_prompt(
         street=street,
@@ -93,7 +105,10 @@ async def generate_narration(
         mood=mood,
         content_safety=content_safety,
         zone_data=zone_data,
+        is_premium=is_premium,
     )
+
+    duration_phrase = "45-60 seconds" if is_premium else "35-45 seconds"
 
     user_message = (
         f"Generate a {mood} narration for someone at "
@@ -101,12 +116,14 @@ async def generate_narration(
         f"You MUST use at least 3 specific facts from the zone data provided. "
         f"Do NOT start with a rhetorical question. "
         f"Start with a specific year, detail, or observation. "
-        f"Use web search to find additional real facts about this exact location. "
-        f"This is a spoken audio script — never include citations, footnotes, "
-        f"source names, or markdown links like [text](url) anywhere in your "
-        f"response, even when using web search. Write the fact directly as "
-        f"spoken narration with no attribution attached. "
-        f"60-90 seconds of spoken audio. "
+        + ("" if skip_web_search else "Use web search to find additional real facts about this exact location. ")
+        + (
+            f"This is a spoken audio script — never include citations, footnotes, "
+            f"source names, or markdown links like [text](url) anywhere in your "
+            f"response, even when using web search. Write the fact directly as "
+            f"spoken narration with no attribution attached. "
+        )
+        + f"{duration_phrase} of spoken audio. "
         f"Getting the facts right is only half the job — this MUST also sound "
         f"like the {mood} mode's VOICE from your instructions, not a neutral "
         f"recitation of those facts. If {mood} calls for humor, opinion, dread, "
@@ -120,12 +137,21 @@ async def generate_narration(
         logger.info(f"ZONE DATA IN PROMPT: {'YES' if zone_data and len(zone_data) > 50 else 'NO/EMPTY'}")
         logger.info(f"ZONE DATA LENGTH: {len(zone_data) if zone_data else 0} chars")
         logger.info(f"USER MESSAGE: {user_message}")
+        logger.info(f"WEB SEARCH: {'SKIPPED (zone data rich enough)' if skip_web_search else 'enabled'}")
+
+        # web_search is a separately-billed tool call — omitted entirely
+        # (not just unused) when zone_data already has enough real facts,
+        # per zone_data.should_skip_web_search(). Passing an empty tools
+        # list vs. omitting the param behave the same in the Responses API;
+        # omitting reads clearer about intent.
+        create_kwargs = {}
+        if not skip_web_search:
+            create_kwargs["tools"] = [{"type": "web_search"}]
 
         response = await client.responses.create(
             model=PREMIUM_VOICE_MODEL if mood in PREMIUM_VOICE_MOODS else MODEL,
             instructions=system_prompt,
             input=user_message,
-            tools=[{"type": "web_search"}],
             # Unfiltered's job is opinion injection, not fact retrieval — a
             # web-search-heavy call tends to pull the model toward summarizing
             # its source in a neutral, encyclopedic register no matter what
@@ -138,6 +164,7 @@ async def generate_narration(
             # Unused budget costs nothing, so be generous rather than
             # re-tuning this later.
             max_output_tokens=8192,
+            **create_kwargs,
         )
 
         if response.status == "incomplete" and response.incomplete_details and \
@@ -328,8 +355,9 @@ async def answer_question(
     """
     Answer a free-form spoken question about the user's current
     surroundings — a follow-up to the ambient narration, not a fresh
-    60-90s story. Short and conversational, with web_search for grounding
-    since a specific factual question deserves a real answer, not a guess.
+    narration-length story. Short and conversational, with web_search for
+    grounding since a specific factual question deserves a real answer,
+    not a guess.
 
     Returns the answer text, or None if generation failed.
     """

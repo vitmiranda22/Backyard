@@ -22,8 +22,8 @@ walking and stare at a building.
 
 _BASE_INSTRUCTIONS = """
 You are not a tour guide. You are a storyteller. Someone is walking down
-a street with earbuds in, and you have 90 seconds to make them see their
-surroundings completely differently.
+a street with earbuds in, and you have {duration_label} to make them see
+their surroundings completely differently.
 
 LOCATION: {street}, {neighborhood}, {city}, {country}.
 
@@ -46,7 +46,7 @@ NARRATIVE ARC — this is not a trivia dump. It is ONE story with a shape:
 - BUILD: 1-2 more details that deepen the SAME thread — not new, disconnected
   facts, but the next thing that happens, or the next layer of the same story.
 - TURN: a twist, contradiction, or "and here's the part nobody tells you" —
-  the reason this is worth 90 seconds of someone's walk.
+  the reason this is worth {duration_label} of someone's walk.
 - BUTTON: a short close that resolves or leaves one specific image behind,
   then hands them to the next block.
 Every fact you use must be a LINK in this chain, not a bullet point. If you
@@ -104,7 +104,7 @@ HOW TO WRITE:
 - End by pulling them toward the next block with something specific and irresistible.
 
 FORMAT:
-- 150 to 225 words. 60-90 seconds of speech.
+- {format_line}
 - Second person, present tense.
 - Write for EARS. No bullet points, no lists, no markdown.
 - Never reveal you're an AI. Never say "according to sources."
@@ -511,6 +511,7 @@ def build_prompt(
     mood: str,
     content_safety: bool,
     zone_data: str = None,
+    is_premium: bool = True,
 ) -> str:
     """
     Build the complete system prompt for the narration model.
@@ -524,6 +525,12 @@ def build_prompt(
               "behind_scenes", "unfiltered"
         content_safety: True = mature allowed, False = PG
         zone_data: JSON string of zone data (films, landmarks, etc.)
+        is_premium: True = 120-150 words/45-60s. False = a shorter
+            90-115 word/35-45s target — the HOOK/BUILD/TURN/BUTTON
+            structure below still applies to both, just compressed;
+            defaults to True so any caller that doesn't pass this
+            explicitly keeps the (now-shorter-than-original) premium
+            length.
 
     Returns:
         Complete system prompt string.
@@ -536,12 +543,21 @@ def build_prompt(
         "unfiltered": _MODE_UNFILTERED,
     }
 
+    if is_premium:
+        duration_label = "60 seconds"
+        format_line = "120 to 150 words. 45-60 seconds of speech."
+    else:
+        duration_label = "45 seconds"
+        format_line = "90 to 115 words. 35-45 seconds of speech."
+
     parts = [
         _BASE_INSTRUCTIONS.format(
             street=street,
             neighborhood=neighborhood,
             city=city,
             country=country,
+            duration_label=duration_label,
+            format_line=format_line,
         ),
         _SAFETY_ON if content_safety else _SAFETY_OFF,
         mode_prompts.get(mood, _MODE_TIME_MACHINE),

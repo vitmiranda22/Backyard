@@ -80,18 +80,22 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------------
     # Rate limiting
     # -------------------------------------------------------------------------
-    # Tiered by premium status — the previous flat 250/day gave free and
-    # premium users identical quotas, so the "higher daily limit" Premium
-    # perk advertised in the paywall was never actually enforced. Free is
-    # sized to comfortably finish one real walking tour without hitting the
-    # ceiling mid-walk: at the current geohash precision (7->8, ~19-38m
-    # zones), a normal 1-2km walk can cross 40-80+ zone boundaries. MINUTE
-    # stays flat and conservative for both tiers — it's the main defense
-    # against rapid scripted abuse, and walking speed doesn't change with
-    # plan tier.
-    DAILY_NARRATION_LIMIT_FREE: int = 80
-    DAILY_NARRATION_LIMIT_PREMIUM: int = 100
+    # Tiered by premium status, and now sized to exactly match the real
+    # fixed-length tour shape below rather than being a loose ceiling: free
+    # gets one 5-block tour/day, premium gets three 12-block tours/day.
+    # MINUTE stays flat and conservative for both tiers — it's the main
+    # defense against rapid scripted abuse, and walking speed doesn't change
+    # with plan tier.
+    DAILY_NARRATION_LIMIT_FREE: int = 5
+    DAILY_NARRATION_LIMIT_PREMIUM: int = 36
     MINUTE_NARRATION_LIMIT: int = 15
+
+    # A tour ends itself (mobile auto-completes, same path as the manual
+    # "End Tour" button) once it reaches this many blocks. Free and premium
+    # get different tour LENGTHS, not just different daily frequencies — see
+    # ActiveTourScreen.tsx's MAX_BLOCKS, which must match these two values.
+    FREE_TOUR_BLOCK_LIMIT: int = 5
+    PREMIUM_TOUR_BLOCK_LIMIT: int = 12
 
     # Below this fraction of eligible sources actually returning data, a
     # zone gets flagged as "low info" on the Home map (see
@@ -101,6 +105,18 @@ class Settings(BaseSettings):
     # calibrate against. Revisit once enough zones have real numbers on
     # file.
     LOW_INFO_RATIO_THRESHOLD: float = 0.3
+
+    # At or above this fraction of eligible sources hitting, a zone's
+    # zone_data bundle already has enough real facts that the narration
+    # call skips OpenAI's web_search tool entirely (a separate billed
+    # per-call cost) — see zone_data.should_skip_web_search(). Set higher
+    # than LOW_INFO_RATIO_THRESHOLD deliberately: "not flagged as thin on
+    # the map" and "rich enough to trust without a live search" are
+    # different bars, and conflating them would mean any zone that merely
+    # clears the low-info floor silently loses its web-search grounding.
+    # A starting guess, not derived from real data — revisit once there's
+    # real signal on how narration quality changes with this on vs off.
+    WEB_SEARCH_SKIP_MIN_HIT_RATIO: float = 0.5
 
     # /ask-question has zero caching (fresh Whisper + GPT + TTS on every
     # single call, unlike narrate-block which reuses cached audio for a

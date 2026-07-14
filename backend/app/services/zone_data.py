@@ -191,6 +191,27 @@ def is_low_info(hit_count: int, eligible_count: int) -> bool:
     return (hit_count / eligible_count) < settings.LOW_INFO_RATIO_THRESHOLD
 
 
+def should_skip_web_search(hit_count, eligible_count) -> bool:
+    """
+    Whether the narration call can skip OpenAI's web_search tool (a
+    separate billed per-call cost) because zone_data already has enough
+    real facts on its own.
+
+    hit_count/eligible_count are the same signal is_low_info() uses, but
+    this is NOT simply "not low info" — eligible_count<=0 or a missing
+    (None) count means richness is unknown (e.g. a zone_data_cache row
+    persisted before sources_hit_count existed), and the safe default for
+    "unknown" is to keep web_search on, not skip it. is_low_info() returns
+    False for eligible_count<=0 for a different reason (don't flag an
+    unscorable zone on the map) — inverting that here would have skipped
+    web_search for exactly the zones with the least certain data, so this
+    is written as its own explicit check rather than `not is_low_info(...)`.
+    """
+    if hit_count is None or eligible_count is None or eligible_count <= 0:
+        return False
+    return (hit_count / eligible_count) >= settings.WEB_SEARCH_SKIP_MIN_HIT_RATIO
+
+
 def format_zone_data_for_prompt(zone_data: dict) -> str:
     """
     Convert the raw zone data dict into a readable string for the narration prompt.

@@ -538,7 +538,13 @@ def _format_generic(data: list) -> str:
                          # covers Brussels' matching field name
                          "common_name", "genus_name",
                          # Brussels (OpenDataSoft, French field name)
-                         "address_fr"]:
+                         "address_fr",
+                         # 18-city OpenDataSoft batch — tree species/name
+                         # fields across France/Belgium/Sweden
+                         "nom_vernaculaire", "nom_latin", "lib_espece",
+                         "lib_genre", "straatnaam", "sortiment",
+                         "tree_species", "genespvar", "vernaculaire",
+                         "adresse_du_terrain", "nature_de_l_acte"]:
                 val = item.get(key, "")
                 if val and str(val).strip():
                     parts.append(f"{key}: {str(val)[:100]}")

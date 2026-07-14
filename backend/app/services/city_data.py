@@ -14,7 +14,11 @@ matching query helper — adding a new platform means one new query
 function, not a rewrite of the registry shape.
 
 Currently covers New York City, Chicago, Los Angeles, Seattle, Austin
-(Socrata) and Paris, Vancouver, Brussels (OpenDataSoft).
+(Socrata) and 21 OpenDataSoft cities across 8 countries: Paris, Nantes,
+Angers, Rennes, Strasbourg, Tours, Issy-les-Moulineaux (France), Vancouver
+(Canada), Brussels, Namur, Liège, Gent (Belgium), Leicester (UK), Umeå
+(Sweden), Bologna (Italy), Potsdam (Germany), Salinas, Long Beach,
+Jersey City, Morrisville, Cary (USA).
 
 Dataset IDs verified live against each city's open data portal (each
 checked with a real API request, not assumed from documentation):
@@ -89,23 +93,73 @@ Checked and deliberately excluded (verified live, not a fit):
   `fetch_uk_planning_data`, UK-wide sources, not part of this per-city
   registry.)
 
-OpenDataSoft cities — verified live against each city's own API
-(OpenDataSoft itself publishes a live directory of every city running
-their platform, 53 cities at last count — these 3 were picked as
-globally-recognizable, verified candidates from that real list, not
-guessed):
+OpenDataSoft cities — OpenDataSoft itself publishes a live directory of
+every city running their platform (53 cities at last count, queried
+directly, not guessed). All 53 were checked with an automated script
+(catalog search for tree/permit keywords in English + likely local
+language, then a real geo-distance test query) — but the *raw* script
+output was NOT trusted directly: reviewing all 34 initial "hits" by hand
+found roughly half were false positives or mislabeled (a keyword search
+matching a dataset's metadata text doesn't mean the dataset is actually
+about that category). Only entries confirmed to be genuinely about trees
+or building/urbanism permits — not just keyword-adjacent — made it into
+the registry below. 21 cities total (Paris/Vancouver/Brussels from the
+prior pass, +18 here):
 - Paris: Les arbres (street trees) — les-arbres, 1,429 hits within 500m
   of central Paris. Autorisations d'urbanisme récentes (recent building/
   urban-planning authorizations, the building_permits equivalent) —
   dossiers-recents-durbanisme.
 - Vancouver: public-trees — refreshes daily on weekdays, confirmed real
-  species-level records (e.g. European Beech with height/diameter) near
-  downtown.
+  species-level records (e.g. European Beech with height/diameter).
 - Brussels: arbres-bomen-vbx-be-bm — bilingual (French/Dutch) tree
   dataset, confirmed real records (e.g. Ginkgo biloba near Grand Place).
-  Note: Nominatim geocodes this city as "Bruxelles - Brussel", not the
-  English "Brussels" — the registry key is "brussel" for that reason,
-  confirmed via a live reverse-geocode check, not assumed.
+- Namur, Umeå, Nantes, Bologna: both categories verified real (Umeå's
+  bygglov-inkomna-arenden = "building permit applications received";
+  Bologna's permessi-di-costruire-rilasciati literally means "building
+  permits issued").
+- Leicester, Angers, Rennes, Salinas, Long Beach, Jersey City, Potsdam,
+  Gent, Liège, Tours: street_trees only (no permit-equivalent dataset
+  survived review for these).
+- Morrisville, Cary, Strasbourg: building_permits only.
+- Issy-les-Moulineaux: both categories, but with a caveat — this city's
+  own OpenDataSoft-directory geopoint reverse-geocodes to neighboring
+  Sèvres (a boundary-precision quirk, confirmed live), and Tours'
+  geopoint similarly resolves to neighboring Fondettes. Both registry
+  keys use the *correct* intended city name (the datasets are genuinely
+  named after and about Issy-les-Moulineaux/Tours), not the mismatched
+  centroid result — a real coordinate inside either city should still
+  geocode correctly; only the one directory centroid point happened to
+  sit near a boundary.
+- Accent handling: Nominatim returns some of these cities with their
+  native diacritics (Liège, Umeå) — `_match_city` now strips accents on
+  both sides of the comparison (`_strip_accents`) rather than requiring
+  registry keys to be hand-typed with the exact right accented
+  characters, which is fragile and was already a source of real bugs
+  during this verification pass (console/file encoding mangled several
+  names before the underlying JSON was read directly).
+
+Checked and rejected (verified live, not a fit — kept here so the
+research isn't silently redone later): Basel (dataset was an events/
+schedule table, not trees), Greater Geelong (yearly aggregate counts,
+no per-location records), Toulouse (both "hits" were a weather station
+and aggregate planting statistics), Fleury-sur-Orne (public poster-board
+locations, not permits), Würzburg (a hiking-trail dataset, not trees),
+Cachan (green-space polygons + a subsidy table, neither a fit),
+Eindhoven (green-zone polygons + parking-permit zones, not building
+permits), Aix-en-Provence (the French national business registry, not
+permits), Bordeaux (both "hits" were generic zoning-plan-document
+metadata layers, no individual permit records), Saint-Maur-des-Fossés
+(a public-procurement dataset + an address database, neither trees nor
+permits), Valenciennes/Chateauroux/Saint-Louis (zoning-document
+reference layers only — real and geo-queryable, but no permit-specific
+content like dates/applicants/addresses, so excluded on the same bar
+used elsewhere). Also rejected per-category on otherwise-valid cities:
+Leicester's "building_permits" match was actually an environmental
+(waste/pollution) permits dataset; Rennes' matched permits dataset is
+scoped to neighboring Cesson-Sévigné, not Rennes itself; Liège's
+"building_permits" match was literally the same tree dataset ID as its
+street_trees entry (a duplicate, not a second real category); Tours' and
+Potsdam's permit matches were zoning-document-only, same bar as above.
 
 All OpenDataSoft entries use the exact `geofilter.distance` query shape
 already proven live by `fetch_unesco_heritage`, just against each city's
@@ -113,6 +167,7 @@ own OpenDataSoft domain instead of data.unesco.org.
 """
 
 import logging
+import unicodedata
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -195,13 +250,128 @@ CITY_DATASETS = {
         "domain": "opendata.brussels.be",
         "street_trees": "arbres-bomen-vbx-be-bm",
     },
+    "namur": {
+        "platform": "opendatasoft",
+        "domain": "data.namur.be",
+        "street_trees": "nat_arbres_projet",
+        "building_permits": "liste-urbanisme-urbaweb-permis-graphique",
+    },
+    "leicester": {
+        "platform": "opendatasoft",
+        "domain": "data.leicester.gov.uk",
+        "street_trees": "tree_preservation_order",
+    },
+    "angers": {
+        "platform": "opendatasoft",
+        "domain": "data.angers.fr",
+        "street_trees": "arbre-signal-angers",
+    },
+    "umea": {
+        "platform": "opendatasoft",
+        "domain": "opendata.umea.se",
+        "street_trees": "trad-som-forvaltas-av-gator-och-parker",
+        "building_permits": "bygglov-inkomna-arenden",
+    },
+    "morrisville": {
+        "platform": "opendatasoft",
+        "domain": "opendata.townofmorrisville.org",
+        "building_permits": "tom_permit_data",
+    },
+    "rennes": {
+        "platform": "opendatasoft",
+        "domain": "data.rennesmetropole.fr",
+        "street_trees": "mce_arbre_remarquable",
+    },
+    "cary": {
+        "platform": "opendatasoft",
+        "domain": "data.townofcary.org",
+        "building_permits": "permit-inspections",
+    },
+    "salinas": {
+        "platform": "opendatasoft",
+        "domain": "cityofsalinas.opendatasoft.com",
+        "street_trees": "tree-inventory",
+    },
+    "nantes": {
+        "platform": "opendatasoft",
+        "domain": "data.nantesmetropole.fr",
+        "street_trees": "244400404_patrimoine-arbore-nantes-metropole",
+        "building_permits": "244400404_demandes-autorisations-decisions-urbanisme-nantes-metropole",
+    },
+    # Nominatim returns this as "Long Beach" (two words) — "long beach"
+    # used rather than a shorter fragment to avoid any collision risk.
+    "long beach": {
+        "platform": "opendatasoft",
+        "domain": "longbeach.opendatasoft.com",
+        "street_trees": "tree-inventory",
+    },
+    "jersey city": {
+        "platform": "opendatasoft",
+        "domain": "data.jerseycitynj.gov",
+        "street_trees": "tree-planting-locations",
+    },
+    "bologna": {
+        "platform": "opendatasoft",
+        "domain": "opendata.comune.bologna.it",
+        "street_trees": "alberi-manutenzioni",
+        "building_permits": "permessi-di-costruire-rilasciati",
+    },
+    "potsdam": {
+        "platform": "opendatasoft",
+        "domain": "opendata.potsdam.de",
+        "street_trees": "baeume-2-stadtkarte-potsdam",
+    },
+    "strasbourg": {
+        "platform": "opendatasoft",
+        "domain": "data.strasbourg.eu",
+        "building_permits": "publiactes",
+    },
+    "gent": {
+        "platform": "opendatasoft",
+        "domain": "data.stad.gent",
+        "street_trees": "locaties-bomen-gent",
+    },
+    "liege": {
+        "platform": "opendatasoft",
+        "domain": "opendata.liege.be",
+        "street_trees": "arbustum",
+    },
+    # The city's own OpenDataSoft directory geopoint reverse-geocodes to
+    # neighboring Sèvres (a boundary/precision quirk, confirmed live) —
+    # using the correct intended city name here, not the mismatched one,
+    # since the dataset itself is genuinely Issy-les-Moulineaux's own.
+    "issy-les-moulineaux": {
+        "platform": "opendatasoft",
+        "domain": "issy-les-moulineaux.opendatasoft.com",
+        "street_trees": "arbres-remarquables-issy-les-moulineaux",
+        "building_permits": "ilm_grandes_operations0",
+    },
+    # Same directory-geopoint quirk as Issy-les-Moulineaux above — this
+    # city's centroid reverse-geocodes to neighboring Fondettes.
+    "tours": {
+        "platform": "opendatasoft",
+        "domain": "toursmetropole.opendatasoft.com",
+        "street_trees": "arbres-tours",
+    },
 }
+
+
+def _strip_accents(s: str) -> str:
+    """
+    Normalize accented characters to their plain-ASCII equivalent
+    (Châteauroux -> Chateauroux, Würzburg -> Wurzburg, Liège -> Liege,
+    Umeå -> Umea) so registry keys can be written in plain ASCII and
+    still match Nominatim's actual (often accented) geocoded city names.
+    Verifying the 53-city OpenDataSoft batch surfaced this as a real gap
+    — several cities would have silently never matched without it.
+    """
+    return unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
 
 
 def _match_city(city: str):
     if not city:
         return None
-    city_lower = city.lower()
+    city_lower = _strip_accents(city.lower())
     for key, config in CITY_DATASETS.items():
         if key in city_lower:
             return config

@@ -121,7 +121,17 @@ async def store_narration(
     content_safety: bool,
     narration_text: str,
 ):
-    """Store a freshly generated narration in the cache (expires in 30 days)."""
+    """
+    Store a freshly generated narration in the cache (expires in 30 days).
+
+    on_conflict is required here: the table's PRIMARY KEY is a separate
+    `id` UUID, not (geo_hash, mood, content_safety) — without an explicit
+    on_conflict, PostgREST's upsert targets the primary key by default,
+    which a freshly-generated row never collides with, so it silently
+    falls through to a plain INSERT and hits the table's real UNIQUE
+    constraint instead (a real, Sentry-confirmed bug on zone_data_cache's
+    equivalent upsert calls — see store_zone_data/store_zone_image below).
+    """
     expires_at = datetime.now(timezone.utc) + timedelta(days=30)
     try:
         client = _get_client()
@@ -133,7 +143,7 @@ async def store_narration(
                 "content_safety": content_safety,
                 "narration_text": narration_text,
                 "expires_at": expires_at.isoformat(),
-            })
+            }, on_conflict="geo_hash,mood,content_safety")
             .execute()
         )
         if result.data:
@@ -179,7 +189,13 @@ async def store_audio_file(
     duration_ms: int,
     tts_provider: str = "google",
 ):
-    """Store a record of a generated audio file."""
+    """
+    Store a record of a generated audio file.
+
+    on_conflict="narration_cache_id,voice" — same reasoning as
+    store_narration above: the table's PRIMARY KEY is a separate `id`
+    UUID, not the real UNIQUE(narration_cache_id, voice) constraint.
+    """
     expires_at = datetime.now(timezone.utc) + timedelta(days=30)
     try:
         client = _get_client()
@@ -194,7 +210,7 @@ async def store_audio_file(
                 "duration_ms": duration_ms,
                 "tts_provider": tts_provider,
                 "expires_at": expires_at.isoformat(),
-            })
+            }, on_conflict="narration_cache_id,voice")
             .execute()
         )
         if result.data:
@@ -253,6 +269,19 @@ async def store_zone_data(
     Home map — see zone_data.is_low_info(). Optional/nullable so a
     caller that hasn't computed them yet degrades gracefully rather than
     erroring.
+
+    on_conflict="geo_hash" is required — the table's PRIMARY KEY is a
+    separate `id` UUID, not geo_hash (which has its own UNIQUE
+    constraint). Without this, PostgREST's upsert targets the primary
+    key by default, which a freshly-generated row never collides with,
+    so it silently falls through to a plain INSERT — harmless for a
+    genuinely new geohash, but a real bug for two concurrent requests
+    racing to cache the SAME new geohash (e.g. two zone-crossing tours
+    hitting an unvisited zone at once): the second INSERT collides with
+    the first on the real UNIQUE(geo_hash) constraint and fails outright
+    instead of updating. Confirmed live in Sentry — this was the single
+    highest-volume unresolved error in production (~90 occurrences)
+    before this fix.
     """
     expires_at = datetime.now(timezone.utc) + timedelta(days=30)
     try:
@@ -272,7 +301,7 @@ async def store_zone_data(
                 "sources_eligible_count": sources_eligible_count,
                 "sources_skipped": sources_skipped or [],
                 "expires_at": expires_at.isoformat(),
-            })
+            }, on_conflict="geo_hash")
             .execute()
         )
         if result.data:
@@ -329,6 +358,11 @@ async def store_zone_image(geo_hash: str, image_r2_key: str):
     row. expires_at is included (same 30-day window as store_zone_data)
     so this also works standalone if this is the very first time we've
     ever seen this geohash (zone_data_cache.expires_at is NOT NULL).
+
+    on_conflict="geo_hash" — same bug/fix as store_zone_data above (this
+    is a separate upsert against the same table, so it needed the same
+    fix independently). Sentry-confirmed as "Failed to store zone image"
+    (~11 occurrences) before this fix.
     """
     expires_at = datetime.now(timezone.utc) + timedelta(days=30)
     try:
@@ -339,7 +373,7 @@ async def store_zone_image(geo_hash: str, image_r2_key: str):
                 "geo_hash": geo_hash,
                 "image_r2_key": image_r2_key,
                 "expires_at": expires_at.isoformat(),
-            })
+            }, on_conflict="geo_hash")
             .execute()
         )
         if result.data:

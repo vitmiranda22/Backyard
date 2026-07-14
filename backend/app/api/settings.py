@@ -220,18 +220,33 @@ async def get_voice_sample(user_id: AuthenticatedUser, voice: SampleVoice = Quer
 async def get_mood_sample(user_id: AuthenticatedUser, mood: MoodKey = Query(...)):
     is_premium = await supabase_db.get_user_premium_status(user_id)
 
-    # Cache key folds in tier -- premium (ElevenLabs) and free/fallback
-    # (Google TTS) audio for the same mood are NOT interchangeable, same
-    # reasoning as narrate.py's tier-aware narration/audio cache keys.
-    cache_key = f"mood_{mood}" if is_premium else f"mood_{mood}_standard"
-    r2_key = await supabase_db.get_voice_sample_key(cache_key)
+    # Cache key reflects which engine actually produced the audio, NOT
+    # just the requesting user's tier -- premium (ElevenLabs) and
+    # free/fallback (Google TTS) audio for the same mood aren't
+    # interchangeable, same reasoning as narrate.py's tier-aware
+    # narration/audio cache keys. This distinction matters because
+    # ElevenLabs can fail for a premium user too (e.g. account not
+    # upgraded yet, rate limited) -- if that fallback got cached under
+    # the premium key, every future premium request for this mood would
+    # keep serving Google TTS forever, never retrying ElevenLabs once it
+    # starts working. A premium request checks the premium key first,
+    # then falls back to checking the standard key (so a premium user
+    # doesn't regenerate audio a free user already cached).
+    premium_key = f"mood_{mood}"
+    standard_key = f"mood_{mood}_standard"
+
+    r2_key = await supabase_db.get_voice_sample_key(premium_key) if is_premium else None
+    if not r2_key:
+        r2_key = await supabase_db.get_voice_sample_key(standard_key)
 
     if not r2_key:
         phrase = MOOD_SAMPLE_PHRASES.get(mood, MOOD_SAMPLE_PHRASES["time_machine"])
 
         audio_bytes = None
+        used_elevenlabs = False
         if is_premium:
             audio_bytes = await elevenlabs_service.synthesize_mood_preview(phrase, mood)
+            used_elevenlabs = bool(audio_bytes)
         if not audio_bytes:
             # Free tier, or ElevenLabs unavailable/failed for a premium
             # user -- fall back to the same Google TTS mechanism the
@@ -244,6 +259,7 @@ async def get_mood_sample(user_id: AuthenticatedUser, mood: MoodKey = Query(...)
                 status_code=500,
                 detail={"error": "Couldn't generate a mood sample right now.", "code": "sample_failed", "retry": True},
             )
+        cache_key = premium_key if used_elevenlabs else standard_key
         r2_key = f"voice-samples/{cache_key}.mp3"
         if not await r2.upload_audio(audio_bytes, r2_key):
             raise HTTPException(

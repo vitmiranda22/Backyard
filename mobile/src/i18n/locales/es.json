@@ -172,7 +172,8 @@
     "dismissAnswer": "Descartar respuesta",
     "blocksCount": "{{count}} cuadras",
     "autoCompleteFree": "¡Recorrido completo! Vuelve mañana, o mejora a Premium para 3 recorridos al día.",
-    "autoCompletePremium": "¡Recorrido completo! Empieza otro — hasta 3 recorridos al día."
+    "autoCompletePremium": "¡Recorrido completo! Empieza otro — hasta 3 recorridos al día.",
+    "yourGuide": "Tu guía: {{name}}"
   },
   "tourComplete": {
     "finishingUp": "Terminando...",

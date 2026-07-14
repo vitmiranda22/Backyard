@@ -10,6 +10,7 @@ import { View, Text, TouchableOpacity, Pressable, StyleSheet, Alert, Animated, E
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import MapView from "react-native-maps";
+import { Audio } from "expo-av";
 import RoutePolyline from "../components/RoutePolyline";
 import { useZoneTracker } from "../hooks/useZoneTracker";
 import {
@@ -144,6 +145,27 @@ export default function ActiveTourScreen({
 
   // Start tour session on mount
   useEffect(() => {
+    // Plays the guide's intro clip (dark_side/behind_scenes/unfiltered
+    // only) and resolves once it finishes, so block 1's narration never
+    // overlaps it. Resolves immediately (no-op) for moods without a
+    // persona, or if playback fails -- never blocks tour start.
+    async function playGuideIntro(audioUrl: string, guideName?: string | null) {
+      if (guideName) showToast(t("activeTour.yourGuide", { name: guideName }));
+      try {
+        const { sound } = await Audio.Sound.createAsync({ uri: audioUrl }, { shouldPlay: true });
+        await new Promise<void>((resolve) => {
+          sound.setOnPlaybackStatusUpdate((status) => {
+            if (status.isLoaded && status.didJustFinish) {
+              sound.unloadAsync();
+              resolve();
+            }
+          });
+        });
+      } catch (e) {
+        console.warn("Failed to play guide intro (continuing anyway):", e);
+      }
+    }
+
     async function init() {
       try {
         const tour = await startTour(mood, voice, contentSafety);
@@ -152,8 +174,12 @@ export default function ActiveTourScreen({
         startTimeRef.current = Date.now();
         scheduleUnfinishedTourReminder(tour.tour_id);
 
-        // Get initial location and trigger first narration
-        const loc = await getCurrentLocation();
+        // GPS fix happens while the guide intro plays (if any), not
+        // after -- block 1 only starts fetching once both are done.
+        const [loc] = await Promise.all([
+          getCurrentLocation(),
+          tour.intro_audio_url ? playGuideIntro(tour.intro_audio_url, tour.guide_name) : Promise.resolve(),
+        ]);
         setLocation(loc);
         setPath([{ latitude: loc.lat, longitude: loc.lng }]);
         triggerNarration(loc.lat, loc.lng, "auto");

@@ -107,6 +107,10 @@ class StartTourResponse(BaseModel):
     voice: Voice
     tour_type: TourType
     started_at: str
+    # Only set for moods with a named guide persona (see tours.GUIDE_PERSONAS)
+    # -- the mobile client plays this before triggering block 1's narration.
+    intro_audio_url: Optional[str] = None
+    guide_name: Optional[str] = None
 
 
 class SaveBlockRequest(BaseModel):

@@ -38,7 +38,7 @@ from app.models.schemas import (
     ErrorResponse,
 )
 from app.config import PREMIUM_MOODS, PREMIUM_VOICES
-from app.services import supabase_db, r2, richness, zone_data
+from app.services import supabase_db, r2, richness, zone_data, tts
 from app.services.geocode import reverse_geocode
 
 logger = logging.getLogger(__name__)
@@ -46,6 +46,69 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 GEOHASH_PRECISION = 7  # must match backend/app/api/narrate.py
+
+# One named guide persona per premium mood — gives the tour a proper
+# opening instead of the first block's raw narration cold-opening the
+# whole experience with no lead-in (mid-tour blocks get a connector
+# transition; block 1 has nothing to connect to yet). Free moods
+# deliberately have no persona. Fixed name + hand-written intro line
+# (not LLM-generated) so the character is consistent across every tour,
+# and so this costs zero LLM tokens -- just TTS, cached once per
+# (mood, voice) combo and reused forever after (see get_tour_intro).
+GUIDE_PERSONAS = {
+    "dark_side": {
+        "name": "Silas",
+        "intro": (
+            "I'm Silas. I've spent years digging up the stories this city "
+            "would rather forget. Stay close — some of what you're about "
+            "to hear, you won't be able to un-hear."
+        ),
+    },
+    "behind_scenes": {
+        "name": "Roxie",
+        "intro": (
+            "Hey, I'm Roxie — I've got the kind of access publicists lose "
+            "sleep over. Every block on this walk has a story that never "
+            "made the press release. Let's go dig some up."
+        ),
+    },
+    "unfiltered": {
+        "name": "Frankie",
+        "intro": (
+            "I'm Frankie, and I have opinions about every single block "
+            "we're about to walk. Fair warning: I don't do neutral. Let's go."
+        ),
+    },
+}
+
+
+async def _get_tour_intro(mood: str, voice: str):
+    """
+    Get (or generate + cache) this mood's guide intro clip in the
+    walker's chosen voice preset -- reuses the same voice_samples
+    key-value cache as the mood/voice preview clips (settings.py), just
+    a different key namespace. Returns (audio_url, guide_name), both
+    None if this mood has no persona.
+    """
+    persona = GUIDE_PERSONAS.get(mood)
+    if not persona:
+        return None, None
+
+    cache_key = f"guide_intro_{mood}_{voice}"
+    r2_key = await supabase_db.get_voice_sample_key(cache_key)
+
+    if not r2_key:
+        # Persona moods are premium-only (enforced by the caller before
+        # this runs), so this is always the premium TTS tier.
+        audio_bytes = await tts.synthesize_speech(text=persona["intro"], voice=voice, is_premium=True)
+        if not audio_bytes:
+            return None, persona["name"]
+        r2_key = f"guide-intros/{mood}_{voice}.mp3"
+        if not await r2.upload_audio(audio_bytes, r2_key):
+            return None, persona["name"]
+        await supabase_db.store_voice_sample_key(cache_key, r2_key)
+
+    return r2.generate_signed_url(r2_key), persona["name"]
 
 
 def _expected_r2_keys(tour_id: str, lat: float, lng: float, mood: str, voice: str, content_safety: bool):
@@ -137,12 +200,16 @@ async def start_tour(
             },
         )
 
+    intro_audio_url, guide_name = await _get_tour_intro(request.mood.value, request.voice.value)
+
     return StartTourResponse(
         tour_id=tour["id"],
         mood=request.mood,
         voice=request.voice,
         tour_type=request.tour_type,
         started_at=tour["created_at"],
+        intro_audio_url=intro_audio_url,
+        guide_name=guide_name,
     )
 
 

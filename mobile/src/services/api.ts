@@ -156,6 +156,10 @@ export interface StartTourResponse {
   voice: string;
   tour_type: string;
   started_at: string;
+  // Only set for moods with a named guide persona (dark_side, behind_scenes,
+  // unfiltered) -- play this before triggering block 1's narration.
+  intro_audio_url?: string | null;
+  guide_name?: string | null;
 }
 
 export async function startTour(

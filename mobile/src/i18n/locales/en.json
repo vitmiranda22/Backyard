@@ -172,7 +172,8 @@
     "dismissAnswer": "Dismiss answer",
     "blocksCount": "{{count}} blocks",
     "autoCompleteFree": "Tour complete! Come back tomorrow, or upgrade for 3 tours a day.",
-    "autoCompletePremium": "Tour complete! Start another — up to 3 tours a day."
+    "autoCompletePremium": "Tour complete! Start another — up to 3 tours a day.",
+    "yourGuide": "Your guide: {{name}}"
   },
   "tourComplete": {
     "finishingUp": "Finishing up...",

@@ -33,11 +33,12 @@ need no API key. Knowledge Graph reuses your Google Cloud TTS key. TMDb,
 GeoNames, and Europeana each need their own free key/username (optional —
 each source is skipped entirely if its credential is unset).
 
-Plus one country-gated source, `fetch_uk_police_data` — not global, but
-not city-specific either: it's a single API covering all of the UK at
-once, so it lives here rather than in city_data.py's per-city registry.
-Gates itself internally (returns [] with no network call outside the UK)
-rather than needing zone_data.py's task-dict-level gating.
+Plus two country-gated sources, `fetch_uk_police_data` and
+`fetch_uk_planning_data` — not global, but not city-specific either:
+each is a single API covering all of the UK at once, so they live here
+rather than in city_data.py's per-city registry. Both self-gate
+internally (return [] with no network call outside the UK) rather than
+needing zone_data.py's task-dict-level gating.
 """
 
 import datetime
@@ -760,4 +761,61 @@ async def fetch_earthquake_history(lat: float, lng: float, client: httpx.AsyncCl
 
     except Exception as e:
         logger.warning(f"USGS earthquake lookup failed: {e}")
+        return []
+
+
+async def fetch_uk_planning_data(lat: float, lng: float, country: str, client: httpx.AsyncClient) -> list:
+    """
+    UK Planning Data (planning.data.gov.uk) — a separate national API
+    from fetch_uk_police_data, England-wide, covering 100+ planning and
+    heritage datasets through one consistent coordinate-based interface.
+    Confirmed live: a real conservation area ("Trafalgar Square") near
+    central London. Gated on country, same self-gating pattern as the
+    police source — early return outside the UK, no network call.
+
+    Curated to the heritage/character categories most useful for
+    narration (conservation areas, listed buildings, tree preservation
+    zones, article 4 directions, scheduled monuments) — skips green-belt/
+    flood-risk-zone/brownfield-land, which are real planning categories
+    but not narratively interesting.
+
+    Each entity's response includes a large geometry/point WKT field —
+    dropped entirely here, it's irrelevant to the prompt and just bulk.
+    """
+    if not country or "united kingdom" not in country.lower():
+        return []
+
+    try:
+        r = await client.get(
+            "https://www.planning.data.gov.uk/entity.json",
+            params=[
+                ("latitude", lat),
+                ("longitude", lng),
+                ("dataset", "conservation-area"),
+                ("dataset", "listed-building"),
+                ("dataset", "tree-preservation-zone"),
+                ("dataset", "article-4-direction-area"),
+                ("dataset", "scheduled-monument"),
+                ("limit", 8),
+            ],
+            timeout=TIMEOUT,
+        )
+        if r.status_code != 200:
+            return []
+
+        results = []
+        for entity in r.json().get("entities", []):
+            name = entity.get("name", "")
+            dataset = entity.get("dataset", "")
+            if not name:
+                continue
+            results.append({
+                "name": name,
+                "planning_category": dataset.replace("-", " "),
+                "entry_date": entity.get("entry-date", ""),
+            })
+        return results
+
+    except Exception as e:
+        logger.warning(f"UK Planning Data lookup failed: {e}")
         return []

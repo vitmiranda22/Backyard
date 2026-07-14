@@ -14,7 +14,7 @@ matching query helper — adding a new platform means one new query
 function, not a rewrite of the registry shape.
 
 Currently covers New York City, Chicago, Los Angeles, Seattle, Austin
-(Socrata) and Paris (OpenDataSoft).
+(Socrata) and Paris, Vancouver, Brussels (OpenDataSoft).
 
 Dataset IDs verified live against each city's open data portal (each
 checked with a real API request, not assumed from documentation):
@@ -73,23 +73,43 @@ Checked and deliberately excluded (verified live, not a fit):
 - Washington DC: opendata.dc.gov does not respond to Socrata's
   `/resource/*.json` pattern at all (confirmed via direct request) despite
   some documentation suggesting otherwise — not Socrata.
-- London (data.london.gov.uk) and CKAN generally: real and responsive,
-  but CKAN's dataset search returns metadata about datasets, not a direct
+- London (data.london.gov.uk) and CKAN generally: re-checked directly
+  (not just skipped from memory) by probing for a `datastore_active`
+  resource via `package_search` — the flag CKAN uses to mark a resource
+  as live-queryable rather than a static download. Every tree-related
+  result came back as a raw `.xlsx` file with no datastore flag at all.
+  CKAN's dataset search returns metadata about datasets, not a direct
   data-query endpoint — finding an actual geo-queryable resource inside a
-  dataset (does it have "datastore active" status, does it expose lat/lon
-  columns) needs per-dataset digging that Socrata/OpenDataSoft don't
-  require. Deferred, not attempted blind. (London's crime data is covered
-  anyway — see `global_sources.fetch_uk_police_data`, a UK-wide source,
-  not part of this per-city registry.)
+  dataset needs per-dataset digging that Socrata/OpenDataSoft don't
+  require, and integrating a static-file-only portal would mean
+  downloading and parsing whole spreadsheets, a fundamentally heavier
+  pattern than every other source in this codebase. Deferred, not
+  attempted blind. (London's crime data and heritage/planning data are
+  both covered anyway — see `global_sources.fetch_uk_police_data` and
+  `fetch_uk_planning_data`, UK-wide sources, not part of this per-city
+  registry.)
 
-Paris (OpenDataSoft) — verified live against opendata.paris.fr's own API:
-- Les arbres (street trees): les-arbres — 1,429 hits within 500m of
-  central Paris in verification
-- Autorisations d'urbanisme récentes (recent building/urban-planning
-  authorizations — the building_permits equivalent): dossiers-recents-durbanisme
-Both use the exact `geofilter.distance` query shape already proven live
-by `fetch_unesco_heritage`, just against Paris's own OpenDataSoft domain
-instead of data.unesco.org.
+OpenDataSoft cities — verified live against each city's own API
+(OpenDataSoft itself publishes a live directory of every city running
+their platform, 53 cities at last count — these 3 were picked as
+globally-recognizable, verified candidates from that real list, not
+guessed):
+- Paris: Les arbres (street trees) — les-arbres, 1,429 hits within 500m
+  of central Paris. Autorisations d'urbanisme récentes (recent building/
+  urban-planning authorizations, the building_permits equivalent) —
+  dossiers-recents-durbanisme.
+- Vancouver: public-trees — refreshes daily on weekdays, confirmed real
+  species-level records (e.g. European Beech with height/diameter) near
+  downtown.
+- Brussels: arbres-bomen-vbx-be-bm — bilingual (French/Dutch) tree
+  dataset, confirmed real records (e.g. Ginkgo biloba near Grand Place).
+  Note: Nominatim geocodes this city as "Bruxelles - Brussel", not the
+  English "Brussels" — the registry key is "brussel" for that reason,
+  confirmed via a live reverse-geocode check, not assumed.
+
+All OpenDataSoft entries use the exact `geofilter.distance` query shape
+already proven live by `fetch_unesco_heritage`, just against each city's
+own OpenDataSoft domain instead of data.unesco.org.
 """
 
 import logging
@@ -161,6 +181,19 @@ CITY_DATASETS = {
         # names needed, geofilter.distance handles the geo query itself.
         "building_permits": "dossiers-recents-durbanisme",
         "street_trees": "les-arbres",
+    },
+    "vancouver": {
+        "platform": "opendatasoft",
+        "domain": "opendata.vancouver.ca",
+        "street_trees": "public-trees",
+    },
+    # Nominatim returns this city as "Bruxelles - Brussel" (French/Dutch,
+    # no English "Brussels" at all) — confirmed live, hence the "brussel"
+    # substring key rather than the English name.
+    "brussel": {
+        "platform": "opendatasoft",
+        "domain": "opendata.brussels.be",
+        "street_trees": "arbres-bomen-vbx-be-bm",
     },
 }
 

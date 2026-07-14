@@ -106,6 +106,7 @@ async def fetch_all_zone_data(
             "gbif": global_sources.fetch_gbif_occurrences(lat, lng, client),
             "earthquake_history": global_sources.fetch_earthquake_history(lat, lng, client),
             "uk_police": global_sources.fetch_uk_police_data(lat, lng, country, client),
+            "uk_planning": global_sources.fetch_uk_planning_data(lat, lng, country, client),
         })
 
         # --- Other-city Socrata (gated on city match — NYC/Chicago/LA/
@@ -199,6 +200,7 @@ def format_zone_data_for_prompt(zone_data: dict) -> str:
         "city_fire_incidents": ("🔥 FIRE INCIDENTS", _format_generic),
         "city_street_trees": ("🌳 STREET TREES", _format_generic),
         "uk_police": ("🚔 POLICE INCIDENTS (UK-wide)", _format_uk_police),
+        "uk_planning": ("🏛️ PLANNING & HERITAGE DATA (UK-wide)", _format_uk_planning),
     }
 
     for key, (header, formatter) in formatters.items():
@@ -463,6 +465,18 @@ def _format_uk_police(data: list) -> str:
     return "\n".join(lines)
 
 
+def _format_uk_planning(data: list) -> str:
+    lines = []
+    for entity in data[:8]:
+        name = entity.get("name", "")
+        category = entity.get("planning_category", "")
+        line = f"- \"{name}\""
+        if category:
+            line += f" ({category})"
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def _format_city_311(data: list) -> str:
     lines = []
     for c in data[:8]:
@@ -519,7 +533,12 @@ def _format_generic(data: list) -> str:
                          "species",
                          # Paris (OpenDataSoft, French field names)
                          "espece", "libellefrancais", "objet", "adresse",
-                         "type_dossier"]:
+                         "type_dossier",
+                         # Vancouver (OpenDataSoft) — "species" above already
+                         # covers Brussels' matching field name
+                         "common_name", "genus_name",
+                         # Brussels (OpenDataSoft, French field name)
+                         "address_fr"]:
                 val = item.get(key, "")
                 if val and str(val).strip():
                     parts.append(f"{key}: {str(val)[:100]}")

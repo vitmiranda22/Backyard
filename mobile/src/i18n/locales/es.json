@@ -92,7 +92,9 @@
   },
   "moodPicker": {
     "title": "Elige tu experiencia",
-    "subtitle": "Las mismas calles. Historias completamente distintas."
+    "subtitle": "Las mismas calles. Historias completamente distintas.",
+    "previewA11y": "Escuchar la voz de {{mood}}",
+    "couldntPreview": "No se pudo escuchar esa voz — inténtalo de nuevo."
   },
   "voices": {
     "neutral": { "label": "Neutral", "desc": "Narración clara y equilibrada" },

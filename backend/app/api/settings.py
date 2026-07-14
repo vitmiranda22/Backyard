@@ -6,6 +6,7 @@ User settings endpoints.
   DELETE /api/user/account   — Permanently delete the account
   GET    /api/user/stats     — Aggregate stats for gamification badges
   GET    /api/voices/sample  — Preview clip for a narration voice
+  GET    /api/moods/sample   — Preview clip for a mood's distinct voice
 """
 
 import logging
@@ -40,6 +41,22 @@ SAMPLE_PHRASES = {
 }
 
 SampleVoice = Literal["neutral", "dramatic", "warm", "signature"]
+
+# One short, mood-flavored phrase per mood — synthesized once per
+# (mood, tier) combo and cached forever in voice_samples, same pattern as
+# SAMPLE_PHRASES above. Premium hears each mood's distinct ElevenLabs
+# voice (elevenlabs_service.MOOD_VOICE_IDS); everyone else, and any
+# ElevenLabs failure, falls back to the existing Google TTS sample
+# mechanism (tts.synthesize_speech) instead of returning nothing.
+MOOD_SAMPLE_PHRASES = {
+    "time_machine": "Step back in time and see this street as it once was.",
+    "hidden_city": "There's more to this block than meets the eye.",
+    "dark_side": "Every street has its secrets — some darker than others.",
+    "behind_scenes": "Lights, camera, history. Let's go behind the scenes.",
+    "unfiltered": "No filter, no fluff. Just the real story.",
+}
+
+MoodKey = Literal["time_machine", "hidden_city", "dark_side", "behind_scenes", "unfiltered"]
 
 
 @router.get(
@@ -192,3 +209,47 @@ async def get_voice_sample(user_id: AuthenticatedUser, voice: SampleVoice = Quer
         await supabase_db.store_voice_sample_key(voice, r2_key)
 
     return VoiceSampleResponse(voice=voice, audio_url=r2.generate_signed_url(r2_key))
+
+
+@router.get(
+    "/moods/sample",
+    response_model=VoiceSampleResponse,
+    responses={500: {"model": ErrorResponse}},
+    summary="Get a short preview clip for a mood's distinct voice",
+)
+async def get_mood_sample(user_id: AuthenticatedUser, mood: MoodKey = Query(...)):
+    is_premium = await supabase_db.get_user_premium_status(user_id)
+
+    # Cache key folds in tier -- premium (ElevenLabs) and free/fallback
+    # (Google TTS) audio for the same mood are NOT interchangeable, same
+    # reasoning as narrate.py's tier-aware narration/audio cache keys.
+    cache_key = f"mood_{mood}" if is_premium else f"mood_{mood}_standard"
+    r2_key = await supabase_db.get_voice_sample_key(cache_key)
+
+    if not r2_key:
+        phrase = MOOD_SAMPLE_PHRASES.get(mood, MOOD_SAMPLE_PHRASES["time_machine"])
+
+        audio_bytes = None
+        if is_premium:
+            audio_bytes = await elevenlabs_service.synthesize_mood_preview(phrase, mood)
+        if not audio_bytes:
+            # Free tier, or ElevenLabs unavailable/failed for a premium
+            # user -- fall back to the same Google TTS mechanism the
+            # neutral/dramatic/warm samples above already use, rather
+            # than returning nothing.
+            audio_bytes = await tts.synthesize_speech(text=phrase, voice="neutral", is_premium=is_premium)
+
+        if not audio_bytes:
+            raise HTTPException(
+                status_code=500,
+                detail={"error": "Couldn't generate a mood sample right now.", "code": "sample_failed", "retry": True},
+            )
+        r2_key = f"voice-samples/{cache_key}.mp3"
+        if not await r2.upload_audio(audio_bytes, r2_key):
+            raise HTTPException(
+                status_code=500,
+                detail={"error": "Couldn't generate a mood sample right now.", "code": "sample_failed", "retry": True},
+            )
+        await supabase_db.store_voice_sample_key(cache_key, r2_key)
+
+    return VoiceSampleResponse(voice=mood, audio_url=r2.generate_signed_url(r2_key))

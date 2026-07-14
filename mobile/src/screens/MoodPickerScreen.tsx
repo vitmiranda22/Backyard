@@ -3,14 +3,16 @@
 // 2 free modes + 3 premium modes. Tapping a premium mode without an
 // active subscription opens the paywall instead of starting a tour.
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
+import { Audio } from "expo-av";
 import { colors, font, radius } from "../theme";
 import { tap } from "../services/haptics";
+import { showToast } from "../services/toast";
 import { getCurrentLocation } from "../services/location";
-import { getRichness, RichnessInfo } from "../services/api";
+import { getRichness, RichnessInfo, getMoodSample } from "../services/api";
 
 const MODES = [
   { id: "time_machine", emoji: "🕰️", premium: false },
@@ -31,6 +33,8 @@ export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequ
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [richness, setRichness] = useState<RichnessInfo | null>(null);
+  const [previewing, setPreviewing] = useState<string | null>(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
 
   useEffect(() => {
     getCurrentLocation()
@@ -40,7 +44,38 @@ export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequ
         // Silent — the richness caption is a nice-to-have, not worth a
         // toast or blocking mood selection if location isn't available yet.
       });
+
+    return () => {
+      soundRef.current?.unloadAsync();
+    };
   }, []);
+
+  // Premium hears each mood's distinct ElevenLabs voice; everyone else
+  // (and any ElevenLabs failure) gets the same preview via the existing
+  // Google TTS fallback the backend already handles — this button always
+  // does something, never silently fails.
+  async function handlePreview(moodId: string) {
+    tap();
+    if (soundRef.current) {
+      await soundRef.current.unloadAsync();
+      soundRef.current = null;
+    }
+    setPreviewing(moodId);
+    try {
+      const sample = await getMoodSample(moodId);
+      const { sound } = await Audio.Sound.createAsync({ uri: sample.audio_url }, { shouldPlay: true });
+      soundRef.current = sound;
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          setPreviewing(null);
+        }
+      });
+    } catch (e: any) {
+      console.warn("Failed to preview mood:", e.message);
+      showToast(t("moodPicker.couldntPreview"));
+      setPreviewing(null);
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -86,6 +121,16 @@ export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequ
             </View>
             <Text style={styles.modeDesc}>{t(`moods.${mode.id}.desc`)}</Text>
           </View>
+          <TouchableOpacity
+            style={styles.previewBtn}
+            onPress={() => handlePreview(mode.id)}
+            disabled={previewing === mode.id}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel={t("moodPicker.previewA11y", { mood: t(`moods.${mode.id}.label`) })}
+          >
+            <Text style={styles.previewBtnText}>{previewing === mode.id ? "…" : "▶"}</Text>
+          </TouchableOpacity>
         </TouchableOpacity>
       ))}
     </View>
@@ -147,6 +192,21 @@ const styles = StyleSheet.create({
   },
   modeInfo: {
     flex: 1,
+  },
+  previewBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 8,
+  },
+  previewBtnText: {
+    fontSize: 12,
+    color: colors.text,
   },
   labelRow: {
     flexDirection: "row",

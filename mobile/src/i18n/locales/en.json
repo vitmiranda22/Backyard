@@ -92,7 +92,9 @@
   },
   "moodPicker": {
     "title": "Choose your experience",
-    "subtitle": "Same streets. Completely different stories."
+    "subtitle": "Same streets. Completely different stories.",
+    "previewA11y": "Preview {{mood}}'s voice",
+    "couldntPreview": "Couldn't preview that voice — try again."
   },
   "voices": {
     "neutral": { "label": "Neutral", "desc": "Clear and balanced narration" },

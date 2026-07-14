@@ -469,3 +469,9 @@ export interface VoiceSample {
 export async function getVoiceSample(voice: string): Promise<VoiceSample> {
   return authFetch(`/voices/sample?voice=${voice}`);
 }
+
+// Same shape as VoiceSample (voice/audio_url) -- the backend reuses
+// VoiceSampleResponse for both, with `voice` holding the mood id here.
+export async function getMoodSample(mood: string): Promise<VoiceSample> {
+  return authFetch(`/moods/sample?mood=${mood}`);
+}

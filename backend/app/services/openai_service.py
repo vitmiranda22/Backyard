@@ -36,12 +36,18 @@ MODEL = "gpt-4.1-mini"
 # via live A/B testing, does NOT reliably follow "have opinions/personality"
 # instructions once web_search is in play — it defaults to a neutral,
 # encyclopedic report-the-facts register no matter how the prompt is worded.
-# The full gpt-4.1 model handles the same prompt correctly. All 3 premium
-# modes lean hardest on voice over raw fact density, and are already
-# Premium-gated (lower volume, paying tier), so the cost increase is scoped
-# to them rather than applied to the free tier.
+# The full gpt-4.1 model handles the same prompt correctly.
+#
+# Cost tightening: only Unfiltered actually needs gpt-4.1. It's the one
+# mode that's pure voice/opinion with no factual anchor to fall back on,
+# which is exactly what broke on mini. Dark Side and Behind the Scenes
+# both tested well on mini before that fix (real crime case, real film
+# history — both came out distinct and good) — they were moved to
+# gpt-4.1 alongside Unfiltered at the time as a broader-than-necessary
+# fix, not because they needed it. Scoping back down to just Unfiltered
+# cuts gpt-4.1 usage from 3-of-5 moods to 1-of-5.
 PREMIUM_VOICE_MODEL = "gpt-4.1"
-PREMIUM_VOICE_MOODS = {"dark_side", "behind_scenes", "unfiltered"}
+PREMIUM_VOICE_MOODS = {"unfiltered"}
 
 
 def _strip_citations(text: str) -> str:

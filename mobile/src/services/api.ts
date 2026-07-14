@@ -324,6 +324,10 @@ export interface NearbyRoute {
   created_at: string;
   lat: number;
   lng: number;
+  // True when this route's starting zone had unusually few real data
+  // sources come back the last time it was narrated — an automatic
+  // signal, not a user report. See backend zone_data.is_low_info.
+  is_low_info: boolean;
 }
 
 export async function getNearbyRoutes(

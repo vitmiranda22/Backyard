@@ -17,6 +17,9 @@ export const colors = {
   pro: "#1F7A6C",
   proText: "#EAFFF9",
   danger: "#D64545",
+  // "Low info" zone flag on the Home map — deliberately warm/amber, not
+  // danger's red, since this isn't an error state, just a heads-up.
+  lowInfo: "#C9922B",
 };
 
 export const font = {

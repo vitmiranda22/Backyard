@@ -253,6 +253,7 @@ class NearbyRouteSummary(BaseModel):
     created_at: str
     lat: float
     lng: float
+    is_low_info: bool = False
 
 
 class RateTourRequest(BaseModel):

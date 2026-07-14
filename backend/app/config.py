@@ -93,6 +93,15 @@ class Settings(BaseSettings):
     DAILY_NARRATION_LIMIT_PREMIUM: int = 100
     MINUTE_NARRATION_LIMIT: int = 15
 
+    # Below this fraction of eligible sources actually returning data, a
+    # zone gets flagged as "low info" on the Home map (see
+    # zone_data.is_low_info). A starting guess, not derived from real
+    # data — sources_hit_count/sources_eligible_count were never
+    # persisted before this was added, so there's no distribution yet to
+    # calibrate against. Revisit once enough zones have real numbers on
+    # file.
+    LOW_INFO_RATIO_THRESHOLD: float = 0.3
+
     # /ask-question has zero caching (fresh Whisper + GPT + TTS on every
     # single call, unlike narrate-block which reuses cached audio for a
     # revisited zone) — it gets its own tighter daily ceiling instead of

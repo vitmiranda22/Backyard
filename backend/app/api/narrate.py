@@ -246,6 +246,8 @@ async def narrate_block(
             sources_queried = result["sources_queried"]
             sources_failed = result["sources_failed"]
             sources_skipped = result["sources_skipped"]
+            hit_count = result["hit_count"]
+            total = result["total"]
 
             # Format for prompt
             zone_data_str = format_zone_data_for_prompt(raw_data)
@@ -260,6 +262,9 @@ async def narrate_block(
                 raw_data=raw_data,
                 sources_queried=sources_queried,
                 sources_failed=sources_failed,
+                sources_hit_count=hit_count,
+                sources_eligible_count=total - len(sources_skipped),
+                sources_skipped=sources_skipped,
             )
 
             sources_hit = [k for k, v in raw_data.items() if v]

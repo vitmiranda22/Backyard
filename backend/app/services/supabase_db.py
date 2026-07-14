@@ -241,8 +241,19 @@ async def store_zone_data(
     raw_data: dict,
     sources_queried: list,
     sources_failed: list,
+    sources_hit_count: int = None,
+    sources_eligible_count: int = None,
+    sources_skipped: list = None,
 ):
-    """Store zone data bundle in cache (expires in 30 days)."""
+    """
+    Store zone data bundle in cache (expires in 30 days).
+
+    sources_hit_count/sources_eligible_count/sources_skipped (migration
+    013) are the data-richness signal used to flag thin zones on the
+    Home map — see zone_data.is_low_info(). Optional/nullable so a
+    caller that hasn't computed them yet degrades gracefully rather than
+    erroring.
+    """
     expires_at = datetime.now(timezone.utc) + timedelta(days=30)
     try:
         client = _get_client()
@@ -257,6 +268,9 @@ async def store_zone_data(
                 "raw_data": raw_data,
                 "sources_queried": sources_queried,
                 "sources_failed": sources_failed,
+                "sources_hit_count": sources_hit_count,
+                "sources_eligible_count": sources_eligible_count,
+                "sources_skipped": sources_skipped or [],
                 "expires_at": expires_at.isoformat(),
             })
             .execute()
@@ -268,6 +282,42 @@ async def store_zone_data(
     except Exception as e:
         logger.error(f"Failed to store zone data: {e}")
         return None
+
+
+async def get_zone_richness_batch(geo_hashes: list) -> dict:
+    """
+    Look up sources_hit_count/sources_eligible_count for a batch of
+    geohashes in one query — used by GET /routes/nearby to flag "low
+    info" pins on the Home map. geo_hash already has a unique constraint
+    (implicit btree index), so this is a cheap indexed lookup, not a
+    table scan — deliberately not a live aggregate/percentile query
+    across the whole table (see zone_data.is_low_info's docstring for
+    why that's avoided).
+
+    Returns {geo_hash: {"sources_hit_count": int|None, "sources_eligible_count": int|None}},
+    only for rows that actually exist — callers should treat a missing
+    key the same as "unknown, don't flag."
+    """
+    if not geo_hashes:
+        return {}
+    try:
+        client = _get_client()
+        result = (
+            client.table("zone_data_cache")
+            .select("geo_hash, sources_hit_count, sources_eligible_count")
+            .in_("geo_hash", list(set(geo_hashes)))
+            .execute()
+        )
+        return {
+            row["geo_hash"]: {
+                "sources_hit_count": row.get("sources_hit_count"),
+                "sources_eligible_count": row.get("sources_eligible_count"),
+            }
+            for row in (result.data or [])
+        }
+    except Exception as e:
+        logger.error(f"Failed to batch-fetch zone richness: {e}")
+        return {}
 
 
 async def store_zone_image(geo_hash: str, image_r2_key: str):

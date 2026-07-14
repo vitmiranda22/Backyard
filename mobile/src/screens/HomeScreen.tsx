@@ -7,7 +7,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Image } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, Circle } from "react-native-maps";
 import RoutePolyline from "../components/RoutePolyline";
 import {
   requestLocationPermission,
@@ -120,6 +120,24 @@ export default function HomeScreen({
           }}
           showsUserLocation
         >
+          {/* "Low info" zone glow — Uber-surge-style warm tint under any
+              pin whose starting zone came back thin the last time it was
+              narrated (an automatic signal, not a user report). Rendered
+              before the pins so it sits underneath them. Radius is half
+              the ~150m geohash cell the signal is actually keyed to. */}
+          {nearbyRoutes
+            .filter((route) => route.is_low_info)
+            .map((route) => (
+              <Circle
+                key={`${route.tour_id}-low-info`}
+                center={{ latitude: route.lat, longitude: route.lng }}
+                radius={75}
+                fillColor="rgba(201, 146, 43, 0.22)"
+                strokeColor="rgba(138, 94, 21, 0.55)"
+                strokeWidth={1}
+              />
+            ))}
+
           {nearbyRoutes.map((route) => (
             <Marker
               key={route.tour_id}
@@ -134,10 +152,15 @@ export default function HomeScreen({
               onCalloutPress={() => onSelectRoute(route.tour_id)}
               tracksViewChanges={false}
             >
-              <View style={styles.moodPin}>
+              <View style={[styles.moodPin, route.is_low_info && styles.moodPinLowInfo]}>
                 <Text style={styles.moodPinEmoji}>
                   {MOODS.find((m) => m.id === route.mood)?.emoji ?? "🗺️"}
                 </Text>
+                {route.is_low_info && (
+                  <View style={styles.moodPinBadge}>
+                    <Text style={styles.moodPinBadgeText}>!</Text>
+                  </View>
+                )}
               </View>
             </Marker>
           ))}
@@ -248,6 +271,30 @@ const styles = StyleSheet.create({
   },
   moodPinEmoji: {
     fontSize: 17,
+  },
+  moodPinLowInfo: {
+    borderColor: colors.lowInfo,
+    shadowColor: colors.lowInfo,
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+  },
+  moodPinBadge: {
+    position: "absolute",
+    top: -3,
+    right: -3,
+    width: 13,
+    height: 13,
+    borderRadius: 7,
+    backgroundColor: colors.lowInfo,
+    borderWidth: 1.5,
+    borderColor: colors.surface,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  moodPinBadgeText: {
+    fontSize: 8,
+    fontWeight: "800",
+    color: "#fff",
   },
   locationPill: {
     position: "absolute",

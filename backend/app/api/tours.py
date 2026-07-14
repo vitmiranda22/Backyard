@@ -38,7 +38,7 @@ from app.models.schemas import (
     ErrorResponse,
 )
 from app.config import PREMIUM_MOODS, PREMIUM_VOICES
-from app.services import supabase_db, r2, richness
+from app.services import supabase_db, r2, richness, zone_data
 from app.services.geocode import reverse_geocode
 
 logger = logging.getLogger(__name__)
@@ -432,6 +432,27 @@ async def nearby_routes(
         offset_count=offset,
         sort_by=sort_by,
     )
+
+    # Each route only has a centroid lat/lng (no geo_hash column on
+    # tours) — compute it the same way narrate.py does, then one
+    # batched, indexed lookup against zone_data_cache rather than a
+    # per-route query or a tours-table migration.
+    row_geohashes = {
+        r["id"]: geohash2.encode(r.get("lat", 0.0), r.get("lng", 0.0), precision=GEOHASH_PRECISION)
+        for r in rows
+    }
+    richness_by_hash = await supabase_db.get_zone_richness_batch(list(row_geohashes.values()))
+
+    def _is_low_info(tour_id: str) -> bool:
+        richness = richness_by_hash.get(row_geohashes.get(tour_id))
+        if not richness:
+            return False
+        hit = richness.get("sources_hit_count")
+        eligible = richness.get("sources_eligible_count")
+        if hit is None or eligible is None:
+            return False
+        return zone_data.is_low_info(hit, eligible)
+
     return [
         NearbyRouteSummary(
             tour_id=r["id"],
@@ -452,6 +473,7 @@ async def nearby_routes(
             created_at=r["created_at"],
             lat=r.get("lat", 0.0),
             lng=r.get("lng", 0.0),
+            is_low_info=_is_low_info(r["id"]),
         )
         for r in rows
     ]

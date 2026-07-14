@@ -22,6 +22,7 @@ import logging
 import asyncio
 import httpx
 
+from app.config import settings
 from app.services import datasf, global_sources, city_data
 
 logger = logging.getLogger(__name__)
@@ -154,7 +155,40 @@ async def fetch_all_zone_data(
         "sources_queried": sources_queried,
         "sources_failed": sources_failed,
         "sources_skipped": sources_skipped,
+        # Data-richness signal — how much of the pipeline actually returned
+        # something for this exact zone. Previously computed for the log
+        # line above and then discarded; now returned so callers can
+        # persist it (see supabase_db.store_zone_data /
+        # narrate.py's cache-miss path) and, eventually, flag thin zones
+        # on the map. See is_low_info() below for how this gets judged.
+        "hit_count": hit_count,
+        "total": total,
     }
+
+
+def is_low_info(hit_count: int, eligible_count: int) -> bool:
+    """
+    Whether a zone's data turned out thin enough to flag on the map —
+    deliberately named "zone signal" rather than reusing richness.py's
+    "richness tier" language, since that's a different, unrelated concept
+    (a static per-CITY classification for setting expectations before a
+    tour starts, not a per-ZONE measurement of what actually came back).
+
+    eligible_count should already exclude regionally-skipped sources
+    (total minus len(sources_skipped)) — a zone outside the deep-data
+    tier shouldn't be penalized for sources that were never applicable.
+
+    settings.LOW_INFO_RATIO_THRESHOLD is a documented starting guess, not
+    derived from real data — nothing has ever persisted this signal
+    before, so there's no distribution yet to derive a threshold from.
+    Revisit once enough zones have sources_hit_count on file to look at
+    an actual spread, rather than a live aggregate query at request time
+    (richness.py deliberately avoids exactly that, for the same reasons
+    that would apply here).
+    """
+    if eligible_count <= 0:
+        return False
+    return (hit_count / eligible_count) < settings.LOW_INFO_RATIO_THRESHOLD
 
 
 def format_zone_data_for_prompt(zone_data: dict) -> str:

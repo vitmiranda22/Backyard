@@ -20,6 +20,7 @@ import {
   bearingBetween,
   distanceMeters,
   compassLabel,
+  snapToRoad,
 } from "../services/location";
 import { narrateBlock, saveBlock, startTour, askQuestion } from "../services/api";
 import { startRecording, stopRecording, cancelRecording } from "../services/recording";
@@ -187,7 +188,14 @@ export default function ActiveTourScreen({
         // Start watching position for zone changes
         const sub = await watchPosition((lat, lng) => {
           setLocation({ lat, lng });
-          setPath((prev) => [...prev, { latitude: lat, longitude: lng }]);
+
+          // Snapped separately, not awaited here -- zone-crossing/narration
+          // logic below always uses the walker's real raw GPS position;
+          // only the drawn trailing line gets the (best-effort, visual-only)
+          // road-snapped point once it resolves.
+          snapToRoad(lat, lng).then((snapped) => {
+            setPath((prev) => [...prev, { latitude: snapped.lat, longitude: snapped.lng }]);
+          });
 
           const { isNewZone, geoHash } = checkZone(lat, lng);
           if (!isNewZone) return;

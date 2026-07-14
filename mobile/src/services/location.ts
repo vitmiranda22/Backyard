@@ -39,6 +39,34 @@ export async function reverseGeocode(lat: number, lng: number) {
   }
 }
 
+// Snaps a single GPS point onto the nearest real street, for the live
+// trailing-path line only (see ActiveTourScreen's watchPosition callback)
+// -- NOT used for the actual tracked location/zone-crossing logic, which
+// stays on raw GPS. Calls OSRM's free public map-matching server directly
+// from the client, same "no backend round trip" pattern as
+// reverseGeocode above. Returns the original point unchanged on any
+// failure (timeout, network error, no nearby road) — this is a purely
+// visual enhancement, never something that should block or delay the
+// live map from updating.
+export async function snapToRoad(lat: number, lng: number): Promise<{ lat: number; lng: number }> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(`https://router.project-osrm.org/nearest/v1/foot/${lng},${lat}`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    const data = await res.json();
+    const loc = data?.waypoints?.[0]?.location;
+    if (data?.code === "Ok" && Array.isArray(loc) && loc.length === 2) {
+      return { lat: loc[1], lng: loc[0] };
+    }
+    return { lat, lng };
+  } catch {
+    return { lat, lng };
+  }
+}
+
 // Start watching device compass heading — powers the waypoint compass.
 // Returns a subscription you can remove later, same shape as watchPosition.
 export async function watchHeading(callback: (headingDeg: number) => void) {

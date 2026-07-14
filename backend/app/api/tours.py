@@ -38,7 +38,7 @@ from app.models.schemas import (
     ErrorResponse,
 )
 from app.config import PREMIUM_MOODS, PREMIUM_VOICES
-from app.services import supabase_db, r2, richness, zone_data, tts
+from app.services import supabase_db, r2, richness, zone_data, tts, osrm_service
 from app.services.geocode import reverse_geocode
 
 logger = logging.getLogger(__name__)
@@ -388,6 +388,17 @@ async def end_tour(
     if blocks:
         city = blocks[0].get("city", "Unknown")
 
+    # Snap the raw GPS trace onto real streets before saving it, so the
+    # route rendered later (RouteDetailScreen, Home, Replay) never
+    # appears to cut through a building — see osrm_service for the
+    # graceful-fallback-to-raw behavior if the free matching service is
+    # unavailable or can't confidently match this particular trace.
+    path_points = None
+    if request.path:
+        raw_points = [p.model_dump() for p in request.path]
+        snapped_points = await osrm_service.snap_path_to_roads(raw_points)
+        path_points = snapped_points
+
     # Update the tour record
     updated = await supabase_db.end_tour(
         tour_id=request.tour_id,
@@ -399,7 +410,7 @@ async def end_tour(
         center_lng=center_lng,
         city=city,
         location=location,
-        path_points=[p.model_dump() for p in request.path] if request.path else None,
+        path_points=path_points,
     )
 
     if not updated:

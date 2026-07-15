@@ -193,6 +193,12 @@ async def get_voice_sample(user_id: AuthenticatedUser, voice: SampleVoice = Quer
         phrase = SAMPLE_PHRASES.get(voice, SAMPLE_PHRASES["neutral"])
         if voice == "signature":
             audio_bytes = await elevenlabs_service.synthesize_speech(phrase)
+            if not audio_bytes:
+                # ELEVENLABS_VOICE_ID isn't set (or ElevenLabs failed) --
+                # fall back to Google TTS's premium (Journey) voice rather
+                # than failing outright, same graceful-degradation pattern
+                # already used for the per-mood previews.
+                audio_bytes = await tts.synthesize_speech(text=phrase, voice="neutral")
         else:
             audio_bytes = await tts.synthesize_speech(text=phrase, voice=voice)
         if not audio_bytes:

@@ -82,6 +82,7 @@ export default function App() {
   // refreshed whenever the user returns from the Paywall or Voice Picker.
   const [isPremium, setIsPremium] = useState(false);
   const [preferredVoice, setPreferredVoice] = useState("neutral");
+  const [contentSafety, setContentSafety] = useState(false);
   const [screenBeforePaywall, setScreenBeforePaywall] = useState<Screen>("main");
 
   async function refreshSettings() {
@@ -89,6 +90,7 @@ export default function App() {
       const settings = await getSettings();
       setIsPremium(settings.is_premium);
       setPreferredVoice(settings.preferred_voice);
+      setContentSafety(settings.content_safety);
     } catch (e: any) {
       console.warn("Failed to load settings:", e.message);
     }
@@ -285,7 +287,7 @@ export default function App() {
         <ActiveTourScreen
           mood={selectedMood}
           voice={preferredVoice}
-          contentSafety={false}
+          contentSafety={contentSafety}
           isPremium={isPremium}
           onEndTour={(id, blocks, start, path) => {
             setTourId(id);

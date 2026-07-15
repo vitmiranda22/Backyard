@@ -8,6 +8,7 @@ callback) — instead verified against a shared secret configured as this
 webhook's Authorization header value in the RevenueCat dashboard.
 """
 
+import hmac
 import logging
 
 from fastapi import APIRouter, Header, Request
@@ -37,7 +38,8 @@ _REVOKES_PREMIUM = {"EXPIRATION"}
 
 @router.post("/webhooks/revenuecat", include_in_schema=False)
 async def revenuecat_webhook(request: Request, authorization: str = Header(default="")):
-    if not settings.REVENUECAT_WEBHOOK_SECRET or authorization != f"Bearer {settings.REVENUECAT_WEBHOOK_SECRET}":
+    expected = f"Bearer {settings.REVENUECAT_WEBHOOK_SECRET}"
+    if not settings.REVENUECAT_WEBHOOK_SECRET or not hmac.compare_digest(authorization, expected):
         logger.warning("Rejected RevenueCat webhook with invalid/missing auth header")
         return JSONResponse(status_code=401, content={"error": "unauthorized"})
 

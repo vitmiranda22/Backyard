@@ -256,3 +256,30 @@ async def get_bucket_usage() -> dict:
     except Exception as e:
         logger.error(f"Failed to get R2 bucket usage: {e}")
         return {"total_objects": None, "total_mb": None, "by_prefix": {}}
+
+
+async def delete_objects(keys: list) -> int:
+    """
+    Batch-delete R2 objects by key. S3's delete_objects API caps at 1000
+    keys per call, so this chunks automatically. Best-effort — a key
+    that's already gone isn't an error, just doesn't count toward the
+    returned total.
+    """
+    if not keys:
+        return 0
+    try:
+        client = _get_s3_client()
+        deleted = 0
+        for i in range(0, len(keys), 1000):
+            chunk = keys[i:i + 1000]
+            result = await asyncio.to_thread(
+                client.delete_objects,
+                Bucket=settings.R2_BUCKET_NAME,
+                Delete={"Objects": [{"Key": k} for k in chunk]},
+            )
+            deleted += len(result.get("Deleted", []))
+        return deleted
+    except Exception as e:
+        logger.error(f"Failed to batch-delete R2 objects: {e}")
+        return 0
+        return {"total_objects": None, "total_mb": None, "by_prefix": {}}

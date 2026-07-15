@@ -1,0 +1,21 @@
+name: Prune expired cache rows
+
+# narration_cache/zone_data_cache/audio_files all have a 30-day expires_at
+# column that nothing else ever acts on — every cache lookup already treats
+# an expired row as a miss, so this just stops them from sitting in the
+# table (and their R2 objects) forever. Same trigger pattern as
+# keep-alive.yml.
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /api/admin/cleanup-cache
+        run: |
+          curl -sf --max-time 60 -X POST https://backyard-api.onrender.com/api/admin/cleanup-cache \
+            -H "X-Admin-Key: ${{ secrets.ADMIN_SECRET }}"

@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from supabase import create_client, Client
 
 from app.config import settings
+from app.services import r2
 
 logger = logging.getLogger(__name__)
 
@@ -1151,3 +1152,63 @@ async def count_likes() -> int:
     except Exception as e:
         logger.error(f"Admin stats: failed to count likes: {e}")
         return 0
+
+
+# =============================================================================
+# Cache table pruning — narration_cache/zone_data_cache/audio_files all have
+# an expires_at column and index (see 001_initial_schema.sql) that nothing
+# ever actually deletes against; every lookup already filters
+# .gt("expires_at", now), so expired rows are just dead weight, not a
+# correctness issue. Called from a scheduled admin endpoint (see
+# app/api/admin.py), same pattern as the keep-alive GitHub Action.
+# =============================================================================
+
+async def delete_expired_cache_rows() -> dict:
+    """
+    Deletes each table's R2 object(s) first (using the exact keys already
+    on the expiring rows — no bucket scan needed), then the DB rows.
+    tour_blocks.image_r2_key is NOT touched here — that's permanent tour
+    history, not a cache, even though it shares the same column name as
+    zone_data_cache.
+    """
+    try:
+        client = _get_client()
+        now = datetime.now(timezone.utc).isoformat()
+        counts = {}
+
+        expired_zones = (
+            client.table("zone_data_cache").select("id, image_r2_key").lt("expires_at", now).execute()
+        )
+        zone_keys = [z["image_r2_key"] for z in (expired_zones.data or []) if z.get("image_r2_key")]
+        await r2.delete_objects(zone_keys)
+        if expired_zones.data:
+            client.table("zone_data_cache").delete().lt("expires_at", now).execute()
+        counts["zone_data_cache"] = len(expired_zones.data or [])
+
+        # audio_files has ON DELETE CASCADE from narration_cache_id, so
+        # deleting the parent row here also removes its audio_files rows —
+        # but the R2 objects still need deleting first via the join below,
+        # or they'd be orphaned with nothing left pointing at them.
+        expired_narration = client.table("narration_cache").select("id").lt("expires_at", now).execute()
+        expired_ids = [n["id"] for n in (expired_narration.data or [])]
+        if expired_ids:
+            audio_rows = (
+                client.table("audio_files").select("r2_key").in_("narration_cache_id", expired_ids).execute()
+            )
+            await r2.delete_objects([a["r2_key"] for a in (audio_rows.data or []) if a.get("r2_key")])
+            client.table("narration_cache").delete().lt("expires_at", now).execute()
+        counts["narration_cache"] = len(expired_ids)
+
+        # audio_files rows that expired independently of their parent
+        # narration_cache row (which may not have expired yet itself).
+        # Rows already removed by the cascade above won't show up here.
+        expired_audio = client.table("audio_files").select("id, r2_key").lt("expires_at", now).execute()
+        if expired_audio.data:
+            await r2.delete_objects([a["r2_key"] for a in expired_audio.data if a.get("r2_key")])
+            client.table("audio_files").delete().lt("expires_at", now).execute()
+        counts["audio_files"] = len(expired_audio.data or [])
+
+        return counts
+    except Exception as e:
+        logger.error(f"Failed to delete expired cache rows: {e}")
+        return {}

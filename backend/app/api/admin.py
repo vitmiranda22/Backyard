@@ -21,7 +21,7 @@ from fastapi import APIRouter, Header, Request
 from fastapi.responses import JSONResponse, FileResponse
 
 from app.config import settings
-from app.services import admin_stats
+from app.services import admin_stats, supabase_db
 
 logger = logging.getLogger(__name__)
 
@@ -98,3 +98,23 @@ async def get_stats(request: Request, x_admin_key: str = Header(default="")):
 
     stats = await admin_stats.get_dashboard_stats()
     return stats
+
+
+@router.post("/api/admin/cleanup-cache", include_in_schema=False)
+async def cleanup_cache(request: Request, x_admin_key: str = Header(default="")):
+    """
+    Prunes expired rows (and their R2 objects) from narration_cache/
+    zone_data_cache/audio_files — see supabase_db.delete_expired_cache_rows.
+    Called on a schedule by .github/workflows/cleanup-cache.yml, same
+    pattern as keep-alive.yml pinging /health. Reuses ADMIN_SECRET rather
+    than a separate secret — this is a maintenance action, not new exposed
+    data, and a solo-founder app doesn't need a secret per cron job.
+    """
+    if not _is_authorized(x_admin_key):
+        logger.warning(f"Rejected /api/admin/cleanup-cache request from {_client_ip(request)} with invalid/missing X-Admin-Key")
+        _record_failed_attempt(request)
+        return JSONResponse(status_code=401, content={"error": "unauthorized"})
+
+    counts = await supabase_db.delete_expired_cache_rows()
+    logger.info(f"Cache cleanup: {counts}")
+    return {"deleted": counts}

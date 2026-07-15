@@ -20,6 +20,7 @@ import { colors, font, radius } from "../theme";
 import { showToast } from "../services/toast";
 import { tap, success } from "../services/haptics";
 import { track } from "../services/analytics";
+import { maybePromptForReview } from "../services/reviewPrompt";
 
 interface TourCompleteProps {
   tourId: string;
@@ -111,6 +112,10 @@ export default function TourCompleteScreen({
       }
       track("tour_saved", { published: shareAsRoute });
       success();
+      // Fire-and-forget -- checks its own milestone/frequency conditions
+      // and no-ops most of the time; never awaited so it can't delay the
+      // screen transition below.
+      maybePromptForReview();
       if (shareAsRoute) {
         setSaving(false);
         setSaved(true);

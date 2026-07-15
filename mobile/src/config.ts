@@ -35,7 +35,7 @@ export const SENTRY_DSN = "https://49568006e6b19952177c8155c2d48f69@o45117086547
 // posthog.com and paste its key here. A blank value is a no-op (see
 // src/services/analytics.ts). If your project is on PostHog's EU cloud,
 // switch POSTHOG_HOST to "https://eu.i.posthog.com".
-export const POSTHOG_API_KEY = "";
+export const POSTHOG_API_KEY = "phc_sUrUzTDMUktXmGJmPFSU78cMcHvY4KT2uEzJwoNoVRi3";
 export const POSTHOG_HOST = "https://us.i.posthog.com";
 
 // In-app purchases (RevenueCat) — iOS is live (Backyard Pro entitlement,

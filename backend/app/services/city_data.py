@@ -77,18 +77,21 @@ Checked and deliberately excluded (verified live, not a fit):
 - Washington DC: opendata.dc.gov does not respond to Socrata's
   `/resource/*.json` pattern at all (confirmed via direct request) despite
   some documentation suggesting otherwise — not Socrata.
-- London (data.london.gov.uk) and CKAN generally: re-checked directly
-  (not just skipped from memory) by probing for a `datastore_active`
-  resource via `package_search` — the flag CKAN uses to mark a resource
-  as live-queryable rather than a static download. Every tree-related
-  result came back as a raw `.xlsx` file with no datastore flag at all.
-  CKAN's dataset search returns metadata about datasets, not a direct
-  data-query endpoint — finding an actual geo-queryable resource inside a
-  dataset needs per-dataset digging that Socrata/OpenDataSoft don't
-  require, and integrating a static-file-only portal would mean
-  downloading and parsing whole spreadsheets, a fundamentally heavier
-  pattern than every other source in this codebase. Deferred, not
-  attempted blind. (London's crime data and heritage/planning data are
+- London (data.london.gov.uk) and CKAN generally: CLOSED, not just
+  deferred — do not re-evaluate CKAN again without genuinely new
+  information. Re-checked directly (not just skipped from memory) by
+  probing for a `datastore_active` resource via `package_search` — the
+  flag CKAN uses to mark a resource as live-queryable rather than a
+  static download. Every tree-related result came back as a raw `.xlsx`
+  file with no datastore flag at all. CKAN's dataset search returns
+  metadata about datasets, not a direct data-query endpoint — finding an
+  actual geo-queryable resource inside a dataset needs per-dataset
+  digging that Socrata/OpenDataSoft don't require, and integrating a
+  static-file-only portal would mean downloading and parsing whole
+  spreadsheets, a fundamentally different and heavier pattern than every
+  other source in this codebase (all of which are instant geo-queries).
+  This is a structural mismatch with how this module works, not a
+  temporary gap. (London's crime data and heritage/planning data are
   both covered anyway — see `global_sources.fetch_uk_police_data` and
   `fetch_uk_planning_data`, UK-wide sources, not part of this per-city
   registry.)

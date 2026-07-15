@@ -175,8 +175,11 @@ export default function App() {
     async function checkSession() {
       // DEV ONLY: auto sign-in with a test account so we don't have to
       // log in every time while testing. Set DEV_SKIP_LOGIN to false in
-      // src/config.ts to restore the normal login flow.
-      if (DEV_SKIP_LOGIN) {
+      // src/config.ts to restore the normal login flow. Gated on __DEV__
+      // (always false in a release/production build, regardless of
+      // DEV_SKIP_LOGIN's value) so this can never accidentally ship live
+      // and auto-authenticate real users as the shared dev account.
+      if (__DEV__ && DEV_SKIP_LOGIN) {
         try {
           await signIn(DEV_EMAIL, DEV_PASSWORD);
           goToMainOrOnboarding();

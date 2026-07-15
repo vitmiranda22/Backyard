@@ -14,9 +14,6 @@ supabase==2.11.0
 # JWT validation (to verify Supabase auth tokens)
 PyJWT[crypto]==2.11.0
 
-# Used only by test_debug.py for unverified JWT inspection
-python-jose[cryptography]==3.3.0
-
 # Data validation (FastAPI uses this under the hood, we pin it explicitly)
 pydantic==2.10.4
 pydantic-settings==2.7.1

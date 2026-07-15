@@ -22,7 +22,10 @@ export const GPS_INTERVAL_MS = 5000;
 export const REPLAY_PROXIMITY_M = 35;
 
 // --- DEV ONLY: skip the login screen for faster testing ---
-// Set back to false to restore the normal sign-in flow before shipping.
+// App.tsx only honors this when __DEV__ is true, so a release/production
+// build can never accidentally auto-authenticate real users as this
+// shared account regardless of this value — safe to leave true for local
+// dev convenience. Set to false here too if you want it off locally.
 export const DEV_SKIP_LOGIN = true;
 export const DEV_EMAIL = "devtest@backyard.app";
 export const DEV_PASSWORD = "BackyardDev123!";

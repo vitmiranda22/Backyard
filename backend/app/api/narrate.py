@@ -500,10 +500,14 @@ async def narrate_block(
     )
 
 
+MAX_QUESTION_AUDIO_BYTES = 15 * 1024 * 1024  # comfortably under Whisper's 25MB cap
+
+
 @router.post(
     "/ask-question",
     response_model=AskQuestionResponse,
     responses={
+        400: {"model": ErrorResponse},
         403: {"model": ErrorResponse},
         429: {"model": ErrorResponse},
         408: {"model": ErrorResponse},
@@ -578,7 +582,30 @@ async def ask_question(
             },
         )
 
+    # Light validation before spending anything on Whisper — a cost/memory
+    # amplification vector otherwise, since the daily/minute rate limits
+    # above bound call COUNT but not per-call size or type.
+    if audio.content_type and not audio.content_type.startswith("audio/"):
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "That doesn't look like an audio recording.", "code": "invalid_audio_type", "retry": False},
+        )
+
     audio_bytes = await audio.read()
+    if len(audio_bytes) > MAX_QUESTION_AUDIO_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "That recording is too long — try a shorter question.", "code": "audio_too_large", "retry": False},
+        )
+
+    # tour_id is optional, caller-supplied context — validate its shape
+    # before it flows into the R2 key / a DB lookup rather than trusting it.
+    if tour_id is not None:
+        try:
+            uuid.UUID(tour_id)
+        except ValueError:
+            tour_id = None
+
     question_text = await openai_service.transcribe_audio(audio_bytes, audio.filename or "question.m4a")
 
     if not question_text:

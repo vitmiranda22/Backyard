@@ -65,6 +65,29 @@ async def check_rate_limit(user_id: str, minute_limit: int, daily_limit: int) ->
         return True, ""
 
 
+async def check_minute_rate_limit(user_id: str, minute_limit: int) -> tuple:
+    """
+    Same atomic check-and-increment pattern as check_rate_limit, but only
+    touches minute_count — never daily_count. Used by endpoints (like
+    start-tour) that need a generic per-minute abuse guard without eating
+    into the daily narration budget check_rate_limit's callers share. See
+    migrations/016_start_tour_rate_limit.sql. Also fails open on RPC error.
+    """
+    try:
+        client = _get_client()
+        result = client.rpc("check_and_increment_minute_limit", {
+            "p_user_id": user_id,
+            "p_minute_limit": minute_limit,
+        }).execute()
+        if result.data:
+            row = result.data[0]
+            return row["allowed"], row["reason"]
+        return True, ""
+    except Exception as e:
+        logger.error(f"Minute rate limit check failed for {user_id}: {e}")
+        return True, ""
+
+
 async def check_question_rate_limit(user_id: str, daily_limit: int) -> tuple:
     """
     Same atomic check-and-increment pattern as check_rate_limit, but against
@@ -1050,3 +1073,81 @@ async def store_voice_sample_key(voice: str, r2_key: str) -> bool:
     except Exception as e:
         logger.error(f"Failed to store voice sample: {e}")
         return False
+
+
+# =============================================================================
+# Admin dashboard — raw table reads for app/services/admin_stats.py to
+# aggregate. Kept here (not queried directly from admin_stats.py) so every
+# Supabase table access in the codebase goes through this one module.
+# =============================================================================
+
+async def get_all_users_summary() -> list:
+    """id/is_premium/created_at for every user — enough for the admin dashboard's user counts, no PII beyond what's already server-side."""
+    try:
+        client = _get_client()
+        result = client.table("users").select("id, is_premium, created_at").execute()
+        return result.data or []
+    except Exception as e:
+        logger.error(f"Admin stats: failed to fetch users: {e}")
+        return []
+
+
+async def get_all_tours_summary() -> list:
+    """Tour-level fields the admin dashboard aggregates: mood/type/city breakdowns, distance, ratings."""
+    try:
+        client = _get_client()
+        result = client.table("tours").select(
+            "id, mood, tour_type, city, is_public, blocks_visited, total_distance_m, "
+            "avg_rating, rating_count, created_at"
+        ).execute()
+        return result.data or []
+    except Exception as e:
+        logger.error(f"Admin stats: failed to fetch tours: {e}")
+        return []
+
+
+async def get_all_tour_blocks_places() -> list:
+    """neighborhood/street_name for every tour block — the raw material for 'most-visited places'."""
+    try:
+        client = _get_client()
+        result = client.table("tour_blocks").select("neighborhood, street_name").execute()
+        return result.data or []
+    except Exception as e:
+        logger.error(f"Admin stats: failed to fetch tour_blocks: {e}")
+        return []
+
+
+async def count_rows(table: str) -> int:
+    """
+    Generic exact row count for a table — used for cache-table sizes on the
+    admin dashboard. Selects "*" with head=True (HEAD request, no rows
+    returned) rather than a named column, since not every table here uses
+    "id" as its primary key (voice_samples' PK is "voice").
+    """
+    try:
+        client = _get_client()
+        result = client.table(table).select("*", count="exact", head=True).execute()
+        return result.count or 0
+    except Exception as e:
+        logger.error(f"Admin stats: failed to count {table}: {e}")
+        return 0
+
+
+async def count_comments() -> int:
+    try:
+        client = _get_client()
+        result = client.table("comments").select("id", count="exact").limit(1).execute()
+        return result.count or 0
+    except Exception as e:
+        logger.error(f"Admin stats: failed to count comments: {e}")
+        return 0
+
+
+async def count_likes() -> int:
+    try:
+        client = _get_client()
+        result = client.table("tour_likes").select("tour_id", count="exact").limit(1).execute()
+        return result.count or 0
+    except Exception as e:
+        logger.error(f"Admin stats: failed to count likes: {e}")
+        return 0

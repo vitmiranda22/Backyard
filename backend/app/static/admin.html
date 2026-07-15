@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Backyard — Admin</title>
+<style>
+  :root {
+    --bg: #EEF1FB;
+    --surface: #FFFFFF;
+    --surface-alt: #F3F4F9;
+    --border: #E3E5F1;
+    --text: #1B1E27;
+    --muted: #6B7280;
+    --accent: #FF6B4A;
+    --accent-soft: #FFE4DB;
+    --pro: #1F7A6C;
+    --pro-soft: #DEF3EE;
+    --danger: #D64545;
+    --bar-track: #E9EBF6;
+    --shadow: 0 1px 2px rgba(27,30,39,0.04), 0 8px 24px rgba(27,30,39,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #13141C;
+      --surface: #1B1D28;
+      --surface-alt: #20222F;
+      --border: #2B2E3D;
+      --text: #EDEEF5;
+      --muted: #9598AA;
+      --accent: #FF7C5C;
+      --accent-soft: #3A2620;
+      --pro: #34B39C;
+      --pro-soft: #1B3530;
+      --danger: #E86868;
+      --bar-track: #262838;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #13141C; --surface: #1B1D28; --surface-alt: #20222F; --border: #2B2E3D;
+    --text: #EDEEF5; --muted: #9598AA; --accent: #FF7C5C; --accent-soft: #3A2620;
+    --pro: #34B39C; --pro-soft: #1B3530; --danger: #E86868; --bar-track: #262838;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #EEF1FB; --surface: #FFFFFF; --surface-alt: #F3F4F9; --border: #E3E5F1;
+    --text: #1B1E27; --muted: #6B7280; --accent: #FF6B4A; --accent-soft: #FFE4DB;
+    --pro: #1F7A6C; --pro-soft: #DEF3EE; --danger: #D64545; --bar-track: #E9EBF6;
+    --shadow: 0 1px 2px rgba(27,30,39,0.04), 0 8px 24px rgba(27,30,39,0.06);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-variant-numeric: tabular-nums;
+    min-height: 100vh;
+  }
+  .display { font-family: Georgia, "Times New Roman", serif; }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 28px 20px 80px; }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 28px;
+  }
+  header h1 {
+    font-size: 26px;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  header h1 .accent-dot { color: var(--accent); }
+  .header-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  button {
+    font: inherit;
+    cursor: pointer;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    padding: 7px 14px;
+    font-size: 13px;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  button:hover { border-color: var(--accent); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  section { margin-bottom: 32px; }
+  .section-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 12px 2px;
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+  }
+  .kpi-value {
+    font-family: Georgia, serif;
+    font-size: 28px;
+    line-height: 1.1;
+  }
+  .kpi-label { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
+  .kpi-sub { font-size: 12px; color: var(--pro); margin-top: 6px; }
+  .kpi-sub.muted-sub { color: var(--muted); }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 800px) {
+    .two-col { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+  }
+  .card h2 {
+    font-size: 15px;
+    margin: 0 0 14px 0;
+    font-family: Georgia, serif;
+    font-weight: normal;
+  }
+
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 13px; }
+  .bar-row:last-child { margin-bottom: 0; }
+  .bar-name { width: 132px; flex-shrink: 0; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { flex: 1; height: 8px; background: var(--bar-track); border-radius: 5px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--accent); border-radius: 5px; }
+  .bar-count { width: 40px; text-align: right; color: var(--muted); flex-shrink: 0; }
+
+  .rank-list { list-style: none; margin: 0; padding: 0; }
+  .rank-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+  }
+  .rank-list li:last-child { border-bottom: none; }
+  .rank-name { display: flex; gap: 8px; align-items: baseline; }
+  .rank-index { color: var(--muted); font-size: 12px; width: 16px; }
+  .rank-count { color: var(--muted); }
+
+  .pill {
+    display: inline-block;
+    font-size: 11.5px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--pro-soft);
+    color: var(--pro);
+    font-weight: 600;
+  }
+
+  .storage-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .storage-item {
+    background: var(--surface-alt);
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .storage-item .n { font-size: 18px; font-family: Georgia, serif; }
+  .storage-item .l { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .empty-note {
+    color: var(--muted);
+    font-size: 13px;
+    padding: 6px 0;
+  }
+
+  /* --- gate overlay --- */
+  #gate {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 10;
+  }
+  #gate .box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    padding: 28px 26px;
+    width: min(320px, 90vw);
+    text-align: center;
+  }
+  #gate h1 { font-size: 20px; margin: 0 0 6px; }
+  #gate p { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+  #gate input {
+    width: 100%;
+    font: inherit;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+  #gate input:focus-visible, #gate button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #gate button {
+    width: 100%;
+    background: var(--accent);
+    color: #FFFFFF;
+    border: none;
+    padding: 10px 12px;
+    font-weight: 600;
+  }
+  #gate .error { color: var(--danger); font-size: 12.5px; min-height: 16px; margin-top: 8px; }
+
+  #app { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="box">
+    <h1 class="display">Backyard <span style="color:var(--accent)">Admin</span></h1>
+    <p>Enter the admin key to view stats.</p>
+    <input id="key-input" type="password" placeholder="Admin key" autocomplete="off" />
+    <button id="key-submit">Unlock</button>
+    <div class="error" id="key-error"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="wrap">
+    <header>
+      <h1 class="display">Backyard <span class="accent-dot">Admin</span></h1>
+      <div class="header-meta">
+        <span id="updated-at"></span>
+        <button id="refresh-btn">Refresh</button>
+        <button id="lock-btn">Lock</button>
+      </div>
+    </header>
+
+    <section>
+      <p class="section-label">Overview</p>
+      <div class="kpi-grid" id="kpi-grid"></div>
+    </section>
+
+    <section class="two-col">
+      <div class="card">
+        <h2>Tours by mood</h2>
+        <div id="mood-bars"></div>
+      </div>
+      <div class="card">
+        <h2>Engagement</h2>
+        <div class="kpi-grid" id="engagement-grid" style="grid-template-columns: 1fr 1fr;"></div>
+      </div>
+    </section>
+
+    <section class="two-col">
+      <div class="card">
+        <h2>Top cities</h2>
+        <ol class="rank-list" id="top-cities"></ol>
+      </div>
+      <div class="card">
+        <h2>Top neighborhoods</h2>
+        <ol class="rank-list" id="top-neighborhoods"></ol>
+      </div>
+    </section>
+
+    <section>
+      <div class="card">
+        <h2>Top streets narrated</h2>
+        <ol class="rank-list" id="top-streets"></ol>
+      </div>
+    </section>
+
+    <section>
+      <div class="card">
+        <h2>Storage &amp; cache reuse</h2>
+        <p class="section-label" style="margin-top:0">R2 bucket</p>
+        <div class="storage-grid" id="storage-grid"></div>
+        <p class="section-label" style="margin-top:18px">Cache tables (rows)</p>
+        <div class="storage-grid" id="cache-grid"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = "backyard_admin_key";
+  const MOOD_LABELS = {
+    time_machine: "Time Machine",
+    hidden_city: "Hidden City",
+    dark_side: "Dark Side",
+    behind_scenes: "Behind the Scenes",
+    unfiltered: "Unfiltered",
+  };
+
+  const gate = document.getElementById("gate");
+  const app = document.getElementById("app");
+  const keyInput = document.getElementById("key-input");
+  const keyError = document.getElementById("key-error");
+
+  function fmt(n) {
+    if (n === null || n === undefined) return "—";
+    return n.toLocaleString();
+  }
+
+  function pct(n) {
+    if (n === null || n === undefined) return "—";
+    return n + "%";
+  }
+
+  async function fetchStats(key) {
+    const res = await fetch("/api/admin/stats", { headers: { "X-Admin-Key": key } });
+    if (res.status === 401) throw new Error("unauthorized");
+    if (!res.ok) throw new Error("request_failed");
+    return res.json();
+  }
+
+  function renderKpis(data) {
+    const u = data.users, t = data.tours;
+    const grid = document.getElementById("kpi-grid");
+    grid.innerHTML = "";
+    const cards = [
+      [fmt(u.total), "Total users", `+${fmt(u.new_last_7d)} last 7d`],
+      [pct(u.premium_conversion_pct), "Premium conversion", `${fmt(u.premium)} premium / ${fmt(u.free)} free`],
+      [fmt(t.total), "Total tours", `+${fmt(t.today)} today · +${fmt(t.last_7d)} last 7d`],
+      [fmt(t.avg_blocks_visited), "Avg blocks / tour", null],
+      [fmt(t.total_distance_km) + " km", "Total distance walked", null],
+      [pct(t.public_pct), "Tours made public", null],
+    ];
+    for (const [value, label, sub] of cards) {
+      const el = document.createElement("div");
+      el.className = "kpi-card";
+      el.innerHTML = `<div class="kpi-value">${value}</div><div class="kpi-label">${label}</div>` +
+        (sub ? `<div class="kpi-sub">${sub}</div>` : "");
+      grid.appendChild(el);
+    }
+  }
+
+  function renderEngagement(data) {
+    const e = data.engagement;
+    const grid = document.getElementById("engagement-grid");
+    grid.innerHTML = "";
+    const cards = [
+      [e.avg_rating === null ? "—" : e.avg_rating + " ★", "Avg rating"],
+      [fmt(e.total_ratings), "Ratings"],
+      [fmt(e.total_comments), "Comments"],
+      [fmt(e.total_likes), "Likes"],
+    ];
+    for (const [value, label] of cards) {
+      const el = document.createElement("div");
+      el.className = "kpi-card";
+      el.style.boxShadow = "none";
+      el.style.border = "1px solid var(--border)";
+      el.innerHTML = `<div class="kpi-value" style="font-size:20px">${value}</div><div class="kpi-label">${label}</div>`;
+      grid.appendChild(el);
+    }
+  }
+
+  function renderMoodBars(data) {
+    const el = document.getElementById("mood-bars");
+    const entries = Object.entries(data.tours.by_mood);
+    if (!entries.length) {
+      el.innerHTML = '<p class="empty-note">No tours yet.</p>';
+      return;
+    }
+    const max = Math.max(...entries.map(([, c]) => c));
+    el.innerHTML = entries.map(([mood, count]) => {
+      const label = MOOD_LABELS[mood] || mood;
+      const widthPct = Math.max(4, Math.round((count / max) * 100));
+      return `<div class="bar-row">
+        <div class="bar-name">${label}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${widthPct}%"></div></div>
+        <div class="bar-count">${count}</div>
+      </div>`;
+    }).join("");
+  }
+
+  function renderRankList(id, items) {
+    const el = document.getElementById(id);
+    if (!items.length) {
+      el.innerHTML = '<li class="empty-note">Nothing yet.</li>';
+      return;
+    }
+    el.innerHTML = items.map((item, i) => `
+      <li>
+        <span class="rank-name"><span class="rank-index">${i + 1}</span>${item.name}</span>
+        <span class="rank-count">${fmt(item.count)}</span>
+      </li>
+    `).join("");
+  }
+
+  function renderStorage(data) {
+    const s = data.storage;
+    const grid = document.getElementById("storage-grid");
+    if (s.total_objects === null) {
+      grid.innerHTML = '<p class="empty-note">R2 usage unavailable.</p>';
+    } else {
+      const items = [
+        [fmt(s.total_objects), "Objects"],
+        [fmt(s.total_mb) + " MB", "Total size"],
+        ...Object.entries(s.by_prefix || {}).map(([prefix, v]) => [`${fmt(v.objects)} · ${v.mb} MB`, prefix]),
+      ];
+      grid.innerHTML = items.map(([n, l]) => `<div class="storage-item"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("");
+    }
+
+    const cacheGrid = document.getElementById("cache-grid");
+    const c = data.cache;
+    const cacheItems = [
+      [fmt(c.narration_cache_rows), "narration_cache"],
+      [fmt(c.zone_data_cache_rows), "zone_data_cache"],
+      [fmt(c.audio_files_rows), "audio_files"],
+      [fmt(c.voice_samples_rows), "voice_samples"],
+    ];
+    cacheGrid.innerHTML = cacheItems.map(([n, l]) => `<div class="storage-item"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("");
+  }
+
+  function render(data) {
+    renderKpis(data);
+    renderEngagement(data);
+    renderMoodBars(data);
+    renderRankList("top-cities", data.top_cities);
+    renderRankList("top-neighborhoods", data.top_neighborhoods);
+    renderRankList("top-streets", data.top_streets);
+    renderStorage(data);
+    document.getElementById("updated-at").textContent =
+      "Updated " + new Date(data.generated_at).toLocaleTimeString();
+  }
+
+  async function load(key) {
+    const data = await fetchStats(key);
+    render(data);
+  }
+
+  async function unlock(key) {
+    keyError.textContent = "";
+    try {
+      await load(key);
+      localStorage.setItem(STORAGE_KEY, key);
+      gate.style.display = "none";
+      app.style.display = "block";
+    } catch (e) {
+      keyError.textContent = e.message === "unauthorized" ? "Wrong key." : "Couldn't reach the server.";
+    }
+  }
+
+  document.getElementById("key-submit").addEventListener("click", () => {
+    if (keyInput.value.trim()) unlock(keyInput.value.trim());
+  });
+  keyInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && keyInput.value.trim()) unlock(keyInput.value.trim());
+  });
+
+  document.getElementById("refresh-btn").addEventListener("click", async () => {
+    const key = localStorage.getItem(STORAGE_KEY);
+    if (!key) return;
+    try {
+      await load(key);
+    } catch (e) {
+      if (e.message === "unauthorized") {
+        localStorage.removeItem(STORAGE_KEY);
+        app.style.display = "none";
+        gate.style.display = "flex";
+        keyError.textContent = "Key no longer valid — enter it again.";
+      }
+    }
+  });
+
+  document.getElementById("lock-btn").addEventListener("click", () => {
+    localStorage.removeItem(STORAGE_KEY);
+    app.style.display = "none";
+    gate.style.display = "flex";
+    keyInput.value = "";
+    keyInput.focus();
+  });
+
+  const savedKey = localStorage.getItem(STORAGE_KEY);
+  if (savedKey) {
+    unlock(savedKey);
+  } else {
+    keyInput.focus();
+  }
+</script>
+</body>
+</html>

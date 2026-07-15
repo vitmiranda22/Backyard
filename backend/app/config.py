@@ -155,6 +155,14 @@ class Settings(BaseSettings):
     ELEVENLABS_API_KEY: str = ""
     ELEVENLABS_VOICE_ID: str = ""
 
+    # -------------------------------------------------------------------------
+    # Admin dashboard — the shared secret required in the X-Admin-Key header
+    # to read /api/admin/stats. A blank value makes the endpoint reject every
+    # request (same fail-closed pattern as REVENUECAT_WEBHOOK_SECRET above)
+    # rather than silently serve business data to anyone who finds the URL.
+    # -------------------------------------------------------------------------
+    ADMIN_SECRET: str = ""
+
     class Config:
         env_file = ".env"
         # If a .env file doesn't exist, that's fine — vars might come from

@@ -208,3 +208,51 @@ def generate_signed_url(r2_key: str, expires_in: int = 3600):
     except Exception as e:
         logger.error(f"Failed to generate signed URL for {r2_key}: {e}")
         return None
+
+
+async def get_bucket_usage() -> dict:
+    """
+    Total object count + byte size currently stored in the bucket, broken
+    down by top-level prefix (audio/images/questions — see this file's
+    module docstring for the key layout). Paginates through the full
+    listing, so this gets slower as the bucket grows — fine at current
+    scale (thousands of objects), worth caching/scheduling if it ever
+    becomes a bottleneck for the admin dashboard.
+    """
+    try:
+        client = _get_s3_client()
+        by_prefix = {}
+        total_objects = 0
+        total_bytes = 0
+        continuation_token = None
+
+        while True:
+            kwargs = {"Bucket": settings.R2_BUCKET_NAME}
+            if continuation_token:
+                kwargs["ContinuationToken"] = continuation_token
+            page = await asyncio.to_thread(client.list_objects_v2, **kwargs)
+
+            for obj in page.get("Contents", []):
+                total_objects += 1
+                total_bytes += obj["Size"]
+                prefix = obj["Key"].split("/")[0] if "/" in obj["Key"] else "other"
+                bucket = by_prefix.setdefault(prefix, {"objects": 0, "bytes": 0})
+                bucket["objects"] += 1
+                bucket["bytes"] += obj["Size"]
+
+            if page.get("IsTruncated"):
+                continuation_token = page.get("NextContinuationToken")
+            else:
+                break
+
+        return {
+            "total_objects": total_objects,
+            "total_mb": round(total_bytes / (1024 * 1024), 2),
+            "by_prefix": {
+                k: {"objects": v["objects"], "mb": round(v["bytes"] / (1024 * 1024), 2)}
+                for k, v in sorted(by_prefix.items(), key=lambda kv: -kv[1]["bytes"])
+            },
+        }
+    except Exception as e:
+        logger.error(f"Failed to get R2 bucket usage: {e}")
+        return {"total_objects": None, "total_mb": None, "by_prefix": {}}

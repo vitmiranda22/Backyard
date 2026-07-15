@@ -24,7 +24,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 
-from app.api import health, narrate, tours, settings as settings_api, webhooks
+from app.api import health, narrate, tours, settings as settings_api, webhooks, admin
 from app.config import settings
 
 # Crash reporting — sentry_sdk.init() with a blank DSN is a harmless no-op,
@@ -156,6 +156,10 @@ app.include_router(settings_api.router, prefix="/api", tags=["Settings"])
 
 # Third-party webhooks — verified via shared secret, not user auth
 app.include_router(webhooks.router, prefix="/api", tags=["Webhooks"])
+
+# Admin dashboard — verified via shared secret (ADMIN_SECRET), not user auth.
+# Router already defines full paths (/admin, /api/admin/stats), no prefix here.
+app.include_router(admin.router, tags=["Admin"])
 
 
 # =============================================================================

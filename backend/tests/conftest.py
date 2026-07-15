@@ -57,6 +57,25 @@ def client(app) -> TestClient:
     return TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def _default_allow_rate_limits(monkeypatch):
+    """
+    check_minute_rate_limit fails OPEN on a real network/DB error (see its
+    docstring) — a prior test run relied on that + a lucky FK constraint to
+    avoid writing fake test user_ids into production's user_rate_limits
+    table, not on an actual mock. Default every test to "allowed" so
+    nothing here ever depends on a real Supabase call's success/failure
+    shape; tests that specifically want to exercise the 429 path override
+    this explicitly.
+    """
+    from app.services import supabase_db
+
+    async def _allow(*args, **kwargs):
+        return True, ""
+
+    monkeypatch.setattr(supabase_db, "check_minute_rate_limit", _allow)
+
+
 @pytest.fixture
 def auth_as():
     """

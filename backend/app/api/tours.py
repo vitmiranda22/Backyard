@@ -149,6 +149,28 @@ async def list_tours(user_id: AuthenticatedUser):
     ]
 
 
+async def _enforce_minute_rate_limit(user_id: str):
+    """
+    Generic per-minute abuse guard shared by any endpoint that isn't
+    narration itself (start-tour, comments, likes, ratings) — deliberately
+    NOT narrate-block's check_rate_limit, which shares a daily narration-
+    budget counter these endpoints have no business touching. See
+    supabase_db.check_minute_rate_limit's docstring for the full reasoning.
+    """
+    allowed, reason = await supabase_db.check_minute_rate_limit(
+        user_id, minute_limit=settings.MINUTE_NARRATION_LIMIT
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error": "Too many requests — slow down a bit and try again in a moment.",
+                "code": reason,
+                "retry": True,
+            },
+        )
+
+
 @router.post(
     "/start-tour",
     response_model=StartTourResponse,
@@ -169,21 +191,7 @@ async def start_tour(
         f"type={request.tour_type.value}"
     )
 
-    # Generic per-minute abuse guard — see check_minute_rate_limit's
-    # docstring for why this doesn't reuse narrate-block's check_rate_limit
-    # (that one shares the daily narration budget counter).
-    allowed, reason = await supabase_db.check_minute_rate_limit(
-        user_id, minute_limit=settings.MINUTE_NARRATION_LIMIT
-    )
-    if not allowed:
-        raise HTTPException(
-            status_code=429,
-            detail={
-                "error": "Too many requests — slow down a bit and try again in a moment.",
-                "code": reason,
-                "retry": True,
-            },
-        )
+    await _enforce_minute_rate_limit(user_id)
 
     # Defense-in-depth: the client gates premium moods/voices behind a
     # paywall before it ever gets here — see narrate.py's matching check.
@@ -689,11 +697,14 @@ async def delete_tour(tour_id: str, user_id: AuthenticatedUser):
     responses={
         400: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
+        429: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
     summary="Rate a route 1-5 stars",
 )
 async def rate_tour(request: RateTourRequest, user_id: AuthenticatedUser):
+    await _enforce_minute_rate_limit(user_id)
+
     tour = await supabase_db.get_tour(request.tour_id)
     if not tour:
         raise HTTPException(
@@ -775,10 +786,17 @@ async def list_comments(tour_id: str, user_id: AuthenticatedUser):
 @router.post(
     "/tours/{tour_id}/comments",
     response_model=CommentResponse,
-    responses={403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        429: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
     summary="Post a comment on a route",
 )
 async def post_comment(tour_id: str, request: CreateCommentRequest, user_id: AuthenticatedUser):
+    await _enforce_minute_rate_limit(user_id)
+
     tour = await supabase_db.get_tour(tour_id)
     if not tour:
         raise HTTPException(
@@ -811,10 +829,12 @@ async def post_comment(tour_id: str, request: CreateCommentRequest, user_id: Aut
 @router.post(
     "/tours/{tour_id}/like",
     response_model=LikeResponse,
-    responses={403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}},
+    responses={403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 429: {"model": ErrorResponse}},
     summary="Toggle a like on a route",
 )
 async def toggle_like(tour_id: str, user_id: AuthenticatedUser):
+    await _enforce_minute_rate_limit(user_id)
+
     tour = await supabase_db.get_tour(tour_id)
     if not tour:
         raise HTTPException(

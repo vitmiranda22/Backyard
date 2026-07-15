@@ -2,6 +2,9 @@
 venv/
 __pycache__/
 *.pyc
-test_*.py
+# Pre-existing one-off manual verification scripts (hit live prod, hardcode
+# dev credentials) — never tracked, kept local-only on purpose. This does
+# NOT match backend/tests/, which holds the real, tracked pytest suite.
+/scripts/manual_checks/
 test_audio.mp3
 .pytest_cache/

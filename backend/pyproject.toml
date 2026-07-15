@@ -1,0 +1,7 @@
+[tool.pytest.ini_options]
+# Scoped to tests/ only — scripts/manual_checks/ holds pre-existing
+# one-off verification scripts (hit live servers, hardcode dev
+# credentials, no assertions) that must never be pytest-collected.
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

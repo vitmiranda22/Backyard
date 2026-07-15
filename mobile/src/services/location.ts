@@ -49,13 +49,12 @@ export async function reverseGeocode(lat: number, lng: number) {
 // visual enhancement, never something that should block or delay the
 // live map from updating.
 export async function snapToRoad(lat: number, lng: number): Promise<{ lat: number; lng: number }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 3000);
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
     const res = await fetch(`https://router.project-osrm.org/nearest/v1/foot/${lng},${lat}`, {
       signal: controller.signal,
     });
-    clearTimeout(timeout);
     const data = await res.json();
     const loc = data?.waypoints?.[0]?.location;
     if (data?.code === "Ok" && Array.isArray(loc) && loc.length === 2) {
@@ -64,6 +63,8 @@ export async function snapToRoad(lat: number, lng: number): Promise<{ lat: numbe
     return { lat, lng };
   } catch {
     return { lat, lng };
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

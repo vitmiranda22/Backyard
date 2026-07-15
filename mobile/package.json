@@ -31,7 +31,7 @@
     "i18next": "^26.3.6",
     "ngeohash": "^0.6.3",
     "posthog-react-native": "^4.55.0",
-    "react": "^19.1.0",
+    "react": "19.1.0",
     "react-i18next": "^17.0.9",
     "react-native": "0.81.5",
     "react-native-maps": "1.20.1",
@@ -40,6 +40,7 @@
     "react-native-screens": "~4.16.0"
   },
   "devDependencies": {
+    "@testing-library/react-native": "^14.0.1",
     "@types/jest": "29.5.14",
     "@types/ngeohash": "^0.6.8",
     "@types/react": "~19.1.0",
@@ -50,7 +51,10 @@
   "private": true,
   "jest": {
     "preset": "jest-expo",
-    "testPathIgnorePatterns": ["/node_modules/"],
+    "setupFilesAfterEnv": ["<rootDir>/jest.setup.js"],
+    "testPathIgnorePatterns": [
+      "/node_modules/"
+    ],
     "transformIgnorePatterns": [
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)"
     ]

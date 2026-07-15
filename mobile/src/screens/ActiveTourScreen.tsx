@@ -91,6 +91,7 @@ export default function ActiveTourScreen({
   const subscriptionRef = useRef<any>(null);
   const headingSubRef = useRef<any>(null);
   const tourIdRef = useRef<string | null>(null);
+  const pathRef = useRef<{ latitude: number; longitude: number }[]>([]);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Use a ref for isLoading so GPS callbacks always see the current value
@@ -114,10 +115,19 @@ export default function ActiveTourScreen({
   // consulted as a fallback if playback actually errors out.
   const cachedAudioRef = useRef<Record<number, string>>({});
 
-  // Keep tourIdRef in sync
+  // Keep tourIdRef/pathRef in sync — handleEndTour can be called from
+  // inside the watchPosition callback, whose closure is captured once at
+  // mount (subscribed inside the mount-only useEffect below) and never
+  // refreshed. Without these, an auto-completion triggered by a GPS zone
+  // crossing (not the manual End Tour button, whose onPress is rebound
+  // every render) would read tourId/path as they were AT MOUNT — an empty
+  // tour ID and a near-empty path — instead of their current values.
   useEffect(() => {
     tourIdRef.current = tourId;
   }, [tourId]);
+  useEffect(() => {
+    pathRef.current = path;
+  }, [path]);
 
   // Pulse the ask button while recording.
   useEffect(() => {
@@ -392,9 +402,14 @@ export default function ActiveTourScreen({
     if (headingSubRef.current) {
       headingSubRef.current.remove();
     }
-    if (tourId) cancelReminder(tourId);
+    // Refs, not state — this can be called from inside the watchPosition
+    // callback's stale mount-time closure (see the tourIdRef/pathRef sync
+    // effects above), where the state variables would still read their
+    // values from the very first render.
+    const currentTourId = tourIdRef.current;
+    if (currentTourId) cancelReminder(currentTourId);
     resetZones();
-    onEndTour(tourId || "", blocksVisited, startTimeRef.current, path);
+    onEndTour(currentTourId || "", sequenceRef.current, startTimeRef.current, pathRef.current);
   }
 
   const targetBearing =

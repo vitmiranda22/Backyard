@@ -7,7 +7,7 @@ voice_samples doesn't — caught by manual testing that time, pinned here so
 it can't regress silently).
 """
 
-from app.services import admin_stats, supabase_db, r2
+from app.services import admin_stats, supabase_db, r2, revenuecat_service
 
 FAKE_USERS = [
     {"id": "u1", "is_premium": True, "created_at": "2026-07-01T00:00:00+00:00"},
@@ -48,6 +48,7 @@ async def test_dashboard_stats_aggregation(monkeypatch):
     monkeypatch.setattr(supabase_db, "count_likes", _async(3))
     monkeypatch.setattr(supabase_db, "count_rows", _async(10))
     monkeypatch.setattr(r2, "get_bucket_usage", _async({"total_objects": 5, "total_mb": 1.0, "by_prefix": {}}))
+    monkeypatch.setattr(revenuecat_service, "get_overview_metrics", _async({"configured": False}))
 
     stats = await admin_stats.get_dashboard_stats()
 
@@ -81,6 +82,7 @@ async def test_dashboard_stats_handles_empty_data(monkeypatch):
     monkeypatch.setattr(supabase_db, "count_likes", _async(0))
     monkeypatch.setattr(supabase_db, "count_rows", _async(0))
     monkeypatch.setattr(r2, "get_bucket_usage", _async({"total_objects": None, "total_mb": None, "by_prefix": {}}))
+    monkeypatch.setattr(revenuecat_service, "get_overview_metrics", _async({"configured": False}))
 
     stats = await admin_stats.get_dashboard_stats()
 

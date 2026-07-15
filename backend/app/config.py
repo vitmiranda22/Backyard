@@ -147,6 +147,17 @@ class Settings(BaseSettings):
     REVENUECAT_WEBHOOK_SECRET: str = ""
 
     # -------------------------------------------------------------------------
+    # RevenueCat REST API v2 (read-only, for the admin dashboard's revenue
+    # card) — a separate secret key from the webhook secret above. Create at
+    # RevenueCat dashboard > Project Settings > API keys > + New secret API
+    # key, scoped to metrics read-only if that option exists. Project ID is
+    # visible in the dashboard URL. Blank values just make the dashboard
+    # show "not configured" for revenue rather than failing the whole page.
+    # -------------------------------------------------------------------------
+    REVENUECAT_SECRET_API_KEY: str = ""
+    REVENUECAT_PROJECT_ID: str = ""
+
+    # -------------------------------------------------------------------------
     # ElevenLabs — powers only the "Signature" voice's cached preview sample
     # for now (see app/services/elevenlabs_service.py for why it's not yet
     # wired into real narration). Blank values are a no-op — the sample

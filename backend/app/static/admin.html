@@ -128,6 +128,8 @@
   .kpi-label { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
   .kpi-sub { font-size: 12px; color: var(--pro); margin-top: 6px; }
   .kpi-sub.muted-sub { color: var(--muted); }
+  .kpi-card--revenue { border-color: var(--pro); }
+  .kpi-card--revenue .kpi-value { color: var(--pro); }
 
   .two-col {
     display: grid;
@@ -277,6 +279,11 @@
       <div class="kpi-grid" id="kpi-grid"></div>
     </section>
 
+    <section>
+      <p class="section-label">Revenue <span id="revenue-currency"></span></p>
+      <div class="kpi-grid" id="revenue-grid"></div>
+    </section>
+
     <section class="two-col">
       <div class="card">
         <h2>Tours by mood</h2>
@@ -371,6 +378,43 @@
     }
   }
 
+  function renderRevenue(data) {
+    const r = data.revenue || {};
+    const grid = document.getElementById("revenue-grid");
+    const currencyEl = document.getElementById("revenue-currency");
+    grid.innerHTML = "";
+    currencyEl.textContent = "";
+
+    if (!r.configured) {
+      grid.innerHTML = '<p class="empty-note">Not configured — set REVENUECAT_SECRET_API_KEY and REVENUECAT_PROJECT_ID to show revenue here.</p>';
+      return;
+    }
+    if (r.error) {
+      grid.innerHTML = '<p class="empty-note">Couldn\'t reach RevenueCat — check the key/project ID are still valid.</p>';
+      return;
+    }
+
+    currencyEl.textContent = `(${r.currency || "USD"})`;
+    const m = r.metrics || {};
+    const money = (id) => m[id] ? "$" + fmt(m[id].value) : "—";
+    const count = (id) => m[id] ? fmt(m[id].value) : "—";
+
+    const cards = [
+      [money("mrr"), "MRR", "kpi-card--revenue"],
+      [money("revenue"), "Revenue (28d)", ""],
+      [count("active_subscriptions"), "Active subscriptions", ""],
+      [count("active_trials"), "Active trials", ""],
+      [count("new_customers"), "New customers (28d)", ""],
+      [count("active_users"), "Active users (28d)", ""],
+    ];
+    for (const [value, label, extraClass] of cards) {
+      const el = document.createElement("div");
+      el.className = ("kpi-card " + extraClass).trim();
+      el.innerHTML = `<div class="kpi-value">${value}</div><div class="kpi-label">${label}</div>`;
+      grid.appendChild(el);
+    }
+  }
+
   function renderEngagement(data) {
     const e = data.engagement;
     const grid = document.getElementById("engagement-grid");
@@ -451,6 +495,7 @@
 
   function render(data) {
     renderKpis(data);
+    renderRevenue(data);
     renderEngagement(data);
     renderMoodBars(data);
     renderRankList("top-cities", data.top_cities);

@@ -18,7 +18,7 @@ import asyncio
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
-from app.services import supabase_db, r2
+from app.services import supabase_db, r2, revenuecat_service
 
 
 def _parse_ts(value):
@@ -41,7 +41,7 @@ async def get_dashboard_stats() -> dict:
     since_7d = now - timedelta(days=7)
     since_30d = now - timedelta(days=30)
 
-    users, tours, tour_blocks, total_comments, total_likes, storage, cache_counts = await asyncio.gather(
+    users, tours, tour_blocks, total_comments, total_likes, storage, cache_counts, revenue = await asyncio.gather(
         supabase_db.get_all_users_summary(),
         supabase_db.get_all_tours_summary(),
         supabase_db.get_all_tour_blocks_places(),
@@ -54,6 +54,7 @@ async def get_dashboard_stats() -> dict:
             supabase_db.count_rows("audio_files"),
             supabase_db.count_rows("voice_samples"),
         ),
+        revenuecat_service.get_overview_metrics(),
     )
     narration_cache_count, zone_data_cache_count, audio_files_count, voice_samples_count = cache_counts
 
@@ -122,4 +123,5 @@ async def get_dashboard_stats() -> dict:
             "voice_samples_rows": voice_samples_count,
         },
         "storage": storage,
+        "revenue": revenue,
     }

@@ -6,7 +6,7 @@ tour (lost path points, a bogus R2 key accepted, a publish that silently
 no-ops). No prior coverage existed for any of these three endpoints.
 """
 
-from app.services import supabase_db, r2, osrm_service
+from app.services import supabase_db, r2, osrm_service, tts
 
 OWNER_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 OTHER_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
@@ -193,6 +193,58 @@ def test_end_tour_500s_cleanly_when_persistence_fails(app, client, auth_as, monk
     resp = client.post("/api/end-tour", json={"tour_id": TOUR_ID})
 
     assert resp.status_code == 500
+
+
+def test_end_tour_generates_outro_using_last_blocks_voice(app, client, auth_as, monkeypatch):
+    """The outro's voice comes from tour_blocks, not the tour row --
+    tours.voice is accepted by create_tour but never actually persisted
+    (a pre-existing gap), so the last narrated block is the only real
+    source of truth for which voice this tour has used."""
+    monkeypatch.setattr(supabase_db, "get_tour", _async(_own_tour(mood="dark_side")))
+    monkeypatch.setattr(supabase_db, "get_tour_blocks", _async([
+        {"city": "San Francisco", "lat": LAT, "lng": LNG, "neighborhood": "Mission", "voice": "dramatic"},
+        {"city": "San Francisco", "lat": LAT, "lng": LNG, "neighborhood": "Mission", "voice": "dramatic"},
+    ]))
+    monkeypatch.setattr(supabase_db, "end_tour", _async({"id": TOUR_ID}))
+    monkeypatch.setattr(supabase_db, "get_user_premium_status", _async(True))
+
+    captured = {}
+
+    async def _fake_synthesize(text, voice, is_premium):
+        captured["text"] = text
+        captured["voice"] = voice
+        captured["is_premium"] = is_premium
+        return b"fake-mp3-bytes"
+    monkeypatch.setattr(tts, "synthesize_speech", _fake_synthesize)
+    monkeypatch.setattr(r2, "upload_audio", _async(True))
+    monkeypatch.setattr(r2, "generate_signed_url", lambda key: f"https://example.com/{key}")
+    auth_as(app, OWNER_ID)
+
+    resp = client.post("/api/end-tour", json={"tour_id": TOUR_ID})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["outro_audio_url"] == f"https://example.com/guide-outros/{TOUR_ID}.mp3"
+    assert captured["voice"] == "dramatic"
+    assert captured["is_premium"] is True
+    assert "2" in captured["text"]  # references the real block count
+
+
+def test_end_tour_omits_outro_when_no_blocks_visited(app, client, auth_as, monkeypatch):
+    monkeypatch.setattr(supabase_db, "get_tour", _async(_own_tour()))
+    monkeypatch.setattr(supabase_db, "get_tour_blocks", _async([]))
+    monkeypatch.setattr(supabase_db, "end_tour", _async({"id": TOUR_ID}))
+    monkeypatch.setattr(supabase_db, "get_user_premium_status", _async(False))
+
+    def _fail_if_called(*args, **kwargs):
+        raise AssertionError("TTS should not run for a zero-block tour")
+    monkeypatch.setattr(tts, "synthesize_speech", _fail_if_called)
+    auth_as(app, OWNER_ID)
+
+    resp = client.post("/api/end-tour", json={"tour_id": TOUR_ID})
+
+    assert resp.status_code == 200
+    assert resp.json()["outro_audio_url"] is None
 
 
 # --- publish-tour ---

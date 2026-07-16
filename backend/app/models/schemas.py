@@ -166,6 +166,9 @@ class EndTourResponse(BaseModel):
     total_distance_m: Optional[int] = None
     duration_sec: Optional[int] = None
     mood: str
+    # Spoken closing line in the same guide voice as the intro, wrapping
+    # up the walk -- None if TTS failed or the tour had zero blocks.
+    outro_audio_url: Optional[str] = None
 
 
 class TourSummary(BaseModel):

@@ -11,6 +11,9 @@ jest.mock("../../services/toast", () => ({ showToast: jest.fn() }));
 jest.mock("../../services/haptics", () => ({ tap: jest.fn(), success: jest.fn() }));
 jest.mock("../../services/analytics", () => ({ track: jest.fn() }));
 jest.mock("../../services/reviewPrompt", () => ({ maybePromptForReview: jest.fn() }));
+jest.mock("expo-av", () => ({
+  Audio: { Sound: { createAsync: jest.fn() } },
+}));
 
 import TourCompleteScreen from "../TourCompleteScreen";
 import { endTour, publishTour, deleteTour } from "../../services/api";
@@ -44,6 +47,15 @@ describe("TourCompleteScreen", () => {
     jest.clearAllMocks();
     jest.spyOn(Alert, "alert").mockImplementation(() => {});
     jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" } as any);
+    const { Audio } = require("expo-av");
+    (Audio.Sound.createAsync as jest.Mock).mockResolvedValue({
+      sound: {
+        // Resolves playback immediately instead of leaving the real 15s
+        // timeout in playOutro() to fire after the test has finished.
+        setOnPlaybackStatusUpdate: (cb: (status: any) => void) => cb({ isLoaded: true, didJustFinish: true }),
+        unloadAsync: jest.fn().mockResolvedValue(undefined),
+      },
+    });
   });
 
   it("keeps Continue disabled until a title is entered", async () => {
@@ -123,6 +135,29 @@ describe("TourCompleteScreen", () => {
 
     await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("tourComplete.couldntSaveDetails"));
     expect(onDone).toHaveBeenCalled(); // still exits, even on a failed save
+  });
+
+  it("plays the outro audio when end-tour returns one", async () => {
+    mockEndTour.mockResolvedValue({ mood: "dark_side", outro_audio_url: "https://example.com/outro.mp3" });
+    await render(<TourCompleteScreen {...baseProps()} />);
+
+    await waitFor(() => expect(mockEndTour).toHaveBeenCalled());
+    const { Audio } = require("expo-av");
+    await waitFor(() =>
+      expect(Audio.Sound.createAsync).toHaveBeenCalledWith(
+        { uri: "https://example.com/outro.mp3" },
+        { shouldPlay: true }
+      )
+    );
+  });
+
+  it("does not attempt playback when end-tour returns no outro", async () => {
+    mockEndTour.mockResolvedValue({ mood: "time_machine", outro_audio_url: null });
+    await render(<TourCompleteScreen {...baseProps()} />);
+
+    await waitFor(() => expect(mockEndTour).toHaveBeenCalled());
+    const { Audio } = require("expo-av");
+    expect(Audio.Sound.createAsync).not.toHaveBeenCalled();
   });
 
   it("asks for confirmation before discarding, and only deletes on confirm", async () => {

@@ -206,6 +206,7 @@ export interface EndTourResponse {
   total_distance_m: number | null;
   duration_sec: number | null;
   mood: string;
+  outro_audio_url: string | null;
 }
 
 export async function endTour(

@@ -8,7 +8,7 @@ docstring. These tests pin both the 429 behavior and that a legitimate
 request still succeeds.
 """
 
-from app.services import supabase_db
+from app.services import supabase_db, tts, r2
 
 USER_ID = "44444444-4444-4444-4444-444444444444"
 
@@ -35,14 +35,44 @@ def test_start_tour_succeeds_when_under_limit(app, client, auth_as, monkeypatch)
         supabase_db, "create_tour",
         _async({"id": "tour-123", "created_at": "2026-07-15T00:00:00Z"}),
     )
+    monkeypatch.setattr(supabase_db, "get_user_premium_status", _async(False))
+    monkeypatch.setattr(supabase_db, "get_voice_sample_key", _async(None))
+    monkeypatch.setattr(supabase_db, "store_voice_sample_key", _async(True))
+    monkeypatch.setattr(tts, "synthesize_speech", _async(b"fake-mp3-bytes"))
+    monkeypatch.setattr(r2, "upload_audio", _async(True))
+    monkeypatch.setattr(r2, "generate_signed_url", lambda key: f"https://example.com/{key}")
     auth_as(app, USER_ID)
 
-    # time_machine is a free mood with no guide persona (GUIDE_PERSONAS
-    # only covers the 3 premium moods), so _get_tour_intro short-circuits
-    # without needing get_user_premium_status or get_voice_sample_key mocked.
+    # time_machine has no named guide persona (GUIDE_PERSONAS only covers
+    # the 3 premium moods) but does get a generic, unnamed welcome line
+    # (_GENERIC_WELCOMES) -- every mode gets a spoken intro now, only
+    # premium modes get a named character.
     resp = client.post("/api/start-tour", json={"mood": "time_machine"})
 
     assert resp.status_code == 200
     body = resp.json()
     assert body["tour_id"] == "tour-123"
     assert body["guide_name"] is None
+    assert body["intro_audio_url"] == "https://example.com/guide-intros/welcome_time_machine_neutral_free.mp3"
+
+
+def test_start_tour_premium_mode_gets_named_persona_intro(app, client, auth_as, monkeypatch):
+    monkeypatch.setattr(supabase_db, "check_minute_rate_limit", _async((True, "")))
+    monkeypatch.setattr(
+        supabase_db, "create_tour",
+        _async({"id": "tour-456", "created_at": "2026-07-15T00:00:00Z"}),
+    )
+    monkeypatch.setattr(supabase_db, "get_user_premium_status", _async(True))
+    monkeypatch.setattr(supabase_db, "get_voice_sample_key", _async(None))
+    monkeypatch.setattr(supabase_db, "store_voice_sample_key", _async(True))
+    monkeypatch.setattr(tts, "synthesize_speech", _async(b"fake-mp3-bytes"))
+    monkeypatch.setattr(r2, "upload_audio", _async(True))
+    monkeypatch.setattr(r2, "generate_signed_url", lambda key: f"https://example.com/{key}")
+    auth_as(app, USER_ID)
+
+    resp = client.post("/api/start-tour", json={"mood": "dark_side", "voice": "dramatic"})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["guide_name"] == "Silas"
+    assert body["intro_audio_url"] == "https://example.com/guide-intros/dark_side_dramatic.mp3"

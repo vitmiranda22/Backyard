@@ -50,11 +50,13 @@ GEOHASH_PRECISION = 7  # must match backend/app/api/narrate.py
 # One named guide persona per premium mood — gives the tour a proper
 # opening instead of the first block's raw narration cold-opening the
 # whole experience with no lead-in (mid-tour blocks get a connector
-# transition; block 1 has nothing to connect to yet). Free moods
-# deliberately have no persona. Fixed name + hand-written intro line
-# (not LLM-generated) so the character is consistent across every tour,
-# and so this costs zero LLM tokens -- just TTS, cached once per
-# (mood, voice) combo and reused forever after (see get_tour_intro).
+# transition; block 1 has nothing to connect to yet). Fixed name +
+# hand-written intro line (not LLM-generated) so the character is
+# consistent across every tour, and so this costs zero LLM tokens --
+# just TTS, cached once per (mood, voice) combo and reused forever
+# after (see _get_tour_intro). Free moods get the same cold-open fix
+# via _GENERIC_WELCOMES below, deliberately without a named character --
+# personas stay a premium perk, but every tour still gets a proper opening.
 GUIDE_PERSONAS = {
     "dark_side": {
         "name": "Silas",
@@ -81,34 +83,119 @@ GUIDE_PERSONAS = {
     },
 }
 
+# Free-mode opener — same cold-open fix as GUIDE_PERSONAS, deliberately
+# unnamed/no character (that stays a premium perk), just a short line in
+# the mode's own voice so a free tour doesn't jump straight into block 1
+# with zero lead-in either.
+_GENERIC_WELCOMES = {
+    "time_machine": (
+        "Time to collapse a few decades. Every block on this walk hides a "
+        "moment from history, still happening if you know where to look."
+    ),
+    "hidden_city": (
+        "Look closer. Every block on this walk hides something everyone "
+        "else walks straight past — let's go find it."
+    ),
+}
 
-async def _get_tour_intro(mood: str, voice: str):
+# Closing line for end-tour, in the same guide voice as the intro,
+# referencing the real block count so the tour actually ends instead of
+# just stopping. Tour-scoped (the number varies per tour), so unlike the
+# intro this can't be served from the shared voice_samples cache -- see
+# _get_tour_outro.
+_OUTRO_TEMPLATES = {
+    "time_machine": (
+        "That's {blocks} moments back in time, right here on your own "
+        "street. The past isn't gone — it's just waiting for you to look again."
+    ),
+    "hidden_city": (
+        "You just saw {blocks} things everyone else walks past without "
+        "noticing. Once you start looking, you can't stop."
+    ),
+    "dark_side": (
+        "That's {blocks} stories this city tried to bury. I told you — "
+        "you can't un-hear it. Until next time."
+    ),
+    "behind_scenes": (
+        "That's {blocks} stories that never made the press release. "
+        "Not bad for one walk. Catch you next time."
+    ),
+    "unfiltered": (
+        "That's {blocks} blocks, {blocks} opinions, zero regrets. "
+        "Told you I don't do neutral. See you out there."
+    ),
+}
+
+
+async def _get_tour_intro(mood: str, voice: str, is_premium: bool):
     """
-    Get (or generate + cache) this mood's guide intro clip in the
-    walker's chosen voice preset -- reuses the same voice_samples
-    key-value cache as the mood/voice preview clips (settings.py), just
-    a different key namespace. Returns (audio_url, guide_name), both
-    None if this mood has no persona.
+    Get (or generate + cache) this mood's opening clip in the walker's
+    chosen voice preset -- reuses the same voice_samples key-value cache
+    as the mood/voice preview clips (settings.py), just a different key
+    namespace. Returns (audio_url, guide_name); guide_name is None for
+    free modes, which get a welcome line but no named character.
+
+    is_premium picks the TTS tier (Journey vs Standard) -- a premium
+    subscriber gets full-quality audio even on a free mode, same as
+    their block narration does (see narrate.py).
     """
     persona = GUIDE_PERSONAS.get(mood)
-    if not persona:
-        return None, None
+    if persona:
+        text = persona["intro"]
+        guide_name = persona["name"]
+        cache_key = f"guide_intro_{mood}_{voice}"
+        r2_key_name = f"guide-intros/{mood}_{voice}.mp3"
+    else:
+        text = _GENERIC_WELCOMES.get(mood)
+        if not text:
+            return None, None
+        guide_name = None
+        # Free modes are reachable by both free and premium accounts, so
+        # unlike persona intros (premium-only, always the premium TTS
+        # tier) this cache key has to carry the tier too.
+        tier = "premium" if is_premium else "free"
+        cache_key = f"welcome_intro_{mood}_{voice}_{tier}"
+        r2_key_name = f"guide-intros/welcome_{mood}_{voice}_{tier}.mp3"
 
-    cache_key = f"guide_intro_{mood}_{voice}"
     r2_key = await supabase_db.get_voice_sample_key(cache_key)
 
     if not r2_key:
-        # Persona moods are premium-only (enforced by the caller before
-        # this runs), so this is always the premium TTS tier.
-        audio_bytes = await tts.synthesize_speech(text=persona["intro"], voice=voice, is_premium=True)
+        audio_bytes = await tts.synthesize_speech(text=text, voice=voice, is_premium=is_premium)
         if not audio_bytes:
-            return None, persona["name"]
-        r2_key = f"guide-intros/{mood}_{voice}.mp3"
+            return None, guide_name
+        r2_key = r2_key_name
         if not await r2.upload_audio(audio_bytes, r2_key):
-            return None, persona["name"]
+            return None, guide_name
         await supabase_db.store_voice_sample_key(cache_key, r2_key)
 
-    return r2.generate_signed_url(r2_key), persona["name"]
+    return r2.generate_signed_url(r2_key), guide_name
+
+
+async def _get_tour_outro(tour_id: str, mood: str, voice: str, is_premium: bool, blocks_visited: int):
+    """
+    Generates a short spoken closing line wrapping up the tour, in the
+    same voice as the intro -- bookends the walk instead of ending on a
+    silent stats screen. References the real block count, so (unlike the
+    intro) this is fresh TTS per tour rather than served from the shared
+    voice_samples cache -- the same tradeoff narrate.py already makes for
+    a stitched connector block's audio.
+    """
+    if blocks_visited <= 0:
+        return None
+    template = _OUTRO_TEMPLATES.get(mood)
+    if not template:
+        return None
+
+    text = template.format(blocks=blocks_visited)
+    audio_bytes = await tts.synthesize_speech(text=text, voice=voice, is_premium=is_premium)
+    if not audio_bytes:
+        return None
+
+    r2_key = f"guide-outros/{tour_id}.mp3"
+    if not await r2.upload_audio(audio_bytes, r2_key):
+        return None
+
+    return r2.generate_signed_url(r2_key)
 
 
 def _expected_r2_keys(tour_id: str, lat: float, lng: float, mood: str, voice: str, content_safety: bool):
@@ -193,18 +280,21 @@ async def start_tour(
 
     await _enforce_minute_rate_limit(user_id)
 
+    # Computed once up front -- also needed below to pick the intro's TTS
+    # tier, not just for the paywall check.
+    is_premium = await supabase_db.get_user_premium_status(user_id)
+
     # Defense-in-depth: the client gates premium moods/voices behind a
     # paywall before it ever gets here — see narrate.py's matching check.
-    if request.mood.value in PREMIUM_MOODS or request.voice.value in PREMIUM_VOICES:
-        if not await supabase_db.get_user_premium_status(user_id):
-            raise HTTPException(
-                status_code=403,
-                detail={
-                    "error": "This mood or voice is a premium feature. Upgrade to unlock it.",
-                    "code": "premium_required",
-                    "retry": False,
-                },
-            )
+    if (request.mood.value in PREMIUM_MOODS or request.voice.value in PREMIUM_VOICES) and not is_premium:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "This mood or voice is a premium feature. Upgrade to unlock it.",
+                "code": "premium_required",
+                "retry": False,
+            },
+        )
 
     tour = await supabase_db.create_tour(
         creator_id=user_id,
@@ -224,7 +314,7 @@ async def start_tour(
             },
         )
 
-    intro_audio_url, guide_name = await _get_tour_intro(request.mood.value, request.voice.value)
+    intro_audio_url, guide_name = await _get_tour_intro(request.mood.value, request.voice.value, is_premium)
 
     return StartTourResponse(
         tour_id=tour["id"],
@@ -447,6 +537,20 @@ async def end_tour(
             },
         )
 
+    # tours.voice is never actually stored on the tour row (create_tour
+    # takes it but doesn't persist it -- a pre-existing gap, not introduced
+    # here); tour_blocks.voice is, so the last narrated block is the
+    # source of truth for which voice this tour has been using throughout.
+    outro_voice = blocks[-1].get("voice", "neutral") if blocks else "neutral"
+    is_premium = await supabase_db.get_user_premium_status(user_id)
+    outro_audio_url = await _get_tour_outro(
+        tour_id=request.tour_id,
+        mood=tour.get("mood", "time_machine"),
+        voice=outro_voice,
+        is_premium=is_premium,
+        blocks_visited=blocks_visited,
+    )
+
     return EndTourResponse(
         tour_id=request.tour_id,
         title=title,
@@ -454,6 +558,7 @@ async def end_tour(
         total_distance_m=request.total_distance_m,
         duration_sec=request.duration_sec,
         mood=tour.get("mood", "time_machine"),
+        outro_audio_url=outro_audio_url,
     )
 
 

@@ -13,6 +13,7 @@ import {
   Share,
   Alert,
 } from "react-native";
+import { Audio } from "expo-av";
 import { useTranslation } from "react-i18next";
 import { endTour, publishTour, deleteTour } from "../services/api";
 import TourStatsGrid from "../components/TourStatsGrid";
@@ -28,6 +29,42 @@ interface TourCompleteProps {
   startTime: number;
   path: { lat: number; lng: number }[];
   onDone: () => void;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out`)), ms)),
+  ]);
+}
+
+// Plays the tour's closing line in the background while the walker is
+// naming their tour -- fire-and-forget, same timeout-guarded shape as
+// ActiveTourScreen's guide-intro playback (a field-tested bug there: an
+// unbounded load hang reads identically to "no audio", so bound it).
+async function playOutro(audioUrl: string) {
+  let sound: Audio.Sound | null = null;
+  try {
+    sound = await withTimeout(
+      Audio.Sound.createAsync({ uri: audioUrl }, { shouldPlay: true }).then((r) => r.sound),
+      8000,
+      "tour outro load"
+    );
+    await withTimeout(
+      new Promise<void>((resolve) => {
+        sound!.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            resolve();
+          }
+        });
+      }),
+      15000,
+      "tour outro playback"
+    );
+  } catch (e) {
+    console.warn("Failed to play tour outro (continuing anyway):", e);
+  }
+  sound?.unloadAsync().catch(() => {});
 }
 
 export default function TourCompleteScreen({
@@ -70,6 +107,11 @@ export default function TourCompleteScreen({
           distance_m: distanceM,
           duration_sec: durationSec,
         });
+        // Fire-and-forget -- plays alongside the naming step below rather
+        // than blocking it, same as the block below not awaiting it.
+        if (result.outro_audio_url) {
+          playOutro(result.outro_audio_url);
+        }
       } catch (e) {
         console.error("Failed to end tour:", e);
       }

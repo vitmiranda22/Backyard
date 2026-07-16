@@ -68,3 +68,58 @@ def test_empty_zone_data_returns_fallback_message():
     formatted = zone_data.format_zone_data_for_prompt({})
 
     assert formatted == "No specific data found for this location from public databases."
+
+
+def test_dark_side_promotes_police_and_fire_ahead_of_tier_1_with_relaxed_cap():
+    data = {
+        "landmarks": [{"name": "Old City Hall", "description": "Built in 1899"}],
+        "police_incidents": [{"category": f"Incident {i}"} for i in range(8)],
+    }
+
+    default_formatted = zone_data.format_zone_data_for_prompt(data)
+    dark_side_formatted = zone_data.format_zone_data_for_prompt(data, mode="dark_side")
+
+    # Default (no mode / any non-promoting mode): Tier 1 leads, police capped at 3.
+    assert default_formatted.index("HISTORIC LANDMARKS") < default_formatted.index("POLICE INCIDENTS")
+    default_incidents = [l for l in default_formatted.splitlines() if l.startswith("- category:")]
+    assert len(default_incidents) == 3
+
+    # dark_side: police jumps ahead of Tier 1, and the cap relaxes to 8.
+    assert dark_side_formatted.index("POLICE INCIDENTS") < dark_side_formatted.index("HISTORIC LANDMARKS")
+    dark_side_incidents = [l for l in dark_side_formatted.splitlines() if l.startswith("- category:")]
+    assert len(dark_side_incidents) == 8
+
+
+def test_hidden_city_promotes_311_but_still_suppresses_permits():
+    data = {
+        "landmarks": [{"name": "Old City Hall", "description": "Built in 1899"}],
+        "complaints_311": [
+            {"category": "Noise", "descriptor": f"Complaint {i}", "opened": "2024-01-01"}
+            for i in range(8)
+        ],
+        "building_permits": [
+            {"description": "Erect type 1 four-story mixed-use building", "block": "3512"},
+        ],
+    }
+
+    formatted = zone_data.format_zone_data_for_prompt(data, mode="hidden_city")
+
+    # 311 complaints promoted ahead of Tier 1, with the relaxed cap.
+    assert formatted.index("311 COMPLAINTS") < formatted.index("HISTORIC LANDMARKS")
+    complaint_lines = [l for l in formatted.splitlines() if l.startswith("- [2024-01-01] Noise:")]
+    assert len(complaint_lines) == 8
+
+    # Permits are never promoted, even for hidden_city — still last, still tight cap.
+    assert formatted.index("HISTORIC LANDMARKS") < formatted.index("BUILDING PERMITS")
+
+
+def test_behind_scenes_gets_no_promotion_same_as_default():
+    data = {
+        "landmarks": [{"name": "Old City Hall", "description": "Built in 1899"}],
+        "police_incidents": [{"category": f"Incident {i}"} for i in range(8)],
+    }
+
+    default_formatted = zone_data.format_zone_data_for_prompt(data)
+    behind_scenes_formatted = zone_data.format_zone_data_for_prompt(data, mode="behind_scenes")
+
+    assert default_formatted == behind_scenes_formatted

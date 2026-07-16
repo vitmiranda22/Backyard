@@ -244,7 +244,7 @@ async def narrate_block(
             # Zone data cache HIT — use stored data
             logger.info(f"Zone data cache HIT for {geo_hash}")
             raw_data = cached_zone.get("raw_data", {})
-            zone_data_str = format_zone_data_for_prompt(raw_data)
+            zone_data_str = format_zone_data_for_prompt(raw_data, mode=request.mood.value)
 
             sources_hit = [k for k, v in raw_data.items() if v]
             skipped = [] if is_san_francisco(city) else DATASF_SOURCE_NAMES
@@ -277,7 +277,7 @@ async def narrate_block(
             zone_eligible_count = result["total"] - len(sources_skipped)
 
             # Format for prompt
-            zone_data_str = format_zone_data_for_prompt(raw_data)
+            zone_data_str = format_zone_data_for_prompt(raw_data, mode=request.mood.value)
 
             # Store in zone data cache
             await supabase_db.store_zone_data(

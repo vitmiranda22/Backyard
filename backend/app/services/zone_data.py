@@ -20,7 +20,6 @@ different moods from the same underlying data.
 
 import logging
 import asyncio
-import functools
 import httpx
 
 from app.config import settings
@@ -213,15 +212,51 @@ def should_skip_web_search(hit_count, eligible_count) -> bool:
     return (hit_count / eligible_count) >= settings.WEB_SEARCH_SKIP_MIN_HIT_RATIO
 
 
-def format_zone_data_for_prompt(zone_data: dict) -> str:
+# Tier 3 sources are administrative record-keeping about real people's
+# current homes and daily lives — deprioritized and capped by default (see
+# format_zone_data_for_prompt). Formatters listed in _LIMIT_AWARE_FORMATTERS
+# accept a `limit` kwarg, which is how the cap gets applied/relaxed.
+_TIER_3_KEYS = {
+    "building_permits", "city_building_permits", "complaints_311",
+    "city_complaints_311", "evictions", "police_incidents",
+    "city_police_incidents", "uk_police", "fire_incidents",
+    "city_fire_incidents", "addresses",
+}
+
+# Per-mode Tier 3 sources that are actually core to that mode's own premise,
+# not admin noise — grounded directly in each mode's instructions in
+# prompts.py, not a separate guess:
+#   - dark_side explicitly rotates through crime, fire/disaster, and
+#     eviction/displacement stories as its main material
+#   - hidden_city explicitly prioritizes "bizarre 311 complaints and
+#     neighborhood drama" (but still treats permits as a last resort —
+#     that's why building_permits isn't listed here)
+#   - unfiltered explicitly rotates in "a funny bureaucratic complaint"
+#     and commentary on gentrification/displacement
+#   - time_machine explicitly rotates through "a disaster or rebuild (a
+#     fire, an earthquake...)" as one of its go-to historical angles
+# behind_scenes has no Tier 3 angle anywhere in its own instructions, so it
+# gets no promotions and uses the plain suppressed default.
+MODE_PROMOTED_SOURCES = {
+    "dark_side": ["police_incidents", "city_police_incidents", "uk_police",
+                  "fire_incidents", "city_fire_incidents", "evictions"],
+    "hidden_city": ["complaints_311", "city_complaints_311"],
+    "unfiltered": ["complaints_311", "city_complaints_311", "evictions"],
+    "time_machine": ["fire_incidents", "city_fire_incidents"],
+}
+
+def format_zone_data_for_prompt(zone_data: dict, mode: str = None) -> str:
     """
     Convert the raw zone data dict into a readable string for the narration prompt.
 
     We don't dump raw JSON — we format it so the model can actually read it.
     Empty sources are skipped entirely.
-    """
-    sections = []
 
+    `mode` (the narration mood, e.g. "dark_side") lets a handful of Tier 3
+    sources that are actually core to that mode's premise (see
+    MODE_PROMOTED_SOURCES) jump to the front of the output with a higher
+    cap, instead of being suppressed like they are for every other mode.
+    """
     # Ordered by narrative tier, not alphabetically or by fetch order — the
     # zone-data section is one continuous block in the prompt, and position
     # affects what the model reaches for first (the same position effect
@@ -230,10 +265,11 @@ def format_zone_data_for_prompt(zone_data: dict) -> str:
     # Tier 1 — lead with these: narrative-rich, not about a real person's
     # current private life (film/landmark/culture/art/history/architecture).
     # Tier 2 — supporting/neutral background.
-    # Tier 3 — deprioritized: administrative record-keeping about real
-    # people's current homes and daily lives (permits, 311, police, fire,
-    # evictions, addresses). Kept as a last resort, never the primary hook
-    # — see the routine-permit filtering below and the prompts.py guidance.
+    # Tier 3 — deprioritized by default: administrative record-keeping about
+    # real people's current homes and daily lives (permits, 311, police,
+    # fire, evictions, addresses). Kept as a last resort, never the primary
+    # hook — see the routine-permit filtering below and the prompts.py
+    # guidance — UNLESS `mode` promotes a specific source (see above).
     formatters = {
         # --- Tier 1 ---
         "film_locations": ("🎬 FILMS SHOT NEARBY", _format_films),
@@ -265,23 +301,51 @@ def format_zone_data_for_prompt(zone_data: dict) -> str:
         # --- Tier 3 ---
         "building_permits": ("🏗️ BUILDING PERMITS", _format_building_permits),
         "city_building_permits": ("🏗️ BUILDING PERMITS", _format_city_permits),
-        "complaints_311": ("📞 311 COMPLAINTS", functools.partial(_format_311, limit=_TIER_3_CAP)),
-        "city_complaints_311": ("📞 311 COMPLAINTS", functools.partial(_format_city_311, limit=_TIER_3_CAP)),
-        "evictions": ("🏠 EVICTION NOTICES", functools.partial(_format_generic, limit=_TIER_3_CAP)),
-        "police_incidents": ("🚔 POLICE INCIDENTS", functools.partial(_format_generic, limit=_TIER_3_CAP)),
-        "city_police_incidents": ("🚔 POLICE INCIDENTS", functools.partial(_format_generic, limit=_TIER_3_CAP)),
-        "uk_police": ("🚔 POLICE INCIDENTS (UK-wide)", functools.partial(_format_uk_police, limit=_TIER_3_CAP)),
-        "fire_incidents": ("🔥 FIRE INCIDENTS", functools.partial(_format_generic, limit=_TIER_3_CAP)),
-        "city_fire_incidents": ("🔥 FIRE INCIDENTS", functools.partial(_format_generic, limit=_TIER_3_CAP)),
-        "addresses": ("📍 ACTIVE ADDRESSES", functools.partial(_format_generic, limit=_TIER_3_CAP)),
+        "complaints_311": ("📞 311 COMPLAINTS", _format_311),
+        "city_complaints_311": ("📞 311 COMPLAINTS", _format_city_311),
+        "evictions": ("🏠 EVICTION NOTICES", _format_generic),
+        "police_incidents": ("🚔 POLICE INCIDENTS", _format_generic),
+        "city_police_incidents": ("🚔 POLICE INCIDENTS", _format_generic),
+        "uk_police": ("🚔 POLICE INCIDENTS (UK-wide)", _format_uk_police),
+        "fire_incidents": ("🔥 FIRE INCIDENTS", _format_generic),
+        "city_fire_incidents": ("🔥 FIRE INCIDENTS", _format_generic),
+        "addresses": ("📍 ACTIVE ADDRESSES", _format_generic),
     }
 
-    for key, (header, formatter) in formatters.items():
+    promoted_order = MODE_PROMOTED_SOURCES.get(mode, [])
+    promoted_set = set(promoted_order)
+
+    def render(key: str, header: str, formatter) -> str:
         data = zone_data.get(key, [])
-        if data:
+        if not data:
+            return None
+        if formatter in _LIMIT_AWARE_FORMATTERS:
+            cap = _PROMOTED_CAP if key in promoted_set else _TIER_3_CAP
+            formatted = formatter(data, limit=cap) if key in _TIER_3_KEYS else formatter(data)
+        else:
             formatted = formatter(data)
-            if formatted:
-                sections.append(f"{header}\n{formatted}")
+        return f"{header}\n{formatted}" if formatted else None
+
+    sections = []
+    rendered_keys = set()
+
+    # Promoted sources jump to the very front, in the order this mode cares
+    # about them — ahead of even Tier 1, since for this mode they ARE the story.
+    for key in promoted_order:
+        if key not in formatters:
+            continue
+        header, formatter = formatters[key]
+        section = render(key, header, formatter)
+        if section:
+            sections.append(section)
+        rendered_keys.add(key)
+
+    for key, (header, formatter) in formatters.items():
+        if key in rendered_keys:
+            continue
+        section = render(key, header, formatter)
+        if section:
+            sections.append(section)
 
     if not sections:
         return "No specific data found for this location from public databases."
@@ -327,6 +391,11 @@ def _format_trees(data: list) -> str:
 # _format_311, _format_city_311, _format_uk_police) also serve Tier 1/2
 # sources, so the cap is a parameter rather than baked into the function.
 _TIER_3_CAP = 3
+
+# When a mode promotes a Tier 3 source (see MODE_PROMOTED_SOURCES above),
+# it's no longer admin noise for that mode — give it the old default cap
+# back instead of the suppressed one.
+_PROMOTED_CAP = 8
 
 
 def _format_311(data: list, limit: int = 8) -> str:
@@ -691,3 +760,8 @@ def _format_generic(data: list, limit: int = 8) -> str:
             if parts:
                 lines.append(f"- {', '.join(parts[:3])}")
     return "\n".join(lines)
+
+
+# Defined down here, after the formatter functions above exist — referenced
+# by format_zone_data_for_prompt() at call time, not at module-load time.
+_LIMIT_AWARE_FORMATTERS = {_format_generic, _format_311, _format_city_311, _format_uk_police}

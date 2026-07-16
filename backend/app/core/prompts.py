@@ -403,6 +403,15 @@ CRITICAL RULES FOR USING THIS DATA:
    discussing, you MUST say it out loud somewhere in the narration — that's the
    single most reliable way for someone to confirm they're looking at the right
    place. Don't paraphrase it away as "the building nearby."
+8. Some of this data is administrative record-keeping about real people's current
+   homes and daily lives — building permits, 311 complaints, police/fire incident
+   logs, eviction notices. Treat all of it as last-resort background, never the
+   primary hook of the story, and prefer the historical, cultural, or architectural
+   facts above whenever they're available. A permit or a complaint can supply one
+   supporting detail inside a story that's really about something else — it should
+   never BE the story. If the data gives you nothing but this kind of record for a
+   block, that's the moment to lean harder on your own knowledge or web search
+   instead of narrating someone's water heater replacement as if it were history.
 
 BAD (generic): "This quiet residential street holds many secrets waiting to be discovered."
 BAD (trivia dump, even though every fact is real and specific): "This block has a

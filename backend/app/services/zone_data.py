@@ -20,6 +20,7 @@ different moods from the same underlying data.
 
 import logging
 import asyncio
+import functools
 import httpx
 
 from app.config import settings
@@ -221,41 +222,58 @@ def format_zone_data_for_prompt(zone_data: dict) -> str:
     """
     sections = []
 
+    # Ordered by narrative tier, not alphabetically or by fetch order — the
+    # zone-data section is one continuous block in the prompt, and position
+    # affects what the model reaches for first (the same position effect
+    # _ZONE_DATA_SECTION's own "FINAL REMINDER" placement relies on).
+    #
+    # Tier 1 — lead with these: narrative-rich, not about a real person's
+    # current private life (film/landmark/culture/art/history/architecture).
+    # Tier 2 — supporting/neutral background.
+    # Tier 3 — deprioritized: administrative record-keeping about real
+    # people's current homes and daily lives (permits, 311, police, fire,
+    # evictions, addresses). Kept as a last resort, never the primary hook
+    # — see the routine-permit filtering below and the prompts.py guidance.
     formatters = {
+        # --- Tier 1 ---
         "film_locations": ("🎬 FILMS SHOT NEARBY", _format_films),
         "landmarks": ("🏛️ HISTORIC LANDMARKS", _format_generic),
         "cultural_districts": ("🎭 CULTURAL DISTRICTS", _format_generic),
-        "building_permits": ("🏗️ BUILDING PERMITS", _format_generic),
-        "businesses": ("🏪 BUSINESSES (PAST & PRESENT)", _format_generic),
-        "police_incidents": ("🚔 POLICE INCIDENTS", _format_generic),
-        "street_trees": ("🌳 STREET TREES", _format_trees),
         "public_art": ("🎨 PUBLIC ART", _format_generic),
-        "complaints_311": ("📞 311 COMPLAINTS", _format_311),
-        "evictions": ("🏠 EVICTION NOTICES", _format_generic),
-        "parks": ("🌿 PARKS & GREEN SPACES", _format_generic),
-        "fire_incidents": ("🔥 FIRE INCIDENTS", _format_generic),
         "civic_art": ("🗿 CIVIC ART & LANDSCAPE", _format_generic),
-        "addresses": ("📍 ACTIVE ADDRESSES", _format_generic),
-        "neighborhoods": ("📌 NEIGHBORHOOD INFO", _format_generic),
         "wikipedia": ("📚 WIKIPEDIA ARTICLES NEARBY", _format_wikipedia),
-        "wikimedia_photos": ("📷 HISTORICAL PHOTOS NEARBY", _format_generic),
         "osm_buildings": ("🏠 BUILDING & STREET-LEVEL DETAIL (OpenStreetMap)", _format_osm),
-        "knowledge_graph": ("🔍 KNOWLEDGE GRAPH ENTITIES", _format_kg),
         "wikidata": ("🗂️ WIKIDATA FACTS (places, people, film locations)", _format_wikidata),
         "tmdb_films": ("🎬 FILMS/TV ASSOCIATED WITH THIS CITY", _format_tmdb),
         "unesco_heritage": ("🏛️ UNESCO WORLD HERITAGE", _format_unesco),
-        "geonames": ("📌 NEARBY NAMED PLACES (GeoNames)", _format_geonames),
         "europeana": ("🏺 EUROPEAN CULTURAL HERITAGE (Europeana)", _format_europeana),
         "wikivoyage": ("🧭 TRAVEL-GUIDE NOTES NEARBY (Wikivoyage)", _format_wikivoyage),
+        "uk_planning": ("🏛️ PLANNING & HERITAGE DATA (UK-wide)", _format_uk_planning),
+        "knowledge_graph": ("🔍 KNOWLEDGE GRAPH ENTITIES", _format_kg),
+
+        # --- Tier 2 ---
+        "parks": ("🌿 PARKS & GREEN SPACES", _format_generic),
+        "street_trees": ("🌳 STREET TREES", _format_trees),
+        "city_street_trees": ("🌳 STREET TREES", _format_generic),
         "gbif": ("🦋 WILDLIFE RECORDED NEARBY (GBIF)", _format_gbif),
         "earthquake_history": ("🌎 NOTABLE EARTHQUAKES IN THIS REGION (USGS)", _format_earthquakes),
-        "city_311": ("📞 311 COMPLAINTS", _format_city_311),
+        "geonames": ("📌 NEARBY NAMED PLACES (GeoNames)", _format_geonames),
+        "neighborhoods": ("📌 NEIGHBORHOOD INFO", _format_generic),
+        "businesses": ("🏪 BUSINESSES (PAST & PRESENT)", _format_generic),
+        "wikimedia_photos": ("📷 HISTORICAL PHOTOS NEARBY", _format_generic),
+
+        # --- Tier 3 ---
+        "building_permits": ("🏗️ BUILDING PERMITS", _format_building_permits),
         "city_building_permits": ("🏗️ BUILDING PERMITS", _format_city_permits),
-        "city_police_incidents": ("🚔 POLICE INCIDENTS", _format_generic),
-        "city_fire_incidents": ("🔥 FIRE INCIDENTS", _format_generic),
-        "city_street_trees": ("🌳 STREET TREES", _format_generic),
-        "uk_police": ("🚔 POLICE INCIDENTS (UK-wide)", _format_uk_police),
-        "uk_planning": ("🏛️ PLANNING & HERITAGE DATA (UK-wide)", _format_uk_planning),
+        "complaints_311": ("📞 311 COMPLAINTS", functools.partial(_format_311, limit=_TIER_3_CAP)),
+        "city_complaints_311": ("📞 311 COMPLAINTS", functools.partial(_format_city_311, limit=_TIER_3_CAP)),
+        "evictions": ("🏠 EVICTION NOTICES", functools.partial(_format_generic, limit=_TIER_3_CAP)),
+        "police_incidents": ("🚔 POLICE INCIDENTS", functools.partial(_format_generic, limit=_TIER_3_CAP)),
+        "city_police_incidents": ("🚔 POLICE INCIDENTS", functools.partial(_format_generic, limit=_TIER_3_CAP)),
+        "uk_police": ("🚔 POLICE INCIDENTS (UK-wide)", functools.partial(_format_uk_police, limit=_TIER_3_CAP)),
+        "fire_incidents": ("🔥 FIRE INCIDENTS", functools.partial(_format_generic, limit=_TIER_3_CAP)),
+        "city_fire_incidents": ("🔥 FIRE INCIDENTS", functools.partial(_format_generic, limit=_TIER_3_CAP)),
+        "addresses": ("📍 ACTIVE ADDRESSES", functools.partial(_format_generic, limit=_TIER_3_CAP)),
     }
 
     for key, (header, formatter) in formatters.items():
@@ -302,9 +320,18 @@ def _format_trees(data: list) -> str:
     return "\n".join(lines)
 
 
-def _format_311(data: list) -> str:
+# Tier 3 sources (administrative record-keeping about real people's current
+# homes/activity — permits, 311, police, fire, evictions, addresses) get a
+# tighter cap than the default 8, matching what building_permits' dedicated
+# formatter already used. Shared formatters below (_format_generic,
+# _format_311, _format_city_311, _format_uk_police) also serve Tier 1/2
+# sources, so the cap is a parameter rather than baked into the function.
+_TIER_3_CAP = 3
+
+
+def _format_311(data: list, limit: int = 8) -> str:
     lines = []
-    for c in data[:8]:
+    for c in data[:limit]:
         category = c.get("category", c.get("service_name", ""))
         desc = c.get("descriptor", c.get("service_details", ""))
         date = c.get("opened", c.get("requested_datetime", ""))[:10] if c.get("opened") or c.get("requested_datetime") else ""
@@ -508,9 +535,9 @@ def _format_earthquakes(data: list) -> str:
     return "\n".join(lines)
 
 
-def _format_uk_police(data: list) -> str:
+def _format_uk_police(data: list, limit: int = 8) -> str:
     lines = []
-    for c in data[:8]:
+    for c in data[:limit]:
         category = c.get("category", "")
         street = c.get("street", "")
         line = f"- {category}"
@@ -532,9 +559,9 @@ def _format_uk_planning(data: list) -> str:
     return "\n".join(lines)
 
 
-def _format_city_311(data: list) -> str:
+def _format_city_311(data: list, limit: int = 8) -> str:
     lines = []
-    for c in data[:8]:
+    for c in data[:limit]:
         category = c.get("complaint_type") or c.get("sr_type") or ""
         desc = c.get("descriptor") or c.get("sr_short_code") or ""
         date = (c.get("created_date") or "")[:10]
@@ -545,11 +572,69 @@ def _format_city_311(data: list) -> str:
     return "\n".join(lines)
 
 
+# Routine safety/utility compliance work — sprinkler retrofits, panel
+# swaps, plumbing — reads as prying into a real person's current home
+# maintenance rather than a story, and it's also just not interesting
+# (confirmed live: these were the permits the model kept reaching for,
+# producing narration like "a control panel installed in 2023, quietly
+# humming"). New construction, demolition, and change-of-use permits
+# describe the BUILDING'S history, not someone's current upkeep, and
+# stay eligible. See _is_routine_permit's docstring for the full reasoning.
+_ROUTINE_PERMIT_KEYWORDS = [
+    "sprinkler", "fire service", "fire water line", "plumbing",
+    "control panel", "smoke det", "pull station", "like for like",
+    "electrical panel", "panel upgrade", "water heater", "re-roof",
+    "reroof", "hvac", "boiler", "water main", "gas line",
+]
+
+
+def _is_routine_permit(description: str) -> bool:
+    """
+    True if a permit description is routine safety/utility maintenance
+    rather than a real building-history event (construction, demolition,
+    change of use). Deliberately keyword-based and conservative — a
+    permit that doesn't match any routine keyword is treated as eligible
+    by default, so this only trims the clearest, most repetitive offenders
+    rather than trying to perfectly classify every permit type.
+    """
+    lower = description.lower()
+    return any(kw in lower for kw in _ROUTINE_PERMIT_KEYWORDS)
+
+
+def _format_building_permits(data: list) -> str:
+    """
+    Formatter for SF's building_permits (DataSF) — separate from the
+    generic formatter so the routine-work filter above only applies here,
+    not to every other _format_generic category. Capped at 3 (down from
+    the usual 8) even after filtering — permits are meant to be a
+    supporting detail, not the primary source for a whole narration.
+    """
+    lines = []
+    for item in data:
+        if len(lines) >= 3:
+            break
+        if not isinstance(item, dict):
+            continue
+        desc = str(item.get("description", "")).strip()
+        if not desc or _is_routine_permit(desc):
+            continue
+        block = item.get("block", "")
+        line = f"- {desc[:150]}"
+        if block:
+            line += f" (block: {block})"
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def _format_city_permits(data: list) -> str:
     lines = []
-    for p in data[:8]:
-        permit_type = p.get("job_type") or p.get("permit_type") or ""
+    for p in data:
+        if len(lines) >= 3:
+            break
         desc = p.get("work_description") or ""
+        if desc and _is_routine_permit(desc):
+            continue
+        permit_type = p.get("job_type") or p.get("permit_type") or ""
         date = (p.get("issue_date") or p.get("application_start_date") or "")[:10]
         street = p.get("street_name") or ""
         line = f"- [{date}] {permit_type}" if date else f"- {permit_type}"
@@ -561,7 +646,7 @@ def _format_city_permits(data: list) -> str:
     return "\n".join(lines)
 
 
-def _format_generic(data: list) -> str:
+def _format_generic(data: list, limit: int = 8) -> str:
     """
     Fallback formatter — dumps key fields from each record. Also the
     formatter for every city_data.py category beyond 311/permits (police,
@@ -571,7 +656,7 @@ def _format_generic(data: list) -> str:
     name each city happens to use for it.
     """
     lines = []
-    for item in data[:8]:
+    for item in data[:limit]:
         if isinstance(item, dict):
             # Pick the most interesting-looking fields
             parts = []

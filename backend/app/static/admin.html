@@ -175,6 +175,11 @@
   .rank-index { color: var(--muted); font-size: 12px; width: 16px; }
   .rank-count { color: var(--muted); }
 
+  .info-row { display: flex; flex-direction: column; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+  .info-row:last-child { border-bottom: none; }
+  .info-row-top { display: flex; justify-content: space-between; gap: 10px; }
+  .info-row-note { color: var(--muted); font-size: 12px; margin-top: 3px; }
+
   .pill {
     display: inline-block;
     font-size: 11.5px;
@@ -320,6 +325,20 @@
         <div class="storage-grid" id="storage-grid"></div>
         <p class="section-label" style="margin-top:18px">Cache tables (rows)</p>
         <div class="storage-grid" id="cache-grid"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="card">
+        <h2>Costs</h2>
+        <p class="section-label" style="margin-top:0">Measured</p>
+        <div class="storage-grid" id="costs-measured-grid"></div>
+
+        <p class="section-label" style="margin-top:18px">Known free-tier ceilings (not billing-verified)</p>
+        <ul class="rank-list" id="costs-tiers-list"></ul>
+
+        <p class="section-label" style="margin-top:18px">Not tracked</p>
+        <ul class="rank-list" id="costs-untracked-list"></ul>
       </div>
     </section>
   </div>
@@ -493,9 +512,46 @@
     cacheGrid.innerHTML = cacheItems.map(([n, l]) => `<div class="storage-item"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("");
   }
 
+  function renderCosts(data) {
+    const c = data.costs || {};
+    const r2c = c.r2_storage || {};
+
+    // Free-tier ceiling derived from the response itself (gb - billable_gb)
+    // rather than a hardcoded constant here that could drift from the
+    // backend's actual pricing constant in costs.py.
+    const freeGb = (r2c.gb != null && r2c.billable_gb != null) ? (r2c.gb - r2c.billable_gb).toFixed(0) : "—";
+    const measuredGrid = document.getElementById("costs-measured-grid");
+    measuredGrid.innerHTML = `
+      <div class="storage-item">
+        <div class="n">$${r2c.monthly_usd != null ? r2c.monthly_usd.toFixed(2) : "—"}/mo</div>
+        <div class="l">R2 storage (${r2c.gb != null ? r2c.gb : "—"} GB, ${freeGb}GB free)</div>
+      </div>
+    `;
+
+    const tiersList = document.getElementById("costs-tiers-list");
+    tiersList.innerHTML = (c.known_free_tier_limits || []).map((t) => `
+      <li class="info-row">
+        <div class="info-row-top">
+          <strong>${t.service}</strong>
+          <span class="pill">${t.tier}</span>
+        </div>
+        <div class="info-row-note">${t.limit} — ${t.note}</div>
+      </li>
+    `).join("");
+
+    const untrackedList = document.getElementById("costs-untracked-list");
+    untrackedList.innerHTML = (c.untracked || []).map((u) => `
+      <li class="info-row">
+        <div class="info-row-top"><strong>${u.service}</strong></div>
+        <div class="info-row-note">${u.reason}</div>
+      </li>
+    `).join("");
+  }
+
   function render(data) {
     renderKpis(data);
     renderRevenue(data);
+    renderCosts(data);
     renderEngagement(data);
     renderMoodBars(data);
     renderRankList("top-cities", data.top_cities);

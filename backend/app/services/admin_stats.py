@@ -18,7 +18,7 @@ import asyncio
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
-from app.services import supabase_db, r2, revenuecat_service
+from app.services import supabase_db, r2, revenuecat_service, costs
 
 
 def _parse_ts(value):
@@ -124,4 +124,5 @@ async def get_dashboard_stats() -> dict:
         },
         "storage": storage,
         "revenue": revenue,
+        "costs": costs.get_cost_summary(storage.get("total_mb")),
     }

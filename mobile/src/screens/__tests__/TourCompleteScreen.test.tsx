@@ -11,9 +11,6 @@ jest.mock("../../services/toast", () => ({ showToast: jest.fn() }));
 jest.mock("../../services/haptics", () => ({ tap: jest.fn(), success: jest.fn() }));
 jest.mock("../../services/analytics", () => ({ track: jest.fn() }));
 jest.mock("../../services/reviewPrompt", () => ({ maybePromptForReview: jest.fn() }));
-jest.mock("expo-av", () => ({
-  Audio: { Sound: { createAsync: jest.fn() } },
-}));
 
 import TourCompleteScreen from "../TourCompleteScreen";
 import { endTour, publishTour, deleteTour } from "../../services/api";
@@ -47,15 +44,6 @@ describe("TourCompleteScreen", () => {
     jest.clearAllMocks();
     jest.spyOn(Alert, "alert").mockImplementation(() => {});
     jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" } as any);
-    const { Audio } = require("expo-av");
-    (Audio.Sound.createAsync as jest.Mock).mockResolvedValue({
-      sound: {
-        // Resolves playback immediately instead of leaving the real 15s
-        // timeout in playOutro() to fire after the test has finished.
-        setOnPlaybackStatusUpdate: (cb: (status: any) => void) => cb({ isLoaded: true, didJustFinish: true }),
-        unloadAsync: jest.fn().mockResolvedValue(undefined),
-      },
-    });
   });
 
   it("keeps Continue disabled until a title is entered", async () => {
@@ -137,27 +125,41 @@ describe("TourCompleteScreen", () => {
     expect(onDone).toHaveBeenCalled(); // still exits, even on a failed save
   });
 
-  it("plays the outro audio when end-tour returns one", async () => {
-    mockEndTour.mockResolvedValue({ mood: "dark_side", outro_audio_url: "https://example.com/outro.mp3" });
-    await render(<TourCompleteScreen {...baseProps()} />);
+  it("uses a prefetched result instead of calling endTour again (auto-completed tour)", async () => {
+    // ActiveTourScreen already called /end-tour itself for an
+    // auto-completed tour (and already played the outro there) -- this
+    // screen must reuse that result, not fetch + generate the outro a
+    // second time.
+    const { getByLabelText } = await render(
+      <TourCompleteScreen
+        {...baseProps()}
+        prefetchedResult={{
+          tour_id: "tour-1",
+          title: "Auto Title",
+          blocks_visited: 4,
+          total_distance_m: 600,
+          duration_sec: 900,
+          mood: "dark_side",
+          outro_audio_url: "https://example.com/outro.mp3",
+        }}
+      />
+    );
 
-    await waitFor(() => expect(mockEndTour).toHaveBeenCalled());
-    const { Audio } = require("expo-av");
-    await waitFor(() =>
-      expect(Audio.Sound.createAsync).toHaveBeenCalledWith(
-        { uri: "https://example.com/outro.mp3" },
-        { shouldPlay: true }
-      )
+    await waitFor(() => expect(getByLabelText("tourComplete.continue")).toBeTruthy());
+    expect(mockEndTour).not.toHaveBeenCalled();
+    expect(mockTrack).toHaveBeenCalledWith(
+      "tour_completed",
+      expect.objectContaining({ mood: "dark_side" })
     );
   });
 
-  it("does not attempt playback when end-tour returns no outro", async () => {
-    mockEndTour.mockResolvedValue({ mood: "time_machine", outro_audio_url: null });
+  it("falls back to calling endTour itself when there's no prefetched result (manual end)", async () => {
+    mockEndTour.mockResolvedValue({ mood: "time_machine" });
     await render(<TourCompleteScreen {...baseProps()} />);
 
-    await waitFor(() => expect(mockEndTour).toHaveBeenCalled());
-    const { Audio } = require("expo-av");
-    expect(Audio.Sound.createAsync).not.toHaveBeenCalled();
+    await waitFor(() => expect(mockEndTour).toHaveBeenCalledWith("tour-1", 4 * 150, expect.any(Number), [
+      { lat: 37.77, lng: -122.41 },
+    ]));
   });
 
   it("asks for confirmation before discarding, and only deletes on confirm", async () => {

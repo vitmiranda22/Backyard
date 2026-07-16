@@ -22,7 +22,7 @@ import {
   compassLabel,
   snapToRoad,
 } from "../services/location";
-import { narrateBlock, saveBlock, startTour, askQuestion } from "../services/api";
+import { narrateBlock, saveBlock, startTour, askQuestion, endTour, EndTourResponse } from "../services/api";
 import { startRecording, stopRecording, cancelRecording } from "../services/recording";
 import NarrationCard from "../components/NarrationCard";
 import WaypointCompass from "../components/WaypointCompass";
@@ -48,6 +48,35 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ]);
 }
 
+// Plays the tour's spoken closing line and resolves once it finishes --
+// same timeout-guarded shape as playGuideIntro below (the field-tested fix
+// for a hang reading as "no audio"), called from handleEndTour so an
+// auto-completed tour gets a real wrap-up before the screen changes.
+async function playOutro(audioUrl: string) {
+  let sound: Audio.Sound | null = null;
+  try {
+    sound = await withTimeout(
+      Audio.Sound.createAsync({ uri: audioUrl }, { shouldPlay: true }).then((r) => r.sound),
+      8000,
+      "tour outro load"
+    );
+    await withTimeout(
+      new Promise<void>((resolve) => {
+        sound!.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            resolve();
+          }
+        });
+      }),
+      15000,
+      "tour outro playback"
+    );
+  } catch (e) {
+    console.warn("Failed to play tour outro (continuing anyway):", e);
+  }
+  sound?.unloadAsync().catch(() => {});
+}
+
 interface ActiveTourProps {
   mood: string;
   voice: string;
@@ -57,7 +86,8 @@ interface ActiveTourProps {
     tourId: string,
     blocksVisited: number,
     startTime: number,
-    path: { latitude: number; longitude: number }[]
+    path: { latitude: number; longitude: number }[],
+    prefetchedResult?: EndTourResponse | null
   ) => void;
 }
 
@@ -362,7 +392,7 @@ export default function ActiveTourScreen({
       // NarrationCard's onAudioFinished handles it once playback ends.
       if (sequenceRef.current >= MAX_BLOCKS && !result.audio_url) {
         showToast(isPremium ? t("activeTour.autoCompletePremium") : t("activeTour.autoCompleteFree"));
-        handleEndTour();
+        handleEndTour(true);
       }
     } catch (e: any) {
       setError(t("activeTour.narrationError"));
@@ -425,7 +455,11 @@ export default function ActiveTourScreen({
     setQaState("idle");
   }
 
-  function handleEndTour() {
+  // isAutoComplete: true when the app itself cut the tour off at the
+  // block/tier limit (see the two call sites below), false for the
+  // walker's own manual "End Tour" press. Only the former gets a spoken
+  // wrap-up -- ending early by choice has nothing to compensate for.
+  async function handleEndTour(isAutoComplete: boolean = false) {
     tap();
     if (subscriptionRef.current) {
       subscriptionRef.current.remove();
@@ -440,7 +474,28 @@ export default function ActiveTourScreen({
     const currentTourId = tourIdRef.current;
     if (currentTourId) cancelReminder(currentTourId);
     resetZones();
-    onEndTour(currentTourId || "", sequenceRef.current, startTimeRef.current, pathRef.current);
+
+    let prefetchedResult: EndTourResponse | null = null;
+    if (isAutoComplete && currentTourId) {
+      // Calling /end-tour here (rather than letting TourCompleteScreen do
+      // it, as a manual end still does) is what makes the outro possible
+      // at the right moment -- right after the last block, not later on
+      // the naming screen. TourCompleteScreen reuses this result instead
+      // of fetching its own, so the outro's TTS is never generated twice.
+      try {
+        const durationSec = Math.round((Date.now() - startTimeRef.current) / 1000);
+        const distanceM = sequenceRef.current * 150;
+        const mappedPath = pathRef.current.map((p) => ({ lat: p.latitude, lng: p.longitude }));
+        prefetchedResult = await endTour(currentTourId, distanceM, durationSec, mappedPath);
+        if (prefetchedResult.outro_audio_url) {
+          await playOutro(prefetchedResult.outro_audio_url);
+        }
+      } catch (e) {
+        console.warn("Failed to fetch/play tour outro (continuing anyway):", e);
+      }
+    }
+
+    onEndTour(currentTourId || "", sequenceRef.current, startTimeRef.current, pathRef.current, prefetchedResult);
   }
 
   const targetBearing =
@@ -485,7 +540,7 @@ export default function ActiveTourScreen({
 
         <TouchableOpacity
           style={[styles.endLink, { top: Math.max(insets.top, 54) + 10 }]}
-          onPress={handleEndTour}
+          onPress={() => handleEndTour(false)}
           accessibilityRole="button"
           accessibilityLabel={t("activeTour.endTourA11y")}
         >
@@ -520,7 +575,7 @@ export default function ActiveTourScreen({
           hasActiveAudioRef.current = false;
           if (sequenceRef.current >= MAX_BLOCKS) {
             showToast(isPremium ? t("activeTour.autoCompletePremium") : t("activeTour.autoCompleteFree"));
-            handleEndTour();
+            handleEndTour(true);
           }
         }}
         onAudioError={handleAudioError}

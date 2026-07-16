@@ -19,6 +19,7 @@ jest.mock("../../services/api", () => ({
   narrateBlock: jest.fn(),
   saveBlock: jest.fn(),
   askQuestion: jest.fn(),
+  endTour: jest.fn(),
 }));
 jest.mock("../../services/recording", () => ({
   startRecording: jest.fn(),
@@ -64,7 +65,7 @@ jest.mock("../../components/WaypointCompass", () => () => null);
 jest.mock("../../components/AudioPlayer", () => () => null);
 
 import ActiveTourScreen from "../ActiveTourScreen";
-import { startTour, narrateBlock, saveBlock, askQuestion } from "../../services/api";
+import { startTour, narrateBlock, saveBlock, askQuestion, endTour } from "../../services/api";
 import { watchPosition, watchHeading, getCurrentLocation } from "../../services/location";
 import { startRecording, stopRecording } from "../../services/recording";
 
@@ -72,6 +73,7 @@ const mockStartTour = startTour as jest.Mock;
 const mockNarrateBlock = narrateBlock as jest.Mock;
 const mockSaveBlock = saveBlock as jest.Mock;
 const mockAskQuestion = askQuestion as jest.Mock;
+const mockEndTour = endTour as jest.Mock;
 const mockWatchPosition = watchPosition as jest.Mock;
 const mockWatchHeading = watchHeading as jest.Mock;
 const mockGetCurrentLocation = getCurrentLocation as jest.Mock;
@@ -132,6 +134,9 @@ describe("ActiveTourScreen", () => {
     mockWatchHeading.mockResolvedValue({ remove: removeSpy });
     mockNarrateBlock.mockResolvedValue(narration());
     mockSaveBlock.mockResolvedValue({ block_id: "b1", sequence: 1 });
+    // No outro by default -- playOutro() is only exercised by the
+    // dedicated auto-complete test below, which overrides this.
+    mockEndTour.mockResolvedValue({ mood: "time_machine", outro_audio_url: null });
   });
 
   afterEach(() => {
@@ -202,13 +207,24 @@ describe("ActiveTourScreen", () => {
     expect(mockCommitZone).toHaveBeenCalledWith("zone2");
   });
 
-  it("auto-completes the tour immediately when the block cap is hit with no audio to finish", async () => {
+  it("auto-completes the tour immediately when the block cap is hit with no audio to finish, calling /end-tour and playing the outro before onEndTour fires", async () => {
     // Free tier caps at 5 blocks (FREE_MAX_BLOCKS) -- return blocks with NO
     // audio_url so there's nothing to wait on, forcing immediate completion.
     let clock = 1_700_000_000_000;
     jest.spyOn(Date, "now").mockImplementation(() => clock);
 
     mockNarrateBlock.mockResolvedValue(narration({ audio_url: null, audio_r2_key: null }));
+    const endTourResult = { mood: "time_machine", outro_audio_url: "https://x/outro.mp3" };
+    mockEndTour.mockResolvedValue(endTourResult);
+    const { Audio } = require("expo-av");
+    (Audio.Sound.createAsync as jest.Mock).mockResolvedValue({
+      sound: {
+        // Resolves playback immediately instead of leaving the real 15s
+        // timeout in playOutro() to fire after the test has finished.
+        setOnPlaybackStatusUpdate: (cb: (status: any) => void) => cb({ isLoaded: true, didJustFinish: true }),
+        unloadAsync: jest.fn().mockResolvedValue(undefined),
+      },
+    });
     let positionCallback: (lat: number, lng: number) => void = () => {};
     mockWatchPosition.mockImplementation(async (cb: any) => {
       positionCallback = cb;
@@ -229,7 +245,13 @@ describe("ActiveTourScreen", () => {
     await waitFor(() => expect(onEndTour).toHaveBeenCalled());
     expect(onEndTour.mock.calls[0][0]).toBe("tour-1");
     expect(onEndTour.mock.calls[0][1]).toBe(5); // blocksVisited === MAX_BLOCKS
+    expect(mockEndTour).toHaveBeenCalledWith("tour-1", 5 * 150, expect.any(Number), expect.any(Array));
+    expect(Audio.Sound.createAsync).toHaveBeenCalledWith({ uri: "https://x/outro.mp3" }, { shouldPlay: true });
+    // The prefetched result travels up through onEndTour so
+    // TourCompleteScreen never has to fetch (and re-generate) it itself.
+    expect(onEndTour.mock.calls[0][4]).toEqual(endTourResult);
   });
+
 
   it("shows an alert and does not crash when startTour fails", async () => {
     mockStartTour.mockRejectedValue(new Error("Rate limited"));
@@ -274,14 +296,17 @@ describe("ActiveTourScreen", () => {
     expect(await findByText("Something interesting.")).toBeTruthy();
   });
 
-  it("calls onEndTour with the current block count and path when End is pressed", async () => {
+  it("calls onEndTour with the current block count and path when End is pressed, without calling /end-tour or playing an outro (the walker chose to stop, not the app)", async () => {
     const onEndTour = jest.fn();
     const { findByLabelText } = await renderStarted({ onEndTour });
 
     await fireEvent.press(await findByLabelText("activeTour.endTourA11y"));
 
-    expect(onEndTour).toHaveBeenCalledWith("tour-1", 1, expect.any(Number), expect.any(Array));
+    expect(onEndTour).toHaveBeenCalledWith("tour-1", 1, expect.any(Number), expect.any(Array), null);
     expect(removeSpy).toHaveBeenCalled();
+    expect(mockEndTour).not.toHaveBeenCalled();
+    const { Audio } = require("expo-av");
+    expect(Audio.Sound.createAsync).not.toHaveBeenCalled();
   });
 
   it("gives up on a guide intro that never loads and still starts block 1 (found in the field: a stalled network fetch previously had no bound at all)", async () => {

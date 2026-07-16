@@ -13,7 +13,7 @@ import * as SecureStore from "expo-secure-store";
 import { restoreSession, signIn, getCurrentUserId } from "./src/services/auth";
 import { DEV_SKIP_LOGIN, DEV_EMAIL, DEV_PASSWORD } from "./src/config";
 import { colors } from "./src/theme";
-import { TourDetail, getSettings } from "./src/services/api";
+import { TourDetail, EndTourResponse, getSettings } from "./src/services/api";
 import { initSentry } from "./src/services/sentry";
 import { initAnalytics, identifyUser, track, resetAnalytics } from "./src/services/analytics";
 import { initPurchases } from "./src/services/purchases";
@@ -72,6 +72,11 @@ export default function App() {
   const [blocksVisited, setBlocksVisited] = useState(0);
   const [startTime, setStartTime] = useState(0);
   const [tourPath, setTourPath] = useState<{ lat: number; lng: number }[]>([]);
+  // Set only when ActiveTourScreen already called /end-tour itself (an
+  // auto-completed tour, so it could play the outro right after the last
+  // block) -- TourCompleteScreen reuses this instead of fetching its own,
+  // so the outro's TTS is never generated twice for the same tour.
+  const [prefetchedEndResult, setPrefetchedEndResult] = useState<EndTourResponse | null>(null);
 
   // Routes/replay state
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
@@ -292,11 +297,12 @@ export default function App() {
           voice={preferredVoice}
           contentSafety={contentSafety}
           isPremium={isPremium}
-          onEndTour={(id, blocks, start, path) => {
+          onEndTour={(id, blocks, start, path, prefetchedResult) => {
             setTourId(id);
             setBlocksVisited(blocks);
             setStartTime(start);
             setTourPath(path.map((p) => ({ lat: p.latitude, lng: p.longitude })));
+            setPrefetchedEndResult(prefetchedResult || null);
             setScreen("complete");
           }}
         />
@@ -308,7 +314,9 @@ export default function App() {
           blocksVisited={blocksVisited}
           startTime={startTime}
           path={tourPath}
+          prefetchedResult={prefetchedEndResult}
           onDone={() => {
+            setPrefetchedEndResult(null);
             setActiveTab("home");
             setScreen("main");
           }}

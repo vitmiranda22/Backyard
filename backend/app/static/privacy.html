@@ -31,6 +31,14 @@
 <h2>Published routes</h2>
 <p>If you choose to publish a tour as a public route, its title, stops, narration, and audio become visible to other users, along with your display name (or "Anonymous Explorer" if you've enabled anonymous publishing). You can control this per-tour when you save it.</p>
 
+<h2>Analytics, crash reporting &amp; subscriptions</h2>
+<p>We use a few third-party services to keep Backyard running and improve it:</p>
+<ul>
+  <li><strong>PostHog</strong> — anonymized product analytics (which screens and features get used) so we know what's working.</li>
+  <li><strong>Sentry</strong> — crash and error reports (technical details like stack traces and device info) so we can find and fix bugs.</li>
+  <li><strong>RevenueCat</strong> — manages your premium subscription status. It receives a purchase/subscription identifier from Apple or Google to keep your entitlement in sync; it never receives your payment details, which Apple and Google handle directly.</li>
+</ul>
+
 <h2>Storage</h2>
 <p>Account and tour data is stored with Supabase (PostgreSQL). Audio and photo files are stored with Cloudflare R2. Both are standard infrastructure providers, not data buyers.</p>
 

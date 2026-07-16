@@ -40,4 +40,4 @@ Travel / Navigation
 
 ## Support URL
 
-`https://backyard-api.onrender.com/terms`
+`mailto:support@backyard.app`

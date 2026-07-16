@@ -38,6 +38,16 @@ import { cacheAudio } from "../services/audioCache";
 const FREE_MAX_BLOCKS = 5;
 const PREMIUM_MAX_BLOCKS = 12;
 
+// Rejects with `label` if `promise` hasn't settled within `ms` -- used to
+// bound the guide-intro load/playback, which otherwise has no cap of its
+// own and can hang silently on a weak signal.
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)),
+  ]);
+}
+
 interface ActiveTourProps {
   mood: string;
   voice: string;
@@ -160,21 +170,42 @@ export default function ActiveTourScreen({
     // only) and resolves once it finishes, so block 1's narration never
     // overlaps it. Resolves immediately (no-op) for moods without a
     // persona, or if playback fails -- never blocks tour start.
+    //
+    // Both the load and the playback wait are capped -- on a weak signal
+    // (confirmed in the field: R2's signed URL and the audio file itself
+    // are fine, this only reproduces on bad network), createAsync's
+    // fetch can stall for a long time with nothing surfaced to the user,
+    // and there was previously no bound on it at all. A silent, unbounded
+    // hang here reads exactly like "no introduction, tour just started" --
+    // which is what got reported. Timing out cleanly falls through to the
+    // same no-op behavior a real load failure already had.
     async function playGuideIntro(audioUrl: string, guideName?: string | null) {
       if (guideName) showToast(t("activeTour.yourGuide", { name: guideName }));
+      let sound: Audio.Sound | null = null;
       try {
-        const { sound } = await Audio.Sound.createAsync({ uri: audioUrl }, { shouldPlay: true });
-        await new Promise<void>((resolve) => {
-          sound.setOnPlaybackStatusUpdate((status) => {
-            if (status.isLoaded && status.didJustFinish) {
-              sound.unloadAsync();
-              resolve();
-            }
-          });
-        });
+        sound = await withTimeout(
+          Audio.Sound.createAsync({ uri: audioUrl }, { shouldPlay: true }).then((r) => r.sound),
+          8000,
+          "guide intro load"
+        );
+        await withTimeout(
+          new Promise<void>((resolve) => {
+            sound!.setOnPlaybackStatusUpdate((status) => {
+              if (status.isLoaded && status.didJustFinish) {
+                resolve();
+              }
+            });
+          }),
+          15000,
+          "guide intro playback"
+        );
       } catch (e) {
         console.warn("Failed to play guide intro (continuing anyway):", e);
       }
+      // Runs whether it finished normally or a timeout/error cut it short --
+      // a sound that timed out mid-playback must still be stopped, or it
+      // keeps playing in the background under block 1's own narration.
+      sound?.unloadAsync().catch(() => {});
     }
 
     async function init() {

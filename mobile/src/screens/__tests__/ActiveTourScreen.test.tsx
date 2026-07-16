@@ -283,4 +283,27 @@ describe("ActiveTourScreen", () => {
     expect(onEndTour).toHaveBeenCalledWith("tour-1", 1, expect.any(Number), expect.any(Array));
     expect(removeSpy).toHaveBeenCalled();
   });
+
+  it("gives up on a guide intro that never loads and still starts block 1 (found in the field: a stalled network fetch previously had no bound at all)", async () => {
+    jest.useFakeTimers({ advanceTimers: true });
+    mockStartTour.mockResolvedValue({
+      tour_id: "tour-1", mood: "dark_side", voice: "neutral", tour_type: "walking",
+      started_at: "2026-07-15T00:00:00Z", intro_audio_url: "https://x/intro.mp3", guide_name: "Silas",
+    });
+    mockGetCurrentLocation.mockResolvedValue({ lat: 37.77, lng: -122.41 });
+    // Never resolves -- simulates a stalled fetch on a weak connection.
+    const { Audio } = require("expo-av");
+    (Audio.Sound.createAsync as jest.Mock).mockReturnValue(new Promise(() => {}));
+
+    const { findByText } = await render(<ActiveTourScreen {...baseProps({ mood: "dark_side" })} />);
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(8001);
+    });
+
+    expect(await findByText("24th St")).toBeTruthy();
+    expect(mockNarrateBlock).toHaveBeenCalled();
+
+    jest.useRealTimers();
+  });
 });

@@ -1,7 +1,7 @@
 // Route Detail screen — shown after tapping a Discover card, before replay.
 
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Share } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Share, KeyboardAvoidingView, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import MapView, { Marker } from "react-native-maps";
@@ -118,7 +118,15 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      // CommentsSection's TextInput lives at the very bottom of the
+      // ScrollView below — without this, the keyboard just overlaps it
+      // instead of the screen making room, since nothing here resizes
+      // or shifts on its own when the keyboard opens.
+      keyboardVerticalOffset={Math.max(insets.top, 54) + 10}
+    >
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 54) + 10 }]}>
         <TouchableOpacity onPress={onBack} accessibilityRole="button" accessibilityLabel={t("common.back")}>
           <Text style={styles.backLink}>‹ {t("common.back")}</Text>
@@ -217,7 +225,7 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
       <TouchableOpacity style={styles.startBtn} onPress={() => onStartReplay(tour)}>
         <Text style={styles.startBtnText}>{t("routeDetail.startReplay")}</Text>
       </TouchableOpacity>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -135,6 +135,45 @@ describe("ProfileScreen", () => {
     expect(props.onOpenBadges).toHaveBeenCalled();
   });
 
+  it("shows an 'Add' prompt when no date of birth is on file, and saves one once entered", async () => {
+    mockGetSettings.mockResolvedValue({ content_safety: false, date_of_birth: null });
+    mockUpdateSettings.mockResolvedValue({});
+    const { findByText, findByLabelText, getByPlaceholderText } = await render(<ProfileScreen {...baseProps()} />);
+
+    expect(await findByText("profile.dateOfBirthMissingDesc")).toBeTruthy();
+    await fireEvent.press(await findByLabelText("profile.editDateOfBirthA11y"));
+
+    await fireEvent.changeText(getByPlaceholderText("signup.dobMonthPlaceholder"), "3");
+    await fireEvent.changeText(getByPlaceholderText("signup.dobDayPlaceholder"), "5");
+    await fireEvent.changeText(getByPlaceholderText("signup.dobYearPlaceholder"), "1990");
+    await fireEvent.press(await findByText("profile.saveDateOfBirth"));
+
+    await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ date_of_birth: "1990-03-05" }));
+    expect(mockShowToast).toHaveBeenCalledWith("profile.dateOfBirthSaved");
+  });
+
+  it("shows the existing date of birth (not the 'Add' prompt) when one is already on file", async () => {
+    mockGetSettings.mockResolvedValue({ content_safety: false, date_of_birth: "1990-03-05" });
+    const { findByText, queryByText } = await render(<ProfileScreen {...baseProps()} />);
+
+    expect(await findByText("03/05/1990")).toBeTruthy();
+    expect(queryByText("profile.add")).toBeNull();
+  });
+
+  it("shows a toast when saving the date of birth fails", async () => {
+    mockGetSettings.mockResolvedValue({ content_safety: false, date_of_birth: null });
+    mockUpdateSettings.mockRejectedValue(new Error("network error"));
+    const { findByLabelText, findByText, getByPlaceholderText } = await render(<ProfileScreen {...baseProps()} />);
+
+    await fireEvent.press(await findByLabelText("profile.editDateOfBirthA11y"));
+    await fireEvent.changeText(getByPlaceholderText("signup.dobMonthPlaceholder"), "3");
+    await fireEvent.changeText(getByPlaceholderText("signup.dobDayPlaceholder"), "5");
+    await fireEvent.changeText(getByPlaceholderText("signup.dobYearPlaceholder"), "1990");
+    await fireEvent.press(await findByText("profile.saveDateOfBirth"));
+
+    await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("profile.couldntSaveDateOfBirth"));
+  });
+
   it("requires two confirmations before actually deleting the account", async () => {
     mockDeleteAccount.mockResolvedValue(true);
     mockSignOut.mockResolvedValue(undefined);

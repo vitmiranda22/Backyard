@@ -110,7 +110,15 @@
     "couldntDeleteAccount": "No se pudo eliminar tu cuenta — inténtalo de nuevo en un momento.",
     "narrationVoiceSettingsA11y": "Configuración de voz de narración",
     "matureContentToggleA11y": "Interruptor de contenido para adultos",
-    "viewAllBadgesA11y": "Ver todas las insignias"
+    "viewAllBadgesA11y": "Ver todas las insignias",
+    "dateOfBirth": "Fecha de nacimiento",
+    "dateOfBirthMissingDesc": "Añádela para desbloquear el contenido para adultos",
+    "add": "Añadir",
+    "edit": "Editar",
+    "saveDateOfBirth": "Guardar",
+    "dateOfBirthSaved": "Fecha de nacimiento guardada.",
+    "couldntSaveDateOfBirth": "No se pudo guardar — revisa la fecha e inténtalo de nuevo.",
+    "editDateOfBirthA11y": "Editar fecha de nacimiento"
   },
   "moods": {
     "time_machine": { "label": "Máquina del tiempo", "desc": "Descubre cómo se veía este lugar hace décadas" },

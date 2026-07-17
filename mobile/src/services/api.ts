@@ -431,6 +431,9 @@ export interface UserSettings {
   content_safety: boolean;
   anonymous_default: boolean;
   display_name: string;
+  // "YYYY-MM-DD", or null for any account created before the signup form
+  // started collecting it (or that never got a value some other way).
+  date_of_birth: string | null;
   is_premium: boolean;
 }
 

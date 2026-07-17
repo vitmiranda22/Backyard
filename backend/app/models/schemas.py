@@ -285,6 +285,10 @@ class UserSettingsResponse(BaseModel):
     content_safety: bool = False
     anonymous_default: bool = False
     display_name: str = ""
+    # None for any account created before migration 017 (or that skipped
+    # entering it) — ProfileScreen uses this to offer a one-time "add your
+    # date of birth" prompt rather than assuming everyone has one on file.
+    date_of_birth: Optional[str] = None
     # Read-only — never accepted on UpdateSettingsRequest. A user must not
     # be able to grant themselves premium by PATCHing their own settings;
     # this flag is only ever written server-side.
@@ -297,6 +301,10 @@ class UpdateSettingsRequest(BaseModel):
     content_safety: Optional[bool] = None
     anonymous_default: Optional[bool] = None
     display_name: Optional[str] = Field(None, max_length=50)
+    # "YYYY-MM-DD" — validated server-side in update_settings() rather than
+    # here, so an invalid value gets a clear 400 instead of a Pydantic
+    # parse error with a less friendly message.
+    date_of_birth: Optional[str] = None
 
 
 class UserStatsResponse(BaseModel):

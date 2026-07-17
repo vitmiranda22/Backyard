@@ -110,7 +110,15 @@
     "couldntDeleteAccount": "Couldn't delete your account — try again in a moment.",
     "narrationVoiceSettingsA11y": "Narration voice settings",
     "matureContentToggleA11y": "Mature content toggle",
-    "viewAllBadgesA11y": "View all badges"
+    "viewAllBadgesA11y": "View all badges",
+    "dateOfBirth": "Date of birth",
+    "dateOfBirthMissingDesc": "Add it to unlock mature content settings",
+    "add": "Add",
+    "edit": "Edit",
+    "saveDateOfBirth": "Save",
+    "dateOfBirthSaved": "Date of birth saved.",
+    "couldntSaveDateOfBirth": "Couldn't save that — check the date and try again.",
+    "editDateOfBirthA11y": "Edit date of birth"
   },
   "moods": {
     "time_machine": { "label": "Time Machine", "desc": "Get transported to what this spot looked like decades ago" },

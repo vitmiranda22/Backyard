@@ -10,6 +10,7 @@ User settings endpoints.
 """
 
 import logging
+from datetime import date
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
@@ -87,6 +88,7 @@ async def get_settings(user_id: AuthenticatedUser):
         content_safety=user.get("content_safety", False),
         anonymous_default=user.get("anonymous_default", False),
         display_name=user.get("display_name", ""),
+        date_of_birth=user.get("date_of_birth"),
         is_premium=user.get("is_premium", False),
     )
 
@@ -118,6 +120,25 @@ async def update_settings(
         updates["anonymous_default"] = request.anonymous_default
     if request.display_name is not None:
         updates["display_name"] = request.display_name.strip()[:50]
+    if request.date_of_birth is not None:
+        # Validated here rather than in the Pydantic model so a bad value
+        # gets this endpoint's normal error shape instead of a generic
+        # FastAPI 422 -- mirrors SignupScreen's client-side check, but
+        # this is the version that actually matters (a client is never
+        # trusted to have validated its own input).
+        try:
+            parsed = date.fromisoformat(request.date_of_birth)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "Invalid date of birth.", "code": "invalid_date_of_birth", "retry": False},
+            )
+        if parsed > date.today() or parsed.year < 1900:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "Invalid date of birth.", "code": "invalid_date_of_birth", "retry": False},
+            )
+        updates["date_of_birth"] = parsed.isoformat()
 
     if not updates:
         # Nothing to update — just return current settings
@@ -142,6 +163,7 @@ async def update_settings(
         content_safety=updated.get("content_safety", False),
         anonymous_default=updated.get("anonymous_default", False),
         display_name=updated.get("display_name", ""),
+        date_of_birth=updated.get("date_of_birth"),
         is_premium=updated.get("is_premium", False),
     )
 

@@ -1,7 +1,7 @@
 // Profile screen — account info, content safety toggle, sign out.
 
 import React, { useEffect, useState } from "react";
-import { View, Text, Switch, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from "react-native";
+import { View, Text, Switch, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { getCurrentUserEmail, signOut } from "../services/auth";
@@ -35,6 +35,15 @@ export default function ProfileScreen({
   const [stats, setStats] = useState<UserStats | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // null until settings load, then either a real "YYYY-MM-DD" or "" for
+  // any account with none on file (pre-signup-redesign accounts, mainly).
+  const [dateOfBirth, setDateOfBirth] = useState<string | null>(null);
+  const [editingDob, setEditingDob] = useState(false);
+  const [dobMonth, setDobMonth] = useState("");
+  const [dobDay, setDobDay] = useState("");
+  const [dobYear, setDobYear] = useState("");
+  const [savingDob, setSavingDob] = useState(false);
+
   useEffect(() => {
     async function load() {
       const [userEmail, settings, userStats] = await Promise.all([
@@ -43,7 +52,16 @@ export default function ProfileScreen({
         getUserStats().catch(() => null),
       ]);
       setEmail(userEmail);
-      if (settings) setContentSafety(settings.content_safety);
+      if (settings) {
+        setContentSafety(settings.content_safety);
+        setDateOfBirth(settings.date_of_birth ?? "");
+        if (settings.date_of_birth) {
+          const [y, m, d] = settings.date_of_birth.split("-");
+          setDobYear(y);
+          setDobMonth(m);
+          setDobDay(d);
+        }
+      }
       if (userStats) {
         setStats(userStats);
         setBadges(getEarnedBadges(userStats));
@@ -61,6 +79,35 @@ export default function ProfileScreen({
       console.warn("Failed to update settings:", e.message);
       showToast(t("profile.couldntSaveSetting"));
     }
+  }
+
+  function parsedDob(): string | null {
+    const m = parseInt(dobMonth, 10);
+    const d = parseInt(dobDay, 10);
+    const y = parseInt(dobYear, 10);
+    if (!m || !d || !y || m < 1 || m > 12 || d < 1 || d > 31 || y < 1900 || y > new Date().getFullYear()) {
+      return null;
+    }
+    return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  }
+
+  async function handleSaveDob() {
+    const parsed = parsedDob();
+    if (!parsed) {
+      Alert.alert(t("common.error"), t("signup.invalidDob"));
+      return;
+    }
+    setSavingDob(true);
+    try {
+      await updateSettings({ date_of_birth: parsed });
+      setDateOfBirth(parsed);
+      setEditingDob(false);
+      showToast(t("profile.dateOfBirthSaved"));
+    } catch (e: any) {
+      console.warn("Failed to save date of birth:", e.message);
+      showToast(t("profile.couldntSaveDateOfBirth"));
+    }
+    setSavingDob(false);
   }
 
   async function handleSignOut() {
@@ -204,6 +251,78 @@ export default function ProfileScreen({
           />
         </View>
       </View>
+
+      {dateOfBirth !== null && (
+        <View style={styles.card}>
+          {editingDob ? (
+            <>
+              <Text style={styles.rowTitle}>{t("profile.dateOfBirth")}</Text>
+              <View style={styles.dobRow}>
+                <TextInput
+                  style={[styles.dobInput]}
+                  placeholder={t("signup.dobMonthPlaceholder")}
+                  placeholderTextColor={colors.muted}
+                  value={dobMonth}
+                  onChangeText={setDobMonth}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                />
+                <TextInput
+                  style={[styles.dobInput]}
+                  placeholder={t("signup.dobDayPlaceholder")}
+                  placeholderTextColor={colors.muted}
+                  value={dobDay}
+                  onChangeText={setDobDay}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                />
+                <TextInput
+                  style={[styles.dobInput, styles.dobYearInput]}
+                  placeholder={t("signup.dobYearPlaceholder")}
+                  placeholderTextColor={colors.muted}
+                  value={dobYear}
+                  onChangeText={setDobYear}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                />
+              </View>
+              {savingDob ? (
+                <ActivityIndicator color={colors.accent} style={{ marginTop: 10 }} />
+              ) : (
+                <TouchableOpacity
+                  style={styles.saveDobBtn}
+                  onPress={handleSaveDob}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("profile.saveDateOfBirth")}
+                >
+                  <Text style={styles.saveDobBtnText}>{t("profile.saveDateOfBirth")}</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          ) : (
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => setEditingDob(true)}
+              accessibilityRole="button"
+              accessibilityLabel={t("profile.editDateOfBirthA11y")}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowTitle}>{t("profile.dateOfBirth")}</Text>
+                <Text style={styles.rowDesc}>
+                  {dateOfBirth ? `${dobMonth}/${dobDay}/${dobYear}` : t("profile.dateOfBirthMissingDesc")}
+                </Text>
+              </View>
+              {dateOfBirth ? (
+                <Text style={styles.chevron}>›</Text>
+              ) : (
+                <View style={styles.addDobPill}>
+                  <Text style={styles.addDobPillText}>{t("profile.add")}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       {stats && (
         <View style={styles.card}>
@@ -353,6 +472,48 @@ const styles = StyleSheet.create({
   chevron: {
     fontSize: 22,
     color: colors.muted,
+  },
+  addDobPill: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+  },
+  addDobPillText: {
+    color: colors.accentText,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  dobRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 10,
+  },
+  dobInput: {
+    flex: 1,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    color: colors.text,
+    padding: 12,
+    borderRadius: radius.md,
+    fontSize: 15,
+    textAlign: "center",
+  },
+  dobYearInput: {
+    flex: 1.4,
+  },
+  saveDobBtn: {
+    backgroundColor: colors.accent,
+    padding: 13,
+    borderRadius: radius.md,
+    marginTop: 12,
+  },
+  saveDobBtnText: {
+    color: colors.accentText,
+    textAlign: "center",
+    fontSize: 15,
+    fontWeight: "700",
   },
   badgeHeaderRow: {
     position: "relative",

@@ -21,8 +21,27 @@ supabase.auth.onAuthStateChange((_event, session) => {
   currentToken = session?.access_token ?? null;
 });
 
-export async function signUp(email: string, password: string) {
-  const { data, error } = await supabase.auth.signUp({ email, password });
+// dateOfBirth is "YYYY-MM-DD" -- matches the `.::DATE` cast in
+// handle_new_user() (017_signup_dob_privacy.sql). full_name/date_of_birth/
+// privacy_accepted travel in as Supabase Auth user_metadata; the trigger
+// reads them straight off auth.users, no separate backend call needed.
+export async function signUp(
+  email: string,
+  password: string,
+  fullName: string,
+  dateOfBirth: string
+) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: fullName,
+        date_of_birth: dateOfBirth,
+        privacy_accepted: true,
+      },
+    },
+  });
   if (error) throw error;
   if (data.session) {
     currentToken = data.session.access_token;

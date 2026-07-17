@@ -36,6 +36,7 @@ def _baseline_mocks(monkeypatch):
     one branch instead of re-declaring the whole pipeline every time.
     """
     monkeypatch.setattr(supabase_db, "get_user_premium_status", _async(False))
+    monkeypatch.setattr(supabase_db, "is_user_underage", _async(False))
     monkeypatch.setattr(supabase_db, "check_rate_limit", _async((True, "")))
     monkeypatch.setattr(supabase_db, "get_cached_zone_data", _async(None))
     monkeypatch.setattr(supabase_db, "get_cached_narration", _async(None))
@@ -249,3 +250,54 @@ def test_tts_failure_returns_text_only_response(app, client, auth_as, monkeypatc
     body = resp.json()
     assert body["narration_text"] == "Generated narration text."
     assert body["audio_url"] is None
+
+
+def test_underage_user_gets_content_safety_forced_on_even_when_requesting_it_off(app, client, auth_as, monkeypatch):
+    monkeypatch.setattr(supabase_db, "is_user_underage", _async(True))
+    captured = {}
+
+    async def _track_generate(**kwargs):
+        captured.update(kwargs)
+        return "Generated narration text."
+    monkeypatch.setattr(openai_service, "generate_narration", _track_generate)
+
+    auth_as(app, USER_ID)
+    resp = client.post("/api/narrate-block", json=_request_body(content_safety=False))
+
+    assert resp.status_code == 200
+    assert resp.json()["content_safety_applied"] is True
+    assert captured["content_safety"] is True
+
+
+def test_adult_users_content_safety_choice_passes_through_untouched(app, client, auth_as, monkeypatch):
+    monkeypatch.setattr(supabase_db, "is_user_underage", _async(False))
+    captured = {}
+
+    async def _track_generate(**kwargs):
+        captured.update(kwargs)
+        return "Generated narration text."
+    monkeypatch.setattr(openai_service, "generate_narration", _track_generate)
+
+    auth_as(app, USER_ID)
+    resp = client.post("/api/narrate-block", json=_request_body(content_safety=False))
+
+    assert resp.status_code == 200
+    assert resp.json()["content_safety_applied"] is False
+    assert captured["content_safety"] is False
+
+
+def test_underage_user_who_already_requested_safety_on_is_unaffected(app, client, auth_as, monkeypatch):
+    # is_user_underage should never even need to be consulted when the
+    # client already asked for safety on -- there's nothing to force.
+    checked = []
+    async def _track_underage(*args, **kwargs):
+        checked.append(True)
+        return True
+    monkeypatch.setattr(supabase_db, "is_user_underage", _track_underage)
+
+    auth_as(app, USER_ID)
+    resp = client.post("/api/narrate-block", json=_request_body(content_safety=True))
+
+    assert resp.status_code == 200
+    assert resp.json()["content_safety_applied"] is True
+    assert checked == []

@@ -10,7 +10,7 @@ calling any of these functions.
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from supabase import create_client, Client
 
 from app.config import settings
@@ -815,6 +815,38 @@ async def get_user_premium_status(user_id: str) -> bool:
     except Exception as e:
         logger.error(f"Failed to get premium status: {e}")
         return False
+
+
+async def is_user_underage(user_id: str, min_age: int = 18) -> bool:
+    """
+    Whether this user should be denied the app's mature "gloves off"
+    content mode based on date_of_birth (set at signup -- see
+    017_signup_dob_privacy.sql's handle_new_user() trigger).
+
+    Fails closed: a missing/unparseable date_of_birth (any account created
+    before this field existed, or a null value) is treated as NOT a
+    verified adult, same reasoning as get_user_premium_status denying on
+    uncertainty -- the safe default when age is unknown is to restrict,
+    not to trust the client's requested content_safety value.
+    """
+    try:
+        client = _get_client()
+        result = (
+            client.table("users")
+            .select("date_of_birth")
+            .eq("id", user_id)
+            .limit(1)
+            .execute()
+        )
+        if not result.data or not result.data[0].get("date_of_birth"):
+            return True
+        dob = date.fromisoformat(result.data[0]["date_of_birth"])
+        today = date.today()
+        age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+        return age < min_age
+    except Exception as e:
+        logger.error(f"Failed to check age gate for user {user_id[:8]}...: {e}")
+        return True
 
 
 async def update_user_settings(user_id: str, updates: dict):

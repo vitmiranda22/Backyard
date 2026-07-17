@@ -36,6 +36,7 @@ def test_start_tour_succeeds_when_under_limit(app, client, auth_as, monkeypatch)
         _async({"id": "tour-123", "created_at": "2026-07-15T00:00:00Z"}),
     )
     monkeypatch.setattr(supabase_db, "get_user_premium_status", _async(False))
+    monkeypatch.setattr(supabase_db, "is_user_underage", _async(False))
     monkeypatch.setattr(supabase_db, "get_voice_sample_key", _async(None))
     monkeypatch.setattr(supabase_db, "store_voice_sample_key", _async(True))
     monkeypatch.setattr(tts, "synthesize_speech", _async(b"fake-mp3-bytes"))
@@ -63,6 +64,7 @@ def test_start_tour_premium_mode_gets_named_persona_intro(app, client, auth_as, 
         _async({"id": "tour-456", "created_at": "2026-07-15T00:00:00Z"}),
     )
     monkeypatch.setattr(supabase_db, "get_user_premium_status", _async(True))
+    monkeypatch.setattr(supabase_db, "is_user_underage", _async(False))
     monkeypatch.setattr(supabase_db, "get_voice_sample_key", _async(None))
     monkeypatch.setattr(supabase_db, "store_voice_sample_key", _async(True))
     monkeypatch.setattr(tts, "synthesize_speech", _async(b"fake-mp3-bytes"))
@@ -76,3 +78,26 @@ def test_start_tour_premium_mode_gets_named_persona_intro(app, client, auth_as, 
     body = resp.json()
     assert body["guide_name"] == "Silas"
     assert body["intro_audio_url"] == "https://example.com/guide-intros/dark_side_dramatic.mp3"
+
+
+def test_start_tour_underage_user_gets_content_safety_forced_on(app, client, auth_as, monkeypatch):
+    monkeypatch.setattr(supabase_db, "check_minute_rate_limit", _async((True, "")))
+    monkeypatch.setattr(supabase_db, "get_user_premium_status", _async(False))
+    monkeypatch.setattr(supabase_db, "is_user_underage", _async(True))
+    monkeypatch.setattr(supabase_db, "get_voice_sample_key", _async(None))
+    monkeypatch.setattr(supabase_db, "store_voice_sample_key", _async(True))
+    monkeypatch.setattr(tts, "synthesize_speech", _async(b"fake-mp3-bytes"))
+    monkeypatch.setattr(r2, "upload_audio", _async(True))
+    monkeypatch.setattr(r2, "generate_signed_url", lambda key: f"https://example.com/{key}")
+
+    captured = {}
+    async def _track_create_tour(**kwargs):
+        captured.update(kwargs)
+        return {"id": "tour-789", "created_at": "2026-07-15T00:00:00Z"}
+    monkeypatch.setattr(supabase_db, "create_tour", _track_create_tour)
+    auth_as(app, USER_ID)
+
+    resp = client.post("/api/start-tour", json={"mood": "time_machine", "content_safety": False})
+
+    assert resp.status_code == 200
+    assert captured["content_safety"] is True

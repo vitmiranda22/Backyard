@@ -296,6 +296,14 @@ async def start_tour(
             },
         )
 
+    # Age gate: a ceiling, not a full override -- an adult's actual
+    # content_safety preference passes through untouched. Only forces
+    # safety ON when the client asked for it off and the account isn't a
+    # confirmed adult (see supabase_db.is_user_underage's fail-closed
+    # behavior for accounts with no date_of_birth on file).
+    if not request.content_safety and await supabase_db.is_user_underage(user_id):
+        request.content_safety = True
+
     tour = await supabase_db.create_tour(
         creator_id=user_id,
         mood=request.mood.value,

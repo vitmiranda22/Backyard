@@ -4,18 +4,16 @@ import { render, fireEvent, waitFor } from "@testing-library/react-native";
 
 jest.mock("../../services/auth", () => ({
   signIn: jest.fn(),
-  signUp: jest.fn(),
 }));
 jest.mock("../../services/analytics", () => ({
   track: jest.fn(),
 }));
 
 import LoginScreen from "../LoginScreen";
-import { signIn, signUp } from "../../services/auth";
+import { signIn } from "../../services/auth";
 import { track } from "../../services/analytics";
 
 const mockSignIn = signIn as jest.Mock;
-const mockSignUp = signUp as jest.Mock;
 const mockTrack = track as jest.Mock;
 
 // This RTL version's render()/fireEvent both use async act() internally
@@ -27,6 +25,10 @@ async function fillForm(getByPlaceholderText: any, email: string, password: stri
   await fireEvent.changeText(getByPlaceholderText("login.passwordPlaceholder"), password);
 }
 
+function baseProps(overrides = {}) {
+  return { onLogin: jest.fn(), onCreateAccount: jest.fn(), ...overrides };
+}
+
 describe("LoginScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -34,7 +36,7 @@ describe("LoginScreen", () => {
   });
 
   it("shows a validation alert instead of calling signIn when fields are empty", async () => {
-    const { getByText } = await render(<LoginScreen onLogin={jest.fn()} />);
+    const { getByText } = await render(<LoginScreen {...baseProps()} />);
 
     await fireEvent.press(getByText("login.signIn"));
 
@@ -45,7 +47,7 @@ describe("LoginScreen", () => {
   it("signs in, tracks the event, and calls onLogin on success", async () => {
     mockSignIn.mockResolvedValue({});
     const onLogin = jest.fn();
-    const { getByPlaceholderText, getByText } = await render(<LoginScreen onLogin={onLogin} />);
+    const { getByPlaceholderText, getByText } = await render(<LoginScreen {...baseProps({ onLogin })} />);
 
     await fillForm(getByPlaceholderText, "a@b.com", "password123");
     await fireEvent.press(getByText("login.signIn"));
@@ -58,7 +60,7 @@ describe("LoginScreen", () => {
   it("shows the server's error message on a failed sign-in, never calls onLogin", async () => {
     mockSignIn.mockRejectedValue(new Error("Invalid credentials"));
     const onLogin = jest.fn();
-    const { getByPlaceholderText, getByText } = await render(<LoginScreen onLogin={onLogin} />);
+    const { getByPlaceholderText, getByText } = await render(<LoginScreen {...baseProps({ onLogin })} />);
 
     await fillForm(getByPlaceholderText, "a@b.com", "wrongpass");
     await fireEvent.press(getByText("login.signIn"));
@@ -67,28 +69,31 @@ describe("LoginScreen", () => {
     expect(onLogin).not.toHaveBeenCalled();
   });
 
-  it("rejects a short password on sign-up before ever calling signUp", async () => {
-    const { getByPlaceholderText, getByText } = await render(<LoginScreen onLogin={jest.fn()} />);
+  it("calls onCreateAccount when 'New here?' is pressed, without touching auth at all", async () => {
+    const onCreateAccount = jest.fn();
+    const { getByText } = await render(<LoginScreen {...baseProps({ onCreateAccount })} />);
 
-    await fillForm(getByPlaceholderText, "a@b.com", "123");
-    await fireEvent.press(getByText("login.createAccount"));
+    await fireEvent.press(getByText("login.newHere"));
 
-    expect(Alert.alert).toHaveBeenCalledWith("common.error", "login.passwordTooShort");
-    expect(mockSignUp).not.toHaveBeenCalled();
+    expect(onCreateAccount).toHaveBeenCalled();
+    expect(mockSignIn).not.toHaveBeenCalled();
   });
 
-  it("signs up and tracks the event on success, without calling onLogin", async () => {
-    mockSignUp.mockResolvedValue({});
-    const onLogin = jest.fn();
-    const { getByPlaceholderText, getByText } = await render(<LoginScreen onLogin={onLogin} />);
+  it("shows one of the rotating guide quotes, attributed to a real persona", async () => {
+    const { getByText } = await render(<LoginScreen {...baseProps()} />);
 
-    await fillForm(getByPlaceholderText, "new@b.com", "password123");
-    await fireEvent.press(getByText("login.createAccount"));
-
-    await waitFor(() => expect(mockTrack).toHaveBeenCalledWith("signup_completed"));
-    expect(Alert.alert).toHaveBeenCalledWith("common.success", "login.accountCreated");
-    // Sign-up requires email confirmation before the app treats you as
-    // logged in — this screen must never fire onLogin itself.
-    expect(onLogin).not.toHaveBeenCalled();
+    // Exactly one of these three names must appear -- proves the quote
+    // pool is wired up and attributed, without pinning to which one this
+    // particular random pick landed on.
+    const names = ["Silas", "Roxie", "Frankie"];
+    const matches = names.filter((name) => {
+      try {
+        getByText(new RegExp(name));
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    expect(matches.length).toBe(1);
   });
 });

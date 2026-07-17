@@ -165,6 +165,14 @@ async def narrate_block(
                 },
             )
 
+    # --- Step 0.6: Age gate ---
+    # A ceiling, not a full override -- an adult's actual content_safety
+    # preference (on OR off) passes through untouched. Only forces safety
+    # ON when the client asked for it off and the account isn't a
+    # confirmed adult, regardless of what the request claims.
+    if not request.content_safety and await supabase_db.is_user_underage(user_id):
+        request.content_safety = True
+
     # --- Step 1: Compute geohash ---
     geo_hash = geohash2.encode(request.lat, request.lng, precision=GEOHASH_PRECISION)
     logger.info(

@@ -21,6 +21,7 @@ import "./src/i18n";
 import { loadSavedLanguage } from "./src/i18n";
 
 import LoginScreen from "./src/screens/LoginScreen";
+import SignupScreen from "./src/screens/SignupScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import ToursScreen from "./src/screens/ToursScreen";
@@ -52,6 +53,7 @@ function parseRouteDeepLink(url: string): string | null {
 type Screen =
   | "loading"
   | "login"
+  | "signup"
   | "onboarding"
   | "main"
   | "mood"
@@ -237,6 +239,14 @@ export default function App() {
             refreshSettings();
             identifyCurrentUser();
           }}
+          onCreateAccount={() => setScreen("signup")}
+        />
+      )}
+
+      {screen === "signup" && (
+        <SignupScreen
+          onBack={() => setScreen("login")}
+          onSignedUp={() => setScreen("login")}
         />
       )}
 

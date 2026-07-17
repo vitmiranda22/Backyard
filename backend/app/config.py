@@ -194,3 +194,13 @@ settings = Settings()
 # enforcement points can't drift out of sync.
 PREMIUM_MOODS = {"dark_side", "behind_scenes", "unfiltered"}
 PREMIUM_VOICES = {"dramatic", "warm"}
+
+# Fixed server-side allowlist (not client-controllable) of accounts exempt
+# from narration rate limiting -- devtest@backyard.app, used to generate
+# real content across many cities/modes in one sitting (field testing,
+# seeding Discover). The daily/minute limits exist to bound cost/abuse
+# from a normal walker's real usage pattern; this account's usage pattern
+# is deliberately not that, so it shouldn't be held to the same ceiling.
+# Add more IDs here if other dedicated test/content accounts show up --
+# never make this client-settable.
+UNLIMITED_TEST_ACCOUNT_IDS = {"a48f80c3-fad6-4a41-b31c-3889667cc314"}  # devtest@backyard.app

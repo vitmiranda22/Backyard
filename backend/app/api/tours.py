@@ -37,7 +37,7 @@ from app.models.schemas import (
     LikeResponse,
     ErrorResponse,
 )
-from app.config import PREMIUM_MOODS, PREMIUM_VOICES, settings
+from app.config import PREMIUM_MOODS, PREMIUM_VOICES, settings, UNLIMITED_TEST_ACCOUNT_IDS
 from app.services import supabase_db, r2, richness, zone_data, tts, osrm_service
 from app.services.geocode import reverse_geocode
 
@@ -243,7 +243,12 @@ async def _enforce_minute_rate_limit(user_id: str):
     NOT narrate-block's check_rate_limit, which shares a daily narration-
     budget counter these endpoints have no business touching. See
     supabase_db.check_minute_rate_limit's docstring for the full reasoning.
+
+    Skipped for the fixed server-side test-account allowlist (see its
+    docstring in config.py) — same reasoning as narrate.py's exemption.
     """
+    if user_id in UNLIMITED_TEST_ACCOUNT_IDS:
+        return
     allowed, reason = await supabase_db.check_minute_rate_limit(
         user_id, minute_limit=settings.MINUTE_NARRATION_LIMIT
     )

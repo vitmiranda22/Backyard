@@ -8,6 +8,7 @@ docstring. These tests pin both the 429 behavior and that a legitimate
 request still succeeds.
 """
 
+from app.config import UNLIMITED_TEST_ACCOUNT_IDS
 from app.services import supabase_db, tts, r2
 
 USER_ID = "44444444-4444-4444-4444-444444444444"
@@ -101,3 +102,28 @@ def test_start_tour_underage_user_gets_content_safety_forced_on(app, client, aut
 
     assert resp.status_code == 200
     assert captured["content_safety"] is True
+
+
+def test_allowlisted_test_account_bypasses_the_minute_rate_limit(app, client, auth_as, monkeypatch):
+    # check_minute_rate_limit is never even consulted for this account.
+    checked = []
+    async def _track_minute_limit(*args, **kwargs):
+        checked.append(True)
+        return (False, "minute_limit_exceeded")  # would 429 a normal user
+    monkeypatch.setattr(supabase_db, "check_minute_rate_limit", _track_minute_limit)
+    monkeypatch.setattr(supabase_db, "get_user_premium_status", _async(False))
+    monkeypatch.setattr(supabase_db, "is_user_underage", _async(False))
+    monkeypatch.setattr(supabase_db, "get_voice_sample_key", _async(None))
+    monkeypatch.setattr(supabase_db, "store_voice_sample_key", _async(True))
+    monkeypatch.setattr(supabase_db, "create_tour", _async({"id": "tour-999", "created_at": "2026-07-15T00:00:00Z"}))
+    monkeypatch.setattr(tts, "synthesize_speech", _async(b"fake-mp3-bytes"))
+    monkeypatch.setattr(r2, "upload_audio", _async(True))
+    monkeypatch.setattr(r2, "generate_signed_url", lambda key: f"https://example.com/{key}")
+
+    test_account_id = next(iter(UNLIMITED_TEST_ACCOUNT_IDS))
+    auth_as(app, test_account_id)
+
+    resp = client.post("/api/start-tour", json={"mood": "time_machine"})
+
+    assert resp.status_code == 200
+    assert checked == []

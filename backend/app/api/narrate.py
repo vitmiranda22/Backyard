@@ -39,7 +39,7 @@ import geohash2
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 
 from app.api.auth import AuthenticatedUser
-from app.config import settings, PREMIUM_MOODS, PREMIUM_VOICES
+from app.config import settings, PREMIUM_MOODS, PREMIUM_VOICES, UNLIMITED_TEST_ACCOUNT_IDS
 from app.models.schemas import (
     NarrateBlockRequest,
     NarrateBlockResponse,
@@ -132,22 +132,26 @@ async def narrate_block(
 
     # Every fresh (non-cached) narration triggers billed OpenAI/Street
     # View/TTS calls, so this has to be checked before any of that work
-    # starts, not just logged/measured after the fact.
-    allowed, reason = await supabase_db.check_rate_limit(
-        user_id,
-        minute_limit=settings.MINUTE_NARRATION_LIMIT,
-        daily_limit=settings.DAILY_NARRATION_LIMIT_PREMIUM if is_premium else settings.DAILY_NARRATION_LIMIT_FREE,
-    )
-    if not allowed:
-        retry_message = (
-            "Too many requests — slow down a bit and try again in a moment."
-            if reason == "minute_limit_exceeded"
-            else "You've hit today's narration limit. Try again tomorrow."
+    # starts, not just logged/measured after the fact. Skipped entirely
+    # for the fixed server-side test-account allowlist (see its docstring
+    # in config.py) — a normal walker's daily/minute ceiling doesn't apply
+    # to an account whose whole job is generating lots of content at once.
+    if user_id not in UNLIMITED_TEST_ACCOUNT_IDS:
+        allowed, reason = await supabase_db.check_rate_limit(
+            user_id,
+            minute_limit=settings.MINUTE_NARRATION_LIMIT,
+            daily_limit=settings.DAILY_NARRATION_LIMIT_PREMIUM if is_premium else settings.DAILY_NARRATION_LIMIT_FREE,
         )
-        raise HTTPException(
-            status_code=429,
-            detail={"error": retry_message, "code": reason, "retry": reason == "minute_limit_exceeded"},
-        )
+        if not allowed:
+            retry_message = (
+                "Too many requests — slow down a bit and try again in a moment."
+                if reason == "minute_limit_exceeded"
+                else "You've hit today's narration limit. Try again tomorrow."
+            )
+            raise HTTPException(
+                status_code=429,
+                detail={"error": retry_message, "code": reason, "retry": reason == "minute_limit_exceeded"},
+            )
 
     # --- Step 0.5: Premium entitlement check ---
     # Defense-in-depth: the client gates premium moods/voices behind a
@@ -562,19 +566,20 @@ async def ask_question(
     # that's about rapid-fire abuse, not daily cost. (Kept as a backstop
     # even though free users never reach it now that the whole feature is
     # premium-gated above — cheap insurance if that gate ever regresses.)
-    allowed, reason = await supabase_db.check_question_rate_limit(
-        user_id,
-        daily_limit=settings.DAILY_QUESTION_LIMIT_PREMIUM if is_premium else settings.DAILY_QUESTION_LIMIT_FREE,
-    )
-    if not allowed:
-        raise HTTPException(
-            status_code=429,
-            detail={
-                "error": "You've asked a lot of questions today — try again tomorrow.",
-                "code": reason,
-                "retry": False,
-            },
+    if user_id not in UNLIMITED_TEST_ACCOUNT_IDS:
+        allowed, reason = await supabase_db.check_question_rate_limit(
+            user_id,
+            daily_limit=settings.DAILY_QUESTION_LIMIT_PREMIUM if is_premium else settings.DAILY_QUESTION_LIMIT_FREE,
         )
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "You've asked a lot of questions today — try again tomorrow.",
+                    "code": reason,
+                    "retry": False,
+                },
+            )
 
     # Defense-in-depth, same as narrate-block: the client is expected to
     # gate premium moods/voices before ever reaching here, so this only

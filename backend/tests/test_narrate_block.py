@@ -11,6 +11,7 @@ network call.
 
 import pytest
 from app.api import narrate
+from app.config import UNLIMITED_TEST_ACCOUNT_IDS
 from app.services import supabase_db, geocode, openai_service, tts, r2
 from app.services.geocode import GeocodingResult
 
@@ -301,3 +302,31 @@ def test_underage_user_who_already_requested_safety_on_is_unaffected(app, client
     assert resp.status_code == 200
     assert resp.json()["content_safety_applied"] is True
     assert checked == []
+
+
+def test_allowlisted_test_account_bypasses_the_daily_narration_limit(app, client, auth_as, monkeypatch):
+    # check_rate_limit itself is never even consulted for this account --
+    # a normal user's daily/minute ceiling doesn't apply to it.
+    checked = []
+    async def _track_rate_limit(*args, **kwargs):
+        checked.append(True)
+        return (False, "daily_limit_exceeded")  # would 429 a normal user
+    monkeypatch.setattr(supabase_db, "check_rate_limit", _track_rate_limit)
+
+    test_account_id = next(iter(UNLIMITED_TEST_ACCOUNT_IDS))
+    auth_as(app, test_account_id)
+    resp = client.post("/api/narrate-block", json=_request_body())
+
+    assert resp.status_code == 200
+    assert checked == []
+
+
+def test_ordinary_account_still_gets_rate_limited(app, client, auth_as, monkeypatch):
+    # Regression guard on the allowlist itself -- an ordinary user_id
+    # (not in UNLIMITED_TEST_ACCOUNT_IDS) must still hit the real check.
+    monkeypatch.setattr(supabase_db, "check_rate_limit", _async((False, "daily_limit_exceeded")))
+    auth_as(app, USER_ID)
+
+    resp = client.post("/api/narrate-block", json=_request_body())
+
+    assert resp.status_code == 429

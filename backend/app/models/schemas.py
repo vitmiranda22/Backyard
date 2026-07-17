@@ -64,6 +64,15 @@ class ZoneDataUsed(BaseModel):
     sources_skipped: List[str] = Field(default_factory=list)
 
 
+class SuggestedNextResponse(BaseModel):
+    """A real nearby point of interest mined from this block's own zone
+    data (not a new fetch) -- rendered as a green waypoint marker on the
+    mobile map. See zone_data.pick_suggested_next."""
+    name: str
+    lat: float
+    lng: float
+
+
 class NarrateBlockResponse(BaseModel):
     """Response from /api/narrate-block"""
     street_name: str
@@ -79,6 +88,9 @@ class NarrateBlockResponse(BaseModel):
     content_safety_applied: bool
     cached: bool
     zone_data_used: Optional[ZoneDataUsed] = None
+    # None often -- thin zones, or neither Wikipedia nor OSM buildings
+    # returned anything with a usable coordinate for this block.
+    suggested_next: Optional[SuggestedNextResponse] = None
 
 
 class AskQuestionResponse(BaseModel):

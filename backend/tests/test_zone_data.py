@@ -123,3 +123,69 @@ def test_behind_scenes_gets_no_promotion_same_as_default():
     behind_scenes_formatted = zone_data.format_zone_data_for_prompt(data, mode="behind_scenes")
 
     assert default_formatted == behind_scenes_formatted
+
+
+# --- pick_suggested_next ---
+# 0.0001 degrees of latitude is ~11m; 0.0005 is ~56m — comfortably on
+# either side of _SUGGESTED_NEXT_MIN_DISTANCE_M (15m), so these don't
+# depend on exact floating-point boundary behavior.
+ORIGIN_LAT, ORIGIN_LNG = 37.7749, -122.4194
+
+
+def test_picks_the_closest_qualifying_item_across_wikipedia_and_osm():
+    data = {
+        "wikipedia": [
+            {"title": "Far Wikipedia Article", "lat": ORIGIN_LAT + 0.001, "lng": ORIGIN_LNG},
+        ],
+        "osm_buildings": [
+            {"name": "Near OSM Building", "lat": ORIGIN_LAT + 0.0005, "lng": ORIGIN_LNG},
+        ],
+    }
+
+    result = zone_data.pick_suggested_next(data, ORIGIN_LAT, ORIGIN_LNG)
+
+    assert result["name"] == "Near OSM Building"
+    assert result["lat"] == ORIGIN_LAT + 0.0005
+    assert result["lng"] == ORIGIN_LNG
+
+
+def test_excludes_items_too_close_to_origin():
+    data = {
+        "wikipedia": [
+            {"title": "Practically The Same Spot", "lat": ORIGIN_LAT + 0.0001, "lng": ORIGIN_LNG},
+        ],
+    }
+
+    assert zone_data.pick_suggested_next(data, ORIGIN_LAT, ORIGIN_LNG) is None
+
+
+def test_excludes_items_missing_a_coordinate():
+    data = {
+        "wikipedia": [{"title": "No Coordinates On File", "lat": None, "lng": None}],
+        "osm_buildings": [{"name": "Also Missing"}],
+    }
+
+    assert zone_data.pick_suggested_next(data, ORIGIN_LAT, ORIGIN_LNG) is None
+
+
+def test_excludes_items_missing_a_name():
+    data = {
+        "osm_buildings": [{"name": "", "lat": ORIGIN_LAT + 0.0005, "lng": ORIGIN_LNG}],
+    }
+
+    assert zone_data.pick_suggested_next(data, ORIGIN_LAT, ORIGIN_LNG) is None
+
+
+def test_ignores_sources_other_than_wikipedia_and_osm_buildings():
+    # Even if some other source happened to carry lat/lng, it's not
+    # considered -- only the two sources known to have real per-item
+    # coordinates are looked at.
+    data = {
+        "wikidata": [{"name": "Should Be Ignored", "lat": ORIGIN_LAT + 0.0005, "lng": ORIGIN_LNG}],
+    }
+
+    assert zone_data.pick_suggested_next(data, ORIGIN_LAT, ORIGIN_LNG) is None
+
+
+def test_returns_none_for_empty_zone_data():
+    assert zone_data.pick_suggested_next({}, ORIGIN_LAT, ORIGIN_LNG) is None

@@ -330,3 +330,50 @@ def test_ordinary_account_still_gets_rate_limited(app, client, auth_as, monkeypa
     resp = client.post("/api/narrate-block", json=_request_body())
 
     assert resp.status_code == 429
+
+
+def test_suggested_next_is_null_when_zone_data_has_no_qualifying_item(app, client, auth_as):
+    # Baseline mocks already return an empty zone_data -- nothing to mine.
+    auth_as(app, USER_ID)
+
+    resp = client.post("/api/narrate-block", json=_request_body())
+
+    assert resp.status_code == 200
+    assert resp.json()["suggested_next"] is None
+
+
+def test_suggested_next_appears_when_zone_data_has_a_qualifying_item(app, client, auth_as, monkeypatch):
+    lat, lng = _request_body()["lat"], _request_body()["lng"]
+
+    async def _fake_fetch_all(**kwargs):
+        return {
+            "zone_data": {
+                "wikipedia": [{"title": "Nearby Landmark", "lat": lat + 0.0005, "lng": lng}],
+            },
+            "sources_queried": ["wikipedia"], "sources_failed": [],
+            "sources_skipped": [], "hit_count": 1, "total": 1,
+        }
+    monkeypatch.setattr(narrate, "fetch_all_zone_data", _fake_fetch_all)
+
+    auth_as(app, USER_ID)
+    resp = client.post("/api/narrate-block", json=_request_body())
+
+    assert resp.status_code == 200
+    suggested = resp.json()["suggested_next"]
+    assert suggested is not None
+    assert suggested["name"] == "Nearby Landmark"
+    assert suggested["lat"] == lat + 0.0005
+    assert suggested["lng"] == lng
+
+
+def test_suggested_next_is_null_on_narration_cache_hit_when_no_zone_row_cached(app, client, auth_as, monkeypatch):
+    # Cache-hit path skips fetch_all_zone_data entirely; raw_data can only
+    # come from an existing get_cached_zone_data row. With none cached
+    # (baseline default), suggested_next must stay null rather than error.
+    monkeypatch.setattr(supabase_db, "get_cached_narration", _async({"id": "cached-1", "narration_text": "Cached text."}))
+    auth_as(app, USER_ID)
+
+    resp = client.post("/api/narrate-block", json=_request_body())
+
+    assert resp.status_code == 200
+    assert resp.json()["suggested_next"] is None

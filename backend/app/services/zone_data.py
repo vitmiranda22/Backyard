@@ -20,6 +20,7 @@ different moods from the same underlying data.
 
 import logging
 import asyncio
+import math
 import httpx
 
 from app.config import settings
@@ -210,6 +211,66 @@ def should_skip_web_search(hit_count, eligible_count) -> bool:
     if hit_count is None or eligible_count is None or eligible_count <= 0:
         return False
     return (hit_count / eligible_count) >= settings.WEB_SEARCH_SKIP_MIN_HIT_RATIO
+
+
+# Minimum distance (meters) a candidate must be from the block's own
+# trigger point to qualify as a suggested next waypoint -- anything closer
+# is almost certainly the same thing the block's narration is already
+# about, not a genuinely different nearby spot worth pointing at.
+_SUGGESTED_NEXT_MIN_DISTANCE_M = 15
+
+
+def _haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    r = 6371000  # Earth radius, meters
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    d_phi = math.radians(lat2 - lat1)
+    d_lambda = math.radians(lng2 - lng1)
+    a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
+    return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def pick_suggested_next(zone_data: dict, origin_lat: float, origin_lng: float) -> dict | None:
+    """
+    Picks one nearby real point of interest from the current block's own
+    already-fetched zone data to surface as a suggested next waypoint
+    (the mobile map's green arrow) -- deliberately NOT a new fetch, just
+    mining data already paid for narrating this exact block.
+
+    Only looks at "wikipedia" and "osm_buildings" -- the two sources
+    that carry a real per-item lat/lng (see fetch_wikipedia/
+    fetch_osm_buildings in global_sources.py; every other source either
+    has no reliable per-item coordinate or is geographically gated).
+
+    Returns {"name", "lat", "lng"} for the closest qualifying item
+    beyond _SUGGESTED_NEXT_MIN_DISTANCE_M, or None if nothing qualifies
+    -- expected often (thin zones, or neither source returned anything
+    with a usable coordinate).
+    """
+    candidates = []
+    for key in ("wikipedia", "osm_buildings"):
+        for item in zone_data.get(key, []) or []:
+            if not isinstance(item, dict):
+                continue
+            lat, lng = item.get("lat"), item.get("lng")
+            if lat is None or lng is None:
+                continue
+            name = item.get("title") or item.get("name")
+            if not name:
+                continue
+            try:
+                lat, lng = float(lat), float(lng)
+            except (TypeError, ValueError):
+                continue
+            dist = _haversine_m(origin_lat, origin_lng, lat, lng)
+            if dist < _SUGGESTED_NEXT_MIN_DISTANCE_M:
+                continue
+            candidates.append((dist, name, lat, lng))
+
+    if not candidates:
+        return None
+
+    _, name, lat, lng = min(candidates, key=lambda c: c[0])
+    return {"name": name, "lat": lat, "lng": lng}
 
 
 # Tier 3 sources are administrative record-keeping about real people's

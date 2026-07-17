@@ -49,6 +49,12 @@ async function authFetch(path: string, options: RequestInit = {}, isRetry = fals
 // Narration
 // =============================================================================
 
+export interface SuggestedNextWaypoint {
+  name: string;
+  lat: number;
+  lng: number;
+}
+
 export interface NarrationResponse {
   street_name: string;
   neighborhood: string;
@@ -62,6 +68,10 @@ export interface NarrationResponse {
   mood: string;
   content_safety_applied: boolean;
   cached: boolean;
+  // Real nearby point of interest mined from this block's own zone data
+  // (not a new fetch) -- null often, not every block has a qualifying
+  // nearby item. Rendered as a green waypoint marker on the map.
+  suggested_next: SuggestedNextWaypoint | null;
 }
 
 export async function narrateBlock(

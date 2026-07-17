@@ -9,7 +9,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, Pressable, StyleSheet, Alert, Animated, Easing, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import MapView from "react-native-maps";
+import MapView, { Marker } from "react-native-maps";
 import { Audio } from "expo-av";
 import RoutePolyline from "../components/RoutePolyline";
 import { useZoneTracker } from "../hooks/useZoneTracker";
@@ -22,7 +22,7 @@ import {
   compassLabel,
   snapToRoad,
 } from "../services/location";
-import { narrateBlock, saveBlock, startTour, askQuestion, endTour, EndTourResponse } from "../services/api";
+import { narrateBlock, saveBlock, startTour, askQuestion, endTour, EndTourResponse, SuggestedNextWaypoint } from "../services/api";
 import { startRecording, stopRecording, cancelRecording } from "../services/recording";
 import NarrationCard from "../components/NarrationCard";
 import WaypointCompass from "../components/WaypointCompass";
@@ -116,6 +116,11 @@ export default function ActiveTourScreen({
   // Where the currently-displayed block was triggered — the waypoint
   // compass points back at this as you keep walking.
   const [blockOrigin, setBlockOrigin] = useState<{ lat: number; lng: number } | null>(null);
+
+  // A real nearby point of interest mined from this block's own zone data
+  // (see backend zone_data.pick_suggested_next) — rendered as a green
+  // waypoint marker on the map. Null often; not every block has one.
+  const [suggestedNext, setSuggestedNext] = useState<SuggestedNextWaypoint | null>(null);
 
   // Hold-to-ask voice question state.
   const [qaState, setQaState] = useState<"idle" | "recording" | "thinking">("idle");
@@ -340,6 +345,7 @@ export default function ActiveTourScreen({
       setAudioUrl(result.audio_url);
       setImageUrl(result.image_url);
       setBlockOrigin({ lat, lng });
+      setSuggestedNext(result.suggested_next);
 
       // Only hold off future auto-triggers if there's actual audio to be
       // interrupted — a text-only block (audio generation failed) has
@@ -531,6 +537,19 @@ export default function ActiveTourScreen({
             showsUserLocation
           >
             {path.length > 1 && <RoutePolyline coordinates={path} />}
+            {suggestedNext && (
+              <Marker
+                testID="suggested-next-marker"
+                coordinate={{ latitude: suggestedNext.lat, longitude: suggestedNext.lng }}
+                title={suggestedNext.name}
+                anchor={{ x: 0.5, y: 1 }}
+                tracksViewChanges={false}
+              >
+                <View style={styles.suggestedNextPin}>
+                  <View style={styles.suggestedNextArrow} />
+                </View>
+              </Marker>
+            )}
           </MapView>
         ) : (
           <View style={styles.mapPlaceholder}>
@@ -678,6 +697,26 @@ const styles = StyleSheet.create({
   compassOverlay: {
     position: "absolute",
     right: 16,
+  },
+  suggestedNextPin: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.pro,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  suggestedNextArrow: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderBottomWidth: 7,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderBottomColor: colors.pro,
   },
   statsBar: {
     flexDirection: "row",

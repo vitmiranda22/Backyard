@@ -56,7 +56,9 @@ RADIUS_METERS = 200
 async def fetch_wikipedia(lat: float, lng: float, client: httpx.AsyncClient) -> list:
     """
     Wikipedia Geosearch — find articles about places within 200m.
-    Returns article titles and short extracts.
+    Returns article titles and short extracts, plus each article's real
+    lat/lng (used by zone_data.pick_suggested_next for the map's
+    suggested-waypoint marker, not just narration text).
     Wikipedia requires a User-Agent header.
     """
     headers = {"User-Agent": "BackyardApp/1.0 (tour guide app; contact@backyard.app)"}
@@ -100,7 +102,7 @@ async def fetch_wikipedia(lat: float, lng: float, client: httpx.AsyncClient) -> 
             timeout=TIMEOUT,
         )
         if r2.status_code != 200:
-            return [{"title": a["title"], "dist_m": a.get("dist", 0)} for a in articles]
+            return [{"title": a["title"], "dist_m": a.get("dist", 0), "lat": a.get("lat"), "lng": a.get("lon")} for a in articles]
 
         pages = r2.json().get("query", {}).get("pages", {})
         results = []
@@ -110,6 +112,11 @@ async def fetch_wikipedia(lat: float, lng: float, client: httpx.AsyncClient) -> 
                 "title": a["title"],
                 "extract": page.get("extract", ""),
                 "dist_m": a.get("dist", 0),
+                # Already present on every geosearch result -- previously
+                # discarded. Now used by zone_data.pick_suggested_next to
+                # place a real waypoint marker, not just narration text.
+                "lat": a.get("lat"),
+                "lng": a.get("lon"),
             })
         return results
 
@@ -191,7 +198,7 @@ async def fetch_osm_buildings(lat: float, lng: float, client: httpx.AsyncClient)
       way(around:{RADIUS_METERS},{lat},{lng})["leisure"="garden"];
       node(around:{RADIUS_METERS},{lat},{lng})["natural"="tree"];
     );
-    out body 15;
+    out body center 15;
     """
 
     for i, endpoint in enumerate(OVERPASS_ENDPOINTS):
@@ -206,6 +213,13 @@ async def fetch_osm_buildings(lat: float, lng: float, client: httpx.AsyncClient)
             for el in elements[:15]:
                 tags = el.get("tags", {})
                 if tags:
+                    # Nodes carry lat/lon directly; ways/relations only get
+                    # a computed centroid because the query now asks for
+                    # "out center" too -- either way, this is a real
+                    # coordinate (not narration text), used by
+                    # zone_data.pick_suggested_next for the map's
+                    # suggested-waypoint marker.
+                    center = el.get("center") or {}
                     results.append({
                         "type": el.get("type", ""),
                         "name": tags.get("name", ""),
@@ -227,6 +241,8 @@ async def fetch_osm_buildings(lat: float, lng: float, client: httpx.AsyncClient)
                         "species": tags.get("species") or tags.get("species:en", ""),
                         "genus": tags.get("genus", ""),
                         "leaf_type": tags.get("leaf_type", ""),
+                        "lat": el.get("lat", center.get("lat")),
+                        "lng": el.get("lon", center.get("lon")),
                     })
             return results
 

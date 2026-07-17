@@ -96,6 +96,7 @@ function narration(overrides = {}) {
     mood: "time_machine",
     content_safety_applied: false,
     cached: false,
+    suggested_next: null,
     ...overrides,
   };
 }
@@ -148,6 +149,23 @@ describe("ActiveTourScreen", () => {
 
     expect(mockStartTour).toHaveBeenCalledWith("time_machine", "neutral", false);
     expect(mockNarrateBlock).toHaveBeenCalledWith(37.77, -122.41, "time_machine", "neutral", false, "auto", "tour-1");
+  });
+
+  it("renders a green waypoint marker at the suggested_next coordinate when the response includes one", async () => {
+    mockNarrateBlock.mockResolvedValue(
+      narration({ suggested_next: { name: "Old City Hall", lat: 37.7701, lng: -122.4155 } })
+    );
+    const { getByTestId } = await renderStarted();
+
+    const marker = getByTestId("suggested-next-marker");
+    expect(marker.props.coordinate).toEqual({ latitude: 37.7701, longitude: -122.4155 });
+    expect(marker.props.title).toBe("Old City Hall");
+  });
+
+  it("renders no waypoint marker when the response has no suggested_next", async () => {
+    const { queryByTestId } = await renderStarted(); // narration() defaults suggested_next to null
+
+    expect(queryByTestId("suggested-next-marker")).toBeNull();
   });
 
   it("saves the block once narration succeeds", async () => {

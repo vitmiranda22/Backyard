@@ -1,6 +1,6 @@
 # Launch checklist
 
-One place to see what's actually done vs. still open before Backyard goes live. Updated as of this security/testing/admin-dashboard pass — re-check dates and quotas before relying on this if it's been a while.
+One place to see what's actually done vs. still open before Backyard goes live. Updated as of the auth redesign / age-gate pass — re-check dates and quotas before relying on this if it's been a while.
 
 ## Store submission
 
@@ -11,6 +11,15 @@ One place to see what's actually done vs. still open before Backyard goes live. 
 - [ ] Screenshots — not yet captured; needs a real device/simulator with a build installed, can't be done from this environment
 - [ ] Play Console identity verification (Google's own process, multi-day) — blocked, parked
 
+## Auth & onboarding
+
+- [x] Real Create Account screen (method picker → email details form), split out of the login screen
+- [x] Signup collects full name, date of birth, and requires explicit Privacy Policy/Terms acceptance before submitting
+- [x] Server-side age-gate: `is_user_underage()` fails closed on unknown DOB, forces mature "content off" narration to PG for anyone under 18 regardless of what the client requests
+- [ ] **Existing accounts have no way to set a date of birth** — anyone who signed up before migration `017_signup_dob_privacy.sql` has `date_of_birth = NULL` forever unless a settings field gets added. They're not blocked from the app, just silently held to the safe-mode (fail-closed) default on the mature content toggle until this exists. Worth adding a DOB field to `ProfileScreen` next.
+- [ ] Google/Apple sign-in — buttons are shipped and visible (disabled, "coming soon") but not functional. Needs: OAuth credentials set up in Supabase Auth + Google Cloud Console + Apple Developer Portal (your side), plus native modules that require a new EAS Build (blocked on the iOS quota above for that platform).
+- [ ] Real mascot logo — login/signup currently show the "Backyard" text wordmark only; a marked placeholder was shown in the design mockups but no real asset exists yet to drop in.
+
 ## RevenueCat / payments
 
 - [x] iOS entitlements live (Backyard Pro, monthly/annual App Store subscriptions)
@@ -20,36 +29,36 @@ One place to see what's actually done vs. still open before Backyard goes live. 
 
 ## Legal / compliance
 
-- [x] Privacy policy (`/privacy`) — real, app-specific, now discloses every third party that touches user data: OpenAI, Google Cloud (TTS + Street View), Supabase, Cloudflare R2, PostHog, Sentry, RevenueCat
-- [x] Terms of Service (`/terms`) — covers AI-generated content disclaimers, published-route content rules, premium billing, acceptable use
+- [x] Privacy policy (`/privacy`) — discloses every third party that touches user data (OpenAI, Google Cloud, Supabase, Cloudflare R2, PostHog, Sentry, RevenueCat), plus the newly-collected full name/date of birth and why
+- [x] Terms of Service (`/terms`) — AI-generated content disclaimers, published-route rules, premium billing, acceptable use, and the 18+ clause on the mature content setting
 - [x] Support/privacy contact addresses live (`support@backyard.app`, `privacy@backyard.app`)
 
 ## Security
 
-Full audit completed and remediated this cycle — see git log for the complete trail. Summary:
-- [x] RLS hardening: users can no longer self-grant premium or rewrite tour stats via a direct PostgREST call with their own JWT (the mobile app ships the anon key client-side, so this was a real, independently-reachable attack surface, not just defense-in-depth)
-- [x] Private tours' ratings/comments/likes/shares no longer world-readable regardless of the `is_public` flag
-- [x] Application-layer authorization added to comments/likes endpoints (ownership/visibility check, mirroring tour-detail's existing pattern)
-- [x] Rate limiting added to `start-tour`, `post_comment`, `toggle_like`, `rate_tour` (previously uncapped)
-- [x] Upload size/content-type validation on `ask-question`'s audio upload
-- [x] `DEV_SKIP_LOGIN` gated behind `__DEV__` — can never ship live-enabled in a release build
-- [x] Dependency hygiene: `npm audit fix` cleared all high/critical mobile vulnerabilities; unused `python-jose` + debug script removed
+Full audit completed and remediated — see git log for the complete trail. Summary:
+- [x] RLS hardening, private-tour visibility fix, comments/likes authorization, rate limiting on start-tour/comments/likes/ratings, upload validation on ask-question, `DEV_SKIP_LOGIN` gated behind `__DEV__`, dependency hygiene (`npm audit fix`, unused `python-jose` removed)
+- [x] Age-gate is defense-in-depth server-side (narrate-block + start-tour), not just a client-side toggle — a modified/stale client can't bypass it
+
+## Content quality
+
+- [x] Zone-data source prioritization rebalanced across all 34 sources (tiered by narrative value, mode-aware promotion for dark_side/hidden_city/unfiltered/time_machine) — found and fixed via a live multi-city test
+- [x] Fixed a real narration bug found in that same test: the model would occasionally answer in the source data's language instead of English, and would recycle the prompt's own illustrative example as if it were a real fact when zone data was thin — both now explicitly guarded against in `prompts.py`
+- [x] Every tour now gets a real spoken intro (free modes get an unnamed welcome line, premium modes keep their named persona) and a spoken outro when the app auto-completes a tour at the block cap — manual early endings don't get an outro, since there's nothing to compensate for
+- [ ] **9 real tours generated across 9 cities are sitting private, unpublished** (Lisbon, Buenos Aires, Marrakech, Kyoto, Reykjavik, Hanoi, Accra, Wellington, Québec City — the last one incomplete, 1 of 3 blocks). Ready to publish to Discover whenever you want a first pass at real content instead of the SF-only test data.
 
 ## Monitoring & ops
 
-- [x] Admin dashboard live at `/admin` — users, tours, engagement, top places, revenue, storage, costs, cache-table sizes, all gated behind a constant-time-compared secret key
-- [x] Sentry crash reporting wired in (backend + mobile)
-- [x] PostHog product analytics wired in (mobile)
-- [x] Daily cache-cleanup cron (`cleanup-cache.yml`) prunes expired `narration_cache`/`zone_data_cache`/`audio_files` rows and their R2 objects
-- [x] Keep-alive cron (`keep-alive.yml`) mitigates Render free-tier cold starts — not eliminated, real fix is a paid tier
+- [x] Admin dashboard live at `/admin` (users, tours, engagement, revenue, storage, costs, cache sizes), gated behind a constant-time-compared secret
+- [x] Sentry crash reporting + PostHog analytics wired in
+- [x] Daily cache-cleanup cron, keep-alive cron for Render's free-tier cold starts
 
 ## Test coverage
 
-- [x] Backend: 72 tests — every security fix above, the admin dashboard, cache cleanup, the RevenueCat webhook, the full tour lifecycle (save/end/publish), and `narrate-block` itself (rate limiting, premium gating, both cache layers, tour continuity, the IDOR guard, TTS failure fallback)
-- [x] Mobile: 130 tests across all 14 screens plus the core service layer (`api.ts`, `auth.ts`, `location.ts`) — found and fixed 3 real bugs along the way (a timer leak in `snapToRoad`, a React/react-native-renderer version mismatch, and a stale-closure bug in `ActiveTourScreen` that dropped the tour ID on GPS-triggered auto-completion)
+- [x] Backend: 95 tests — all of the above plus the age-gate's date-boundary math, signup persistence paths, and the mode-aware zone-data prioritization
+- [x] Mobile: 140 tests across all screens (now including `SignupScreen`) plus the service layer
 
 ## Known gaps, not blocking but worth knowing about
 
-- **Discover tab has no real content yet** — only test/dev tours from a single city (San Francisco). An empty-feeling Discover tab is a bad first impression for real users; worth seeding a handful of real, diverse tours across a few cities before actively promoting the app. Not a bug, a content task.
-- **OpenAI and Google Cloud costs aren't tracked** in the admin dashboard's Costs section — both need separate, more-sensitive billing-scoped credentials (an OpenAI Admin key, a Google Cloud billing-viewer service account) that aren't set up yet. R2 storage cost is real and tracked; these two (the actual biggest variable costs) are explicitly marked "not tracked" rather than estimated.
+- **OpenAI and Google Cloud costs still aren't tracked** in the admin dashboard's Costs section — both need separate, more-sensitive billing-scoped credentials that aren't set up. R2 storage cost is real and tracked.
 - **Screen-level UI polish/QA on a real device** hasn't happened in this environment — everything here is automated test coverage + manual API-level verification, not a hands-on walkthrough on a phone.
+- **Forgot-password flow doesn't exist** — not part of the recent auth redesign scope, worth adding alongside the ProfileScreen DOB field above.

@@ -56,6 +56,7 @@
     "missingFields": "Please fill in all fields",
     "passwordTooShort": "Password must be at least 6 characters",
     "invalidDob": "Please enter a valid date of birth",
+    "tooYoung": "You must be at least 13 years old to create a Backyard account.",
     "mustAcceptPrivacy": "Please accept the Privacy Policy and Terms of Service",
     "signUpFailed": "Sign up failed",
     "accountCreated": "Account created! You can now sign in."

@@ -90,6 +90,30 @@ describe("SignupScreen", () => {
     expect(getByLabelText("signup.createAccount").props.accessibilityState?.disabled).toBe(true);
   });
 
+  it("email step: a date of birth under the 13-year minimum keeps Create Account disabled and alerts on submit", async () => {
+    // Computed relative to today rather than a fixed year, so this stays
+    // true regardless of when the suite runs -- a real 5-year-old today.
+    const fiveYearsAgo = new Date();
+    fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+
+    const { getByText, getByPlaceholderText, getByLabelText } = await render(<SignupScreen {...baseProps()} />);
+    await goToEmailStep(getByText);
+
+    await fireEvent.changeText(getByPlaceholderText("signup.fullNamePlaceholder"), "Too Young");
+    await fireEvent.changeText(getByPlaceholderText("signup.emailPlaceholder"), "young@example.com");
+    await fireEvent.changeText(getByPlaceholderText("signup.dobMonthPlaceholder"), String(fiveYearsAgo.getMonth() + 1));
+    await fireEvent.changeText(getByPlaceholderText("signup.dobDayPlaceholder"), String(fiveYearsAgo.getDate()));
+    await fireEvent.changeText(getByPlaceholderText("signup.dobYearPlaceholder"), String(fiveYearsAgo.getFullYear()));
+    await fireEvent.changeText(getByPlaceholderText("signup.passwordPlaceholder"), "password123");
+    await fireEvent.press(getByLabelText("signup.privacyCheckboxA11y"));
+
+    // The structural date is valid (real month/day/year), but too young --
+    // must stay disabled the same as any other invalid-DOB case, not just
+    // silently accepted with an alert as the only guard.
+    expect(getByLabelText("signup.createAccount").props.accessibilityState?.disabled).toBe(true);
+    expect(mockSignUp).not.toHaveBeenCalled();
+  });
+
   it("creates the account with the composed YYYY-MM-DD date once every field is valid and privacy is accepted", async () => {
     mockSignUp.mockResolvedValue({});
     const onSignedUp = jest.fn();

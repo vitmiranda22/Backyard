@@ -27,6 +27,13 @@ import { colors, font, radius } from "../theme";
 const PRIVACY_URL = "https://backyard-api.onrender.com/privacy";
 const TERMS_URL = "https://backyard-api.onrender.com/terms";
 
+// COPPA: 13 is the floor for creating an account at all (separate from
+// is_user_underage's 18+ gate on mature content). Real enforcement is
+// server-side (the handle_new_user() trigger, see migration
+// 018_min_signup_age.sql) -- this is just the friendly, same-day UX so a
+// child entering their real birthday doesn't get a raw DB error.
+const MIN_SIGNUP_AGE = 13;
+
 type Step = "method" | "email";
 
 interface SignupScreenProps {
@@ -57,10 +64,26 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
     return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
   }
 
+  // Mirrors is_user_underage's age math (backend/app/services/supabase_db.py)
+  // so the client's floor and the server's floor never disagree on a
+  // birthday that falls exactly on today's month/day.
+  function ageFromDob(dob: string): number {
+    const [y, m, d] = dob.split("-").map(Number);
+    const today = new Date();
+    let age = today.getFullYear() - y;
+    if (today.getMonth() + 1 < m || (today.getMonth() + 1 === m && today.getDate() < d)) {
+      age -= 1;
+    }
+    return age;
+  }
+
+  const dob = parsedDob();
+  const oldEnough = dob !== null && ageFromDob(dob) >= MIN_SIGNUP_AGE;
+
   const canSubmit =
     fullName.trim().length > 0 &&
     email.trim().length > 0 &&
-    parsedDob() !== null &&
+    oldEnough &&
     password.length >= 6 &&
     privacyAccepted;
 
@@ -77,9 +100,12 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
       Alert.alert(t("common.error"), t("signup.passwordTooShort"));
       return;
     }
-    const dob = parsedDob();
     if (!dob) {
       Alert.alert(t("common.error"), t("signup.invalidDob"));
+      return;
+    }
+    if (!oldEnough) {
+      Alert.alert(t("common.error"), t("signup.tooYoung"));
       return;
     }
     if (!privacyAccepted) {

@@ -107,6 +107,7 @@
     "deleting": "Eliminando...",
     "deleteAccountTitle": "¿Eliminar cuenta?",
     "deleteAccountBody": "Esto elimina permanentemente tu cuenta, recorridos, calificaciones y comentarios. Esto no se puede deshacer.",
+    "deleteAccountBodyPremium": "Esto elimina permanentemente tu cuenta, recorridos, calificaciones y comentarios. Esto no se puede deshacer. NO cancela tu suscripción a Backyard Pro — cancélala por separado en la configuración de tu cuenta de App Store o Play Store, o seguirás pagando.",
     "delete": "Eliminar",
     "deleteConfirmTitle": "¿Estás seguro?",
     "deleteConfirmBody": "Última oportunidad — esto realmente no se puede deshacer.",

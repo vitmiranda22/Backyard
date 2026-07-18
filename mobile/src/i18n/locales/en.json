@@ -107,6 +107,7 @@
     "deleting": "Deleting...",
     "deleteAccountTitle": "Delete account?",
     "deleteAccountBody": "This permanently deletes your account, tours, ratings, and comments. This can't be undone.",
+    "deleteAccountBodyPremium": "This permanently deletes your account, tours, ratings, and comments. This can't be undone. It does NOT cancel your Backyard Pro subscription — cancel it separately in your App Store or Play Store account settings, or you'll keep being charged.",
     "delete": "Delete",
     "deleteConfirmTitle": "Are you sure?",
     "deleteConfirmBody": "Last chance — this really can't be undone.",

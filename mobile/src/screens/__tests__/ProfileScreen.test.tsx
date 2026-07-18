@@ -202,4 +202,20 @@ describe("ProfileScreen", () => {
     expect(mockDeleteAccount).toHaveBeenCalled();
     await waitFor(() => expect(props.onSignedOut).toHaveBeenCalled());
   });
+
+  it("warns a premium user that deleting the account doesn't cancel their subscription", async () => {
+    const { findByText } = await render(<ProfileScreen {...baseProps({ isPremium: true })} />);
+
+    await fireEvent.press(await findByText("profile.deleteAccount"));
+
+    expect((Alert.alert as jest.Mock).mock.calls[0][1]).toBe("profile.deleteAccountBodyPremium");
+  });
+
+  it("does not show the subscription warning to a free user", async () => {
+    const { findByText } = await render(<ProfileScreen {...baseProps({ isPremium: false })} />);
+
+    await fireEvent.press(await findByText("profile.deleteAccount"));
+
+    expect((Alert.alert as jest.Mock).mock.calls[0][1]).toBe("profile.deleteAccountBody");
+  });
 });

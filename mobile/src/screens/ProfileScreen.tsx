@@ -129,7 +129,7 @@ export default function ProfileScreen({
   function handleDeleteAccount() {
     Alert.alert(
       t("profile.deleteAccountTitle"),
-      t("profile.deleteAccountBody"),
+      isPremium ? t("profile.deleteAccountBodyPremium") : t("profile.deleteAccountBody"),
       [
         { text: t("common.cancel"), style: "cancel" },
         {

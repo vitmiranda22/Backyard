@@ -37,6 +37,7 @@ import VoicePickerScreen from "./src/screens/VoicePickerScreen";
 import BadgeGalleryScreen from "./src/screens/BadgeGalleryScreen";
 import TabBar, { MainTab } from "./src/components/TabBar";
 import ToastHost from "./src/components/Toast";
+import ErrorBoundary from "./src/components/ErrorBoundary";
 
 const ONBOARDING_KEY = "onboarding_complete";
 
@@ -222,6 +223,7 @@ export default function App() {
   }
 
   return (
+    <ErrorBoundary>
     <SafeAreaProvider>
       <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
       <ToastHost />
@@ -393,5 +395,6 @@ export default function App() {
         />
       )}
     </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

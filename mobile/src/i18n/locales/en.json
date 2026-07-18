@@ -13,6 +13,11 @@
     "home": "Home",
     "unknown": "Unknown"
   },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "body": "Backyard hit an unexpected error. Restarting should fix it — nothing you were doing caused this.",
+    "restart": "Restart"
+  },
   "login": {
     "title": "Backyard",
     "signInHeading": "Sign in",

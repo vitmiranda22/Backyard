@@ -13,6 +13,11 @@
     "home": "Inicio",
     "unknown": "Desconocido"
   },
+  "errorBoundary": {
+    "title": "Algo salió mal",
+    "body": "Backyard tuvo un error inesperado. Reiniciar debería solucionarlo — no fue nada que hicieras.",
+    "restart": "Reiniciar"
+  },
   "login": {
     "title": "Backyard",
     "signInHeading": "Iniciar sesión",

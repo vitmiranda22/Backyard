@@ -1,12 +1,12 @@
 // Route Detail screen — shown after tapping a Discover card, before replay.
 
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Share, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Share, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import MapView, { Marker } from "react-native-maps";
 import RoutePolyline from "../components/RoutePolyline";
-import { getTourDetail, TourDetail, toggleLike } from "../services/api";
+import { getTourDetail, TourDetail, toggleLike, reportTour, ReportReason } from "../services/api";
 import StarRating from "../components/StarRating";
 import ZonePhoto from "../components/ZonePhoto";
 import CommentsSection from "../components/CommentsSection";
@@ -117,6 +117,26 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
     }
   }
 
+  async function submitReport(reason: ReportReason) {
+    try {
+      await reportTour(tourId, reason);
+      showToast(t("report.submitted"));
+    } catch (e: any) {
+      console.warn("Failed to submit report:", e.message);
+      showToast(t("report.couldntSubmit"));
+    }
+  }
+
+  function handleReport() {
+    Alert.alert(t("report.title"), t("report.body"), [
+      { text: t("report.reasonInaccurate"), onPress: () => submitReport("inaccurate") },
+      { text: t("report.reasonOffensive"), onPress: () => submitReport("offensive") },
+      { text: t("report.reasonSpam"), onPress: () => submitReport("spam") },
+      { text: t("report.reasonOther"), onPress: () => submitReport("other") },
+      { text: t("common.cancel"), style: "cancel" },
+    ]);
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -131,9 +151,14 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
         <TouchableOpacity onPress={onBack} accessibilityRole="button" accessibilityLabel={t("common.back")}>
           <Text style={styles.backLink}>‹ {t("common.back")}</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleShare} accessibilityRole="button" accessibilityLabel={t("routeDetail.shareA11y")}>
-          <Text style={styles.shareLink}>{t("tourComplete.share")}</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={handleReport} accessibilityRole="button" accessibilityLabel={t("report.tourA11y")}>
+            <Text style={styles.reportLink}>{t("report.tourLink")}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleShare} accessibilityRole="button" accessibilityLabel={t("routeDetail.shareA11y")}>
+            <Text style={styles.shareLink}>{t("tourComplete.share")}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -258,6 +283,16 @@ const styles = StyleSheet.create({
   backLink: {
     alignSelf: "flex-start",
     color: colors.accent,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  reportLink: {
+    color: colors.muted,
     fontSize: 15,
     fontWeight: "600",
   },

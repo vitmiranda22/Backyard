@@ -39,6 +39,13 @@ class TourType(str, Enum):
     VIRTUAL = "virtual"
 
 
+class ReportReason(str, Enum):
+    INACCURATE = "inaccurate"
+    OFFENSIVE = "offensive"
+    SPAM = "spam"
+    OTHER = "other"
+
+
 # =============================================================================
 # Narration endpoint
 # =============================================================================
@@ -375,6 +382,20 @@ class LikeResponse(BaseModel):
     tour_id: str
     liked: bool
     like_count: int
+
+
+class CreateReportRequest(BaseModel):
+    """POST /api/tours/{tour_id}/report and .../comments/{comment_id}/report"""
+    reason: ReportReason
+    detail: Optional[str] = Field(None, max_length=500)
+
+
+class ReportResponse(BaseModel):
+    report_id: str
+    target_type: str
+    target_id: str
+    reason: str
+    status: str
 
 
 # =============================================================================

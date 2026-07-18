@@ -995,6 +995,17 @@ async def get_comments(tour_id: str):
         return []
 
 
+async def get_comment(comment_id: str):
+    """A single comment row (used to confirm it belongs to the tour_id in the report URL)."""
+    try:
+        client = _get_client()
+        result = client.table("comments").select("*").eq("id", comment_id).limit(1).execute()
+        return result.data[0] if result.data else None
+    except Exception as e:
+        logger.error(f"Failed to get comment: {e}")
+        return None
+
+
 async def create_comment(tour_id: str, user_id: str, body: str, is_anonymous: bool = False):
     """Post a comment. Returns the created row or None."""
     try:
@@ -1072,6 +1083,51 @@ async def toggle_like(tour_id: str, user_id: str):
     except Exception as e:
         logger.error(f"Failed to toggle like: {e}")
         return False, 0
+
+
+# =============================================================================
+# Content moderation reports
+# =============================================================================
+
+async def create_content_report(
+    reporter_id: str, target_type: str, target_id: str, reason: str, detail: str = None
+):
+    """
+    Report a tour/comment for moderation review. Idempotent per
+    (reporter_id, target_type, target_id): a second report from the same
+    user on the same target returns the existing row instead of erroring
+    against the UNIQUE constraint in 001_initial_schema.sql -- reporting
+    something twice isn't a failure, it's a no-op.
+    """
+    try:
+        client = _get_client()
+        existing = (
+            client.table("content_reports")
+            .select("*")
+            .eq("reporter_id", reporter_id)
+            .eq("target_type", target_type)
+            .eq("target_id", target_id)
+            .limit(1)
+            .execute()
+        )
+        if existing.data:
+            return existing.data[0]
+
+        result = (
+            client.table("content_reports")
+            .insert({
+                "reporter_id": reporter_id,
+                "target_type": target_type,
+                "target_id": target_id,
+                "reason": reason,
+                "detail": detail,
+            })
+            .execute()
+        )
+        return result.data[0] if result.data else None
+    except Exception as e:
+        logger.error(f"Failed to create content report: {e}")
+        return None
 
 
 # =============================================================================

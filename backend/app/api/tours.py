@@ -35,6 +35,8 @@ from app.models.schemas import (
     CreateCommentRequest,
     CommentResponse,
     LikeResponse,
+    CreateReportRequest,
+    ReportResponse,
     ErrorResponse,
 )
 from app.config import PREMIUM_MOODS, PREMIUM_VOICES, settings, UNLIMITED_TEST_ACCOUNT_IDS
@@ -973,6 +975,91 @@ async def toggle_like(tour_id: str, user_id: AuthenticatedUser):
 
     liked, like_count = await supabase_db.toggle_like(tour_id, user_id)
     return LikeResponse(tour_id=tour_id, liked=liked, like_count=like_count)
+
+
+@router.post(
+    "/tours/{tour_id}/report",
+    response_model=ReportResponse,
+    responses={403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 429: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+    summary="Report a tour for moderation review",
+)
+async def report_tour(tour_id: str, request: CreateReportRequest, user_id: AuthenticatedUser):
+    await _enforce_minute_rate_limit(user_id)
+
+    tour = await supabase_db.get_tour(tour_id)
+    if not tour:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Tour not found.", "code": "tour_not_found", "retry": False},
+        )
+    if not tour.get("is_public") and tour["creator_id"] != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "This tour isn't public.", "code": "forbidden", "retry": False},
+        )
+
+    report = await supabase_db.create_content_report(
+        user_id, "tour", tour_id, request.reason.value, request.detail
+    )
+    if not report:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Failed to submit report.", "code": "report_failed", "retry": True},
+        )
+
+    return ReportResponse(
+        report_id=report["id"],
+        target_type=report["target_type"],
+        target_id=report["target_id"],
+        reason=report["reason"],
+        status=report["status"],
+    )
+
+
+@router.post(
+    "/tours/{tour_id}/comments/{comment_id}/report",
+    response_model=ReportResponse,
+    responses={403: {"model": ErrorResponse}, 404: {"model": ErrorResponse}, 429: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+    summary="Report a comment for moderation review",
+)
+async def report_comment(tour_id: str, comment_id: str, request: CreateReportRequest, user_id: AuthenticatedUser):
+    await _enforce_minute_rate_limit(user_id)
+
+    comment = await supabase_db.get_comment(comment_id)
+    if not comment or comment["tour_id"] != tour_id:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Comment not found.", "code": "comment_not_found", "retry": False},
+        )
+
+    tour = await supabase_db.get_tour(tour_id)
+    if not tour:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Tour not found.", "code": "tour_not_found", "retry": False},
+        )
+    if not tour.get("is_public") and tour["creator_id"] != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "This tour isn't public.", "code": "forbidden", "retry": False},
+        )
+
+    report = await supabase_db.create_content_report(
+        user_id, "comment", comment_id, request.reason.value, request.detail
+    )
+    if not report:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Failed to submit report.", "code": "report_failed", "retry": True},
+        )
+
+    return ReportResponse(
+        report_id=report["id"],
+        target_type=report["target_type"],
+        target_id=report["target_id"],
+        reason=report["reason"],
+        status=report["status"],
+    )
 
 
 def _generate_tour_title(mood: str, blocks: list) -> str:

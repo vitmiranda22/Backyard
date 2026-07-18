@@ -1,23 +1,27 @@
 import React from "react";
+import { Alert } from "react-native";
 import { render, fireEvent, waitFor } from "@testing-library/react-native";
 
 jest.mock("../../services/api", () => ({
   getTourDetail: jest.fn(),
   toggleLike: jest.fn(),
+  reportTour: jest.fn(),
   // CommentsSection (a child of this screen) shares this same mocked
   // module — give it enough to render without crashing.
   getComments: jest.fn().mockResolvedValue([]),
   postComment: jest.fn(),
+  reportComment: jest.fn(),
 }));
 jest.mock("../../services/toast", () => ({ showToast: jest.fn() }));
 jest.mock("../../services/haptics", () => ({ tap: jest.fn() }));
 
 import RouteDetailScreen from "../RouteDetailScreen";
-import { getTourDetail, toggleLike } from "../../services/api";
+import { getTourDetail, toggleLike, reportTour } from "../../services/api";
 import { showToast } from "../../services/toast";
 
 const mockGetTourDetail = getTourDetail as jest.Mock;
 const mockToggleLike = toggleLike as jest.Mock;
+const mockReportTour = reportTour as jest.Mock;
 const mockShowToast = showToast as jest.Mock;
 
 function baseTour(overrides = {}) {
@@ -51,6 +55,7 @@ describe("RouteDetailScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (require("../../services/api").getComments as jest.Mock).mockResolvedValue([]);
+    jest.spyOn(Alert, "alert").mockImplementation(() => {});
   });
 
   it("shows the tour's title and creator once loaded", async () => {
@@ -126,6 +131,41 @@ describe("RouteDetailScreen", () => {
     );
     await findByText("Mission Murals");
     expect(queryByText("routeDetail.yourWalkLog")).toBeNull();
+  });
+
+  it("submits a report with the chosen reason and shows a confirmation toast", async () => {
+    mockGetTourDetail.mockResolvedValue(baseTour());
+    mockReportTour.mockResolvedValue({ report_id: "r1", target_type: "tour", target_id: "tour-1", reason: "spam", status: "pending" });
+
+    const { findByText } = await render(
+      <RouteDetailScreen tourId="tour-1" onStartReplay={jest.fn()} onBack={jest.fn()} />
+    );
+    await findByText("Mission Murals");
+
+    await fireEvent.press(await findByText("report.tourLink"));
+    const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
+    const spamButton = buttons.find((b: any) => b.text === "report.reasonSpam");
+    await spamButton.onPress();
+
+    expect(mockReportTour).toHaveBeenCalledWith("tour-1", "spam");
+    await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("report.submitted"));
+  });
+
+  it("shows a toast when submitting a report fails", async () => {
+    mockGetTourDetail.mockResolvedValue(baseTour());
+    mockReportTour.mockRejectedValue(new Error("network error"));
+
+    const { findByText } = await render(
+      <RouteDetailScreen tourId="tour-1" onStartReplay={jest.fn()} onBack={jest.fn()} />
+    );
+    await findByText("Mission Murals");
+
+    await fireEvent.press(await findByText("report.tourLink"));
+    const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
+    const otherButton = buttons.find((b: any) => b.text === "report.reasonOther");
+    await otherButton.onPress();
+
+    await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("report.couldntSubmit"));
   });
 
   it("shows the audio-unavailable warning when no block has audio", async () => {

@@ -23,6 +23,7 @@ def _tour(is_public: bool, creator_id: str = OWNER_ID):
     ("/api/tours/{tour_id}/comments", "get", None),
     ("/api/tours/{tour_id}/comments", "post", {"body": "hi", "is_anonymous": False}),
     ("/api/tours/{tour_id}/like", "post", None),
+    ("/api/tours/{tour_id}/report", "post", {"reason": "spam"}),
 ])
 def test_private_tour_blocks_non_owner(app, client, auth_as, monkeypatch, path, method, body):
     monkeypatch.setattr(supabase_db, "get_tour", _async(_tour(is_public=False, creator_id=OWNER_ID)))
@@ -37,6 +38,10 @@ def test_private_tour_blocks_non_owner(app, client, auth_as, monkeypatch, path, 
 @pytest.mark.parametrize("path,method,body,mock_fn,mock_return", [
     ("/api/tours/{tour_id}/comments", "get", None, "get_comments", []),
     ("/api/tours/{tour_id}/like", "post", None, "toggle_like", (True, 1)),
+    (
+        "/api/tours/{tour_id}/report", "post", {"reason": "spam"}, "create_content_report",
+        {"id": "r1", "target_type": "tour", "target_id": TOUR_ID, "reason": "spam", "status": "pending"},
+    ),
 ])
 def test_private_tour_allows_owner(app, client, auth_as, monkeypatch, path, method, body, mock_fn, mock_return):
     monkeypatch.setattr(supabase_db, "get_tour", _async(_tour(is_public=False, creator_id=OWNER_ID)))

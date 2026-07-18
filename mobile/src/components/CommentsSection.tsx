@@ -1,9 +1,9 @@
 // Comments — list + post, for a route's detail screen.
 
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import { useTranslation } from "react-i18next";
-import { getComments, postComment, Comment } from "../services/api";
+import { getComments, postComment, reportComment, Comment, ReportReason } from "../services/api";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
 import { colors, font, radius } from "../theme";
@@ -48,6 +48,26 @@ export default function CommentsSection({ tourId }: CommentsSectionProps) {
     setPosting(false);
   }
 
+  async function submitReport(commentId: string, reason: ReportReason) {
+    try {
+      await reportComment(tourId, commentId, reason);
+      showToast(t("report.submitted"));
+    } catch (e: any) {
+      console.warn("Failed to submit comment report:", e.message);
+      showToast(t("report.couldntSubmit"));
+    }
+  }
+
+  function handleReport(commentId: string) {
+    Alert.alert(t("report.title"), t("report.body"), [
+      { text: t("report.reasonInaccurate"), onPress: () => submitReport(commentId, "inaccurate") },
+      { text: t("report.reasonOffensive"), onPress: () => submitReport(commentId, "offensive") },
+      { text: t("report.reasonSpam"), onPress: () => submitReport(commentId, "spam") },
+      { text: t("report.reasonOther"), onPress: () => submitReport(commentId, "other") },
+      { text: t("common.cancel"), style: "cancel" },
+    ]);
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.header}>{t("comments.header")}</Text>
@@ -61,7 +81,16 @@ export default function CommentsSection({ tourId }: CommentsSectionProps) {
           <View key={c.comment_id} style={styles.commentCard}>
             <View style={styles.commentHeader}>
               <Text style={styles.commentAuthor}>{c.display_name || t("routeDetail.anonymousExplorer")}</Text>
-              <Text style={styles.commentDate}>{formatDate(c.created_at)}</Text>
+              <View style={styles.commentHeaderRight}>
+                <Text style={styles.commentDate}>{formatDate(c.created_at)}</Text>
+                <TouchableOpacity
+                  onPress={() => handleReport(c.comment_id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("comments.reportA11y")}
+                >
+                  <Text style={styles.reportLink}>{t("comments.reportLink")}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
             <Text style={styles.commentBody}>{c.body}</Text>
           </View>
@@ -129,9 +158,19 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.text,
   },
+  commentHeaderRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   commentDate: {
     fontSize: 11,
     color: colors.muted,
+  },
+  reportLink: {
+    fontSize: 11,
+    color: colors.muted,
+    textDecorationLine: "underline",
   },
   commentBody: {
     fontSize: 13,

@@ -432,6 +432,39 @@ export async function toggleLike(tourId: string): Promise<LikeResult> {
   return authFetch(`/tours/${tourId}/like`, { method: "POST" });
 }
 
+export type ReportReason = "inaccurate" | "offensive" | "spam" | "other";
+
+export interface ReportResult {
+  report_id: string;
+  target_type: string;
+  target_id: string;
+  reason: string;
+  status: string;
+}
+
+export async function reportTour(
+  tourId: string,
+  reason: ReportReason,
+  detail?: string
+): Promise<ReportResult> {
+  return authFetch(`/tours/${tourId}/report`, {
+    method: "POST",
+    body: JSON.stringify({ reason, detail }),
+  });
+}
+
+export async function reportComment(
+  tourId: string,
+  commentId: string,
+  reason: ReportReason,
+  detail?: string
+): Promise<ReportResult> {
+  return authFetch(`/tours/${tourId}/comments/${commentId}/report`, {
+    method: "POST",
+    body: JSON.stringify({ reason, detail }),
+  });
+}
+
 // =============================================================================
 // Settings
 // =============================================================================

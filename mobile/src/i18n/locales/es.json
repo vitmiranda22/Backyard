@@ -318,7 +318,21 @@
     "addPlaceholder": "Agrega un comentario...",
     "inputA11y": "Campo de comentario",
     "post": "Publicar",
-    "postA11y": "Publicar comentario"
+    "postA11y": "Publicar comentario",
+    "reportA11y": "Reportar este comentario",
+    "reportLink": "Reportar"
+  },
+  "report": {
+    "tourA11y": "Reportar este recorrido",
+    "tourLink": "Reportar",
+    "title": "¿Reportar este contenido?",
+    "body": "Cuéntanos por qué — se enviará para revisión.",
+    "reasonInaccurate": "Información inexacta",
+    "reasonOffensive": "Contenido ofensivo",
+    "reasonSpam": "Spam",
+    "reasonOther": "Otro",
+    "submitted": "Gracias — lo revisaremos.",
+    "couldntSubmit": "No se pudo enviar tu reporte — inténtalo de nuevo en un momento."
   },
   "tourStats": {
     "blocksNarrated": "cuadras narradas",

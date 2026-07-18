@@ -318,7 +318,21 @@
     "addPlaceholder": "Add a comment...",
     "inputA11y": "Comment input",
     "post": "Post",
-    "postA11y": "Post comment"
+    "postA11y": "Post comment",
+    "reportA11y": "Report this comment",
+    "reportLink": "Report"
+  },
+  "report": {
+    "tourA11y": "Report this route",
+    "tourLink": "Report",
+    "title": "Report this content?",
+    "body": "Let us know why — it'll be sent for review.",
+    "reasonInaccurate": "Inaccurate information",
+    "reasonOffensive": "Offensive content",
+    "reasonSpam": "Spam",
+    "reasonOther": "Other",
+    "submitted": "Thanks — we'll take a look.",
+    "couldntSubmit": "Couldn't submit your report — try again in a moment."
   },
   "tourStats": {
     "blocksNarrated": "blocks narrated",

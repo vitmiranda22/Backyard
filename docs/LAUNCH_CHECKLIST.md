@@ -56,13 +56,14 @@ Full audit completed and remediated — see git log for the complete trail. Summ
 ## Test coverage
 
 - [x] Backend: 115 tests — all of the above plus the age-gate's date-boundary math, signup persistence paths, mode-aware zone-data prioritization, settings' date-of-birth validation, and `pick_suggested_next()`
-- [x] Mobile: 148 tests across all screens (now including `SignupScreen`, `ProfileScreen`'s DOB card, the suggested-waypoint marker, and `ErrorBoundary`) plus the service layer
+- [x] Mobile: 150 tests across all screens (now including `SignupScreen`, `ProfileScreen`'s DOB card and subscription-deletion warning, the suggested-waypoint marker, and `ErrorBoundary`) plus the service layer
 
 ## Gaps found and fixed in this pass
 
 - [x] **Discover was mostly dev/QA junk, not curated content.** Of 38 published tours, only 8 were the real curated city tours — the other 30 were internal test runs (titles like "Wrong script", "Wrong introduction", "Photo feature test", 0-block "Time Machine: Tour" entries, repeated SF Richmond District/Polk Gulch dev-loop runs). Deleted all 30 — none had ratings/likes/comments, so nothing of real value was lost. Deleting a `tours` row only cascades to its `tour_blocks` (the per-tour playback record); it does **not** touch `narration_cache`/`zone_data_cache` (geohash+mood+voice-keyed, shared across tours) or the underlying R2 audio/image files, so all of that stays live as reusable cache. Discover now shows exactly the 8 curated tours.
 - [x] **iOS location permission string was missing entirely.** `app.json` had no `NSLocationWhenInUseUsageDescription` and `expo-location` wasn't listed in `plugins`, even though `src/services/location.ts` actively calls `requestForegroundPermissionsAsync`/`watchPositionAsync` — core to how the app works. Fixed (both the plugin entry and an explicit `infoPlist` string). **This is a native config change — it only takes effect on the next EAS Build, not an OTA update.** The Android `.aab` currently sitting in EAS (see Store submission above) predates this fix and needs a rebuild before it's uploaded to Play Console.
 - [x] **No top-level error boundary.** Added `src/components/ErrorBoundary.tsx`, wrapping `App.tsx` — an uncaught render error now shows a "something went wrong, restart" screen and reports to Sentry instead of white-screening with no recovery. JS-only, already shipped via EAS Update.
+- [x] **Account deletion didn't warn about active subscriptions.** Deleting the account cascades every DB row, but neither Apple nor Google let a third party cancel a platform subscription via API — a premium user who deleted their account would keep being billed. The deletion confirmation now tells premium users to cancel via the App Store/Play Store first (`profile.deleteAccountBodyPremium`, free users still see the plain version). JS-only, already shipped via EAS Update.
 
 ## Known gaps, not blocking but worth knowing about
 

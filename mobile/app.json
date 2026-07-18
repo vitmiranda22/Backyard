@@ -13,7 +13,8 @@
       "bundleIdentifier": "com.vitorsm9004.backyard",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSMicrophoneUsageDescription": "Backyard uses your microphone so you can ask spoken questions about where you're standing."
+        "NSMicrophoneUsageDescription": "Backyard uses your microphone so you can ask spoken questions about where you're standing.",
+        "NSLocationWhenInUseUsageDescription": "Backyard uses your location to narrate the block you're standing on and guide you toward nearby points of interest during a tour."
       }
     },
     "android": {
@@ -38,6 +39,12 @@
           "imageWidth": 1200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Backyard uses your location to narrate the block you're standing on and guide you toward nearby points of interest during a tour."
         }
       ]
     ],

@@ -114,6 +114,24 @@ describe("SignupScreen", () => {
     expect(mockSignUp).not.toHaveBeenCalled();
   });
 
+  it("email step: a mismatched confirm-password keeps Create Account disabled", async () => {
+    const { getByText, getByLabelText, getByPlaceholderText } = await render(<SignupScreen {...baseProps()} />);
+    await goToEmailStep(getByText);
+
+    await fireEvent.changeText(getByPlaceholderText("signup.fullNamePlaceholder"), "Ada Lovelace");
+    await fireEvent.changeText(getByPlaceholderText("signup.emailPlaceholder"), "ada@example.com");
+    await fireEvent.changeText(getByPlaceholderText("signup.dobMonthPlaceholder"), "3");
+    await fireEvent.changeText(getByPlaceholderText("signup.dobDayPlaceholder"), "5");
+    await fireEvent.changeText(getByPlaceholderText("signup.dobYearPlaceholder"), "1990");
+    await fireEvent.changeText(getByPlaceholderText("signup.passwordPlaceholder"), "password123");
+    await fireEvent.changeText(getByPlaceholderText("signup.confirmPasswordPlaceholder"), "password456");
+    await fireEvent.press(getByLabelText("signup.privacyCheckboxA11y"));
+
+    expect(getByText("signup.passwordsDontMatch")).toBeTruthy();
+    expect(getByLabelText("signup.createAccount").props.accessibilityState?.disabled).toBe(true);
+    expect(mockSignUp).not.toHaveBeenCalled();
+  });
+
   it("creates the account with the composed YYYY-MM-DD date once every field is valid and privacy is accepted", async () => {
     mockSignUp.mockResolvedValue({});
     const onSignedUp = jest.fn();
@@ -128,6 +146,7 @@ describe("SignupScreen", () => {
     await fireEvent.changeText(getByPlaceholderText("signup.dobDayPlaceholder"), "5");
     await fireEvent.changeText(getByPlaceholderText("signup.dobYearPlaceholder"), "1990");
     await fireEvent.changeText(getByPlaceholderText("signup.passwordPlaceholder"), "password123");
+    await fireEvent.changeText(getByPlaceholderText("signup.confirmPasswordPlaceholder"), "password123");
     await fireEvent.press(getByLabelText("signup.privacyCheckboxA11y"));
 
     const submitBtn = getByLabelText("signup.createAccount");

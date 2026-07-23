@@ -1,12 +1,62 @@
 // Authentication service using Supabase
 //
 // Handles sign up, sign in, sign out, and token management.
-// The token is stored in memory (for simplicity in MVP).
+// The token itself is kept in memory (see currentToken below); whether the
+// underlying Supabase *session* survives an app restart is gated by the
+// "keep me signed in" checkbox on LoginScreen via conditionalStorage.
 
 import { createClient } from "@supabase/supabase-js";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../config";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const KEEP_SIGNED_IN_KEY = "backyard_keep_signed_in";
+
+// In-memory fallback used when the walker hasn't opted into persistent
+// sign-in -- Supabase's client always needs a storage object to call
+// get/set/remove on, this just keeps those writes off disk so the session
+// disappears the moment the app process ends, exactly like the old
+// memory-only currentToken did before this file wired up AsyncStorage.
+const sessionOnlyStore = new Map<string, string>();
+
+async function keepSignedInIsOn(): Promise<boolean> {
+  return (await AsyncStorage.getItem(KEEP_SIGNED_IN_KEY)) === "true";
+}
+
+export async function setKeepSignedIn(value: boolean) {
+  await AsyncStorage.setItem(KEEP_SIGNED_IN_KEY, value ? "true" : "false");
+}
+
+// Supabase's own storage interface (get/set/removeItem) -- swaps between
+// real disk storage and the in-memory Map above per-write, based on
+// whichever the "keep me signed in" checkbox last saved. Reads check disk
+// first since a previously-persisted session should still restore even if
+// this preference key itself hasn't been written yet this launch.
+const conditionalStorage = {
+  async getItem(key: string) {
+    const stored = await AsyncStorage.getItem(key);
+    return stored ?? sessionOnlyStore.get(key) ?? null;
+  },
+  async setItem(key: string, value: string) {
+    if (await keepSignedInIsOn()) {
+      await AsyncStorage.setItem(key, value);
+    } else {
+      sessionOnlyStore.set(key, value);
+    }
+  },
+  async removeItem(key: string) {
+    await AsyncStorage.removeItem(key);
+    sessionOnlyStore.delete(key);
+  },
+};
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    storage: conditionalStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false,
+  },
+});
 
 // Store the current session token in memory
 let currentToken: string | null = null;

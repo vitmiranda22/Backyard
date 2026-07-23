@@ -19,7 +19,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTranslation } from "react-i18next";
-import { signIn } from "../services/auth";
+import { signIn, setKeepSignedIn } from "../services/auth";
 import { track } from "../services/analytics";
 import { colors, font, radius } from "../theme";
 
@@ -52,6 +52,7 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [keepSignedIn, setKeepSignedInState] = useState(true);
   const [quote] = useState(() => GUIDE_QUOTES[Math.floor(Math.random() * GUIDE_QUOTES.length)]);
 
   async function handleSignIn() {
@@ -61,6 +62,11 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
     }
     setLoading(true);
     try {
+      // Must be set before signIn() -- Supabase persists the new session to
+      // storage as part of that call, and the storage adapter (services/auth.ts)
+      // reads this preference synchronously at write time to decide whether
+      // that write actually reaches disk or stays in-memory-only.
+      await setKeepSignedIn(keepSignedIn);
       await signIn(email, password);
       track("login_completed");
       onLogin();
@@ -75,16 +81,18 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <Image
-        source={MASCOT_IMAGE}
-        style={styles.bg}
-        resizeMode="cover"
-        accessibilityLabel={t("login.mascotA11y")}
-      />
+      <View style={styles.bgWrap}>
+        <Image
+          source={MASCOT_IMAGE}
+          style={styles.bg}
+          resizeMode="cover"
+          accessibilityLabel={t("login.mascotA11y")}
+        />
+      </View>
 
       <LinearGradient colors={["rgba(10,12,18,0.5)", "rgba(10,12,18,0)"]} style={styles.topScrim} />
       <View style={styles.topContent}>
-        <Text style={styles.brand}>{t("login.title")}</Text>
+        <Text style={styles.wordmark}>{t("login.title")}</Text>
         <Text style={styles.quote}>"{quote.text}"</Text>
         <Text style={styles.quoteAttr}>— {quote.guide}, one of your guides</Text>
       </View>
@@ -117,6 +125,19 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
             onChangeText={setPassword}
             secureTextEntry
           />
+
+          <TouchableOpacity
+            style={styles.checkboxRow}
+            onPress={() => setKeepSignedInState(!keepSignedIn)}
+            accessibilityRole="checkbox"
+            accessibilityLabel={t("login.keepSignedInA11y")}
+            accessibilityState={{ checked: keepSignedIn }}
+          >
+            <View style={[styles.checkboxBox, keepSignedIn && styles.checkboxBoxChecked]}>
+              {keepSignedIn && <Text style={styles.checkboxMark}>✓</Text>}
+            </View>
+            <Text style={styles.checkboxLabel}>{t("login.keepSignedIn")}</Text>
+          </TouchableOpacity>
 
           {loading ? (
             <ActivityIndicator size="large" color={colors.accent} style={{ margin: 20 }} />
@@ -154,8 +175,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.text,
   },
-  bg: {
+  // The oversized-image-with-negative-offset crop below is the RN
+  // equivalent of a CSS `background-size: auto 200%; background-position:
+  // center 70%` -- resizeMode="cover" alone can't shift which part of a
+  // portrait image is visible, only crop symmetrically. Every generated
+  // Bosco pose has ~20% of dead space (empty road/grass) below his feet;
+  // without this his face ends up hidden behind the card below.
+  bgWrap: {
     ...StyleSheet.absoluteFillObject,
+    overflow: "hidden",
+  },
+  bg: {
+    position: "absolute",
+    width: "100%",
+    height: "200%",
+    top: "-70%",
   },
   topScrim: {
     position: "absolute",
@@ -172,18 +206,16 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingHorizontal: 26,
   },
-  brand: {
+  wordmark: {
     fontFamily: font.display,
-    fontSize: 13,
-    fontWeight: "700",
-    letterSpacing: 0.3,
-    textTransform: "uppercase",
-    color: "rgba(255,255,255,0.85)",
+    fontWeight: "800",
+    fontSize: 34,
+    color: "#fff",
     textAlign: "center",
     marginBottom: 14,
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
+    textShadowColor: "rgba(0,0,0,0.55)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 14,
   },
   quote: {
     fontFamily: font.display,
@@ -209,10 +241,8 @@ const styles = StyleSheet.create({
     textShadowRadius: 6,
   },
   content: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1,
+    justifyContent: "flex-end",
     padding: 24,
     paddingBottom: 40,
   },
@@ -225,6 +255,7 @@ const styles = StyleSheet.create({
     fontFamily: font.display,
     fontSize: 19,
     color: colors.text,
+    textAlign: "center",
     marginBottom: 16,
   },
   input: {
@@ -236,6 +267,35 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     marginBottom: 12,
     fontSize: 16,
+  },
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    marginBottom: 14,
+  },
+  checkboxBox: {
+    width: 19,
+    height: 19,
+    borderWidth: 1.5,
+    borderColor: colors.muted,
+    borderRadius: 5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxBoxChecked: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  checkboxMark: {
+    color: colors.accentText,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  checkboxLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.text,
   },
   signInBtn: {
     backgroundColor: colors.accent,

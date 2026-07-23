@@ -34,11 +34,6 @@ function baseProps(overrides = {}) {
   };
 }
 
-async function nameAndAdvance(getByPlaceholderText: any, getByText: any, title = "My Walk") {
-  await fireEvent.changeText(getByPlaceholderText("tourComplete.titlePlaceholder"), title);
-  await fireEvent.press(getByText("tourComplete.continue"));
-}
-
 describe("TourCompleteScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -46,12 +41,12 @@ describe("TourCompleteScreen", () => {
     jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" } as any);
   });
 
-  it("keeps Continue disabled until a title is entered", async () => {
+  it("keeps Save disabled until a title is entered, on the one merged screen", async () => {
     mockEndTour.mockResolvedValue({ mood: "time_machine" });
     const { getByLabelText } = await render(<TourCompleteScreen {...baseProps()} />);
 
-    const continueBtn = getByLabelText("tourComplete.continue");
-    expect(continueBtn.props.accessibilityState?.disabled).toBe(true);
+    const saveBtn = getByLabelText("tourComplete.saveTourA11y");
+    expect(saveBtn.props.accessibilityState?.disabled).toBe(true);
   });
 
   it("calls endTour with distance/duration derived from blocksVisited and startTime", async () => {
@@ -66,24 +61,14 @@ describe("TourCompleteScreen", () => {
     expect(path).toEqual([{ lat: 37.77, lng: -122.41 }]);
   });
 
-  it("advances from the name step to the stats screen after entering a title", async () => {
-    mockEndTour.mockResolvedValue({ mood: "time_machine" });
-    const { getByText, getByPlaceholderText, findByText } = await render(<TourCompleteScreen {...baseProps()} />);
-
-    await waitFor(() => expect(mockEndTour).toHaveBeenCalled());
-    await nameAndAdvance(getByPlaceholderText, getByText);
-
-    expect(await findByText("tourComplete.save")).toBeTruthy();
-  });
-
   it("saves as a published route by default, tracks it, and shows the saved screen", async () => {
     mockEndTour.mockResolvedValue({ mood: "time_machine" });
     mockPublishTour.mockResolvedValue({});
     const { getByText, getByPlaceholderText, findByText } = await render(<TourCompleteScreen {...baseProps()} />);
 
     await waitFor(() => expect(mockEndTour).toHaveBeenCalled());
-    await nameAndAdvance(getByPlaceholderText, getByText, "Mission Walk");
-    await fireEvent.press(await findByText("tourComplete.save"));
+    await fireEvent.changeText(getByPlaceholderText("tourComplete.titlePlaceholder"), "Mission Walk");
+    await fireEvent.press(getByText("tourComplete.save"));
 
     await waitFor(() => expect(mockPublishTour).toHaveBeenCalledWith("tour-1", true, "Mission Walk"));
     expect(mockTrack).toHaveBeenCalledWith("tour_saved", { published: true });
@@ -94,18 +79,16 @@ describe("TourCompleteScreen", () => {
     mockEndTour.mockResolvedValue({ mood: "time_machine" });
     mockPublishTour.mockResolvedValue({});
     const onDone = jest.fn();
-    const { getByText, getByPlaceholderText, getByLabelText, findByText } = await render(
+    const { getByText, getByPlaceholderText, getByLabelText } = await render(
       <TourCompleteScreen {...baseProps({ onDone })} />
     );
 
     await waitFor(() => expect(mockEndTour).toHaveBeenCalled());
-    await nameAndAdvance(getByPlaceholderText, getByText);
-    await findByText("tourComplete.save");
-
+    await fireEvent.changeText(getByPlaceholderText("tourComplete.titlePlaceholder"), "My Walk");
     await fireEvent(getByLabelText("tourComplete.publishToggleA11y"), "valueChange", false);
     await fireEvent.press(getByText("tourComplete.save"));
 
-    await waitFor(() => expect(mockPublishTour).toHaveBeenCalledWith("tour-1", false, expect.any(String)));
+    await waitFor(() => expect(mockPublishTour).toHaveBeenCalledWith("tour-1", false, "My Walk"));
     await waitFor(() => expect(onDone).toHaveBeenCalled());
   });
 
@@ -113,13 +96,13 @@ describe("TourCompleteScreen", () => {
     mockEndTour.mockResolvedValue({ mood: "time_machine" });
     mockPublishTour.mockRejectedValue(new Error("network error"));
     const onDone = jest.fn();
-    const { getByText, getByPlaceholderText, findByText } = await render(
+    const { getByText, getByPlaceholderText } = await render(
       <TourCompleteScreen {...baseProps({ onDone })} />
     );
 
     await waitFor(() => expect(mockEndTour).toHaveBeenCalled());
-    await nameAndAdvance(getByPlaceholderText, getByText);
-    await fireEvent.press(await findByText("tourComplete.save"));
+    await fireEvent.changeText(getByPlaceholderText("tourComplete.titlePlaceholder"), "My Walk");
+    await fireEvent.press(getByText("tourComplete.save"));
 
     await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("tourComplete.couldntSaveDetails"));
     expect(onDone).toHaveBeenCalled(); // still exits, even on a failed save
@@ -145,7 +128,7 @@ describe("TourCompleteScreen", () => {
       />
     );
 
-    await waitFor(() => expect(getByLabelText("tourComplete.continue")).toBeTruthy());
+    await waitFor(() => expect(getByLabelText("tourComplete.saveTourA11y")).toBeTruthy());
     expect(mockEndTour).not.toHaveBeenCalled();
     expect(mockTrack).toHaveBeenCalledWith(
       "tour_completed",
@@ -162,12 +145,11 @@ describe("TourCompleteScreen", () => {
     ]));
   });
 
-  it("asks for confirmation before discarding, and only deletes on confirm", async () => {
+  it("asks for confirmation before discarding via the Discard button, and only deletes on confirm", async () => {
     mockEndTour.mockResolvedValue({ mood: "time_machine" });
-    const { getByText, getByPlaceholderText, findByText } = await render(<TourCompleteScreen {...baseProps()} />);
+    const { findByText } = await render(<TourCompleteScreen {...baseProps()} />);
 
     await waitFor(() => expect(mockEndTour).toHaveBeenCalled());
-    await nameAndAdvance(getByPlaceholderText, getByText);
     await fireEvent.press(await findByText("tourComplete.discardThisWalk"));
 
     expect(Alert.alert).toHaveBeenCalled();
@@ -183,5 +165,16 @@ describe("TourCompleteScreen", () => {
     });
 
     expect(mockDeleteTour).toHaveBeenCalledWith("tour-1");
+  });
+
+  it("the X (close) button in the top corner triggers the same discard-confirm flow", async () => {
+    mockEndTour.mockResolvedValue({ mood: "time_machine" });
+    const { getByLabelText } = await render(<TourCompleteScreen {...baseProps()} />);
+
+    await waitFor(() => expect(mockEndTour).toHaveBeenCalled());
+    await fireEvent.press(getByLabelText("tourComplete.closeA11y"));
+
+    expect(Alert.alert).toHaveBeenCalled();
+    expect(mockDeleteTour).not.toHaveBeenCalled();
   });
 });

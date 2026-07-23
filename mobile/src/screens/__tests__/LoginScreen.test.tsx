@@ -4,6 +4,7 @@ import { render, fireEvent, waitFor } from "@testing-library/react-native";
 
 jest.mock("../../services/auth", () => ({
   signIn: jest.fn(),
+  setKeepSignedIn: jest.fn(),
 }));
 jest.mock("../../services/analytics", () => ({
   track: jest.fn(),

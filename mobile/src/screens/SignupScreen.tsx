@@ -58,6 +58,7 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
   const [day, setDay] = useState("");
   const [year, setYear] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -92,6 +93,7 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
     email.trim().length > 0 &&
     oldEnough &&
     password.length >= 6 &&
+    password === confirmPassword &&
     privacyAccepted;
 
   async function handleBackFromEmail() {
@@ -105,6 +107,10 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
     }
     if (password.length < 6) {
       Alert.alert(t("common.error"), t("signup.passwordTooShort"));
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert(t("common.error"), t("signup.passwordsDontMatch"));
       return;
     }
     if (!dob) {
@@ -152,8 +158,7 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
         </TouchableOpacity>
 
         <View style={styles.methodContent}>
-          <Text style={styles.brandOnDark}>{t("login.title")}</Text>
-          <Text style={styles.headingOnDark}>{t("signup.joinHeading")}</Text>
+          <Text style={styles.wordmarkOnDark}>{t("login.title")}</Text>
           <Text style={styles.subheadingOnDark}>{t("signup.methodSubtitle")}</Text>
 
           <View style={styles.oauthBtn}>
@@ -253,6 +258,18 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
       />
       <Text style={styles.helperText}>{t("signup.passwordHelper")}</Text>
 
+      <TextInput
+        style={styles.input}
+        placeholder={t("signup.confirmPasswordPlaceholder")}
+        placeholderTextColor={colors.muted}
+        value={confirmPassword}
+        onChangeText={setConfirmPassword}
+        secureTextEntry
+      />
+      {confirmPassword.length > 0 && password !== confirmPassword && (
+        <Text style={styles.errorText}>{t("signup.passwordsDontMatch")}</Text>
+      )}
+
       <TouchableOpacity
         style={styles.checkboxRow}
         onPress={() => setPrivacyAccepted(!privacyAccepted)}
@@ -328,24 +345,21 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingBottom: 44,
   },
-  brandOnDark: {
+  wordmarkOnDark: {
     fontFamily: font.display,
-    fontSize: 13,
-    fontWeight: "700",
-    letterSpacing: 0.3,
-    textTransform: "uppercase",
-    color: "rgba(255,255,255,0.85)",
-    marginBottom: 14,
-  },
-  headingOnDark: {
-    fontFamily: font.display,
-    fontSize: 24,
+    fontWeight: "800",
+    fontSize: 26,
     color: "#fff",
-    marginBottom: 4,
+    textAlign: "center",
+    marginBottom: 8,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 10,
   },
   subheadingOnDark: {
     fontSize: 14,
     color: "rgba(255,255,255,0.8)",
+    textAlign: "center",
     marginBottom: 22,
   },
   dividerLineOnDark: {
@@ -369,11 +383,13 @@ const styles = StyleSheet.create({
     fontFamily: font.display,
     fontSize: 24,
     color: colors.text,
+    textAlign: "center",
     marginBottom: 4,
   },
   subheading: {
     fontSize: 14,
     color: colors.muted,
+    textAlign: "center",
     marginBottom: 22,
   },
   fieldLabel: {
@@ -443,6 +459,12 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: colors.muted,
     marginTop: 4,
+    marginBottom: 14,
+  },
+  errorText: {
+    fontSize: 11.5,
+    color: colors.danger,
+    marginTop: -6,
     marginBottom: 14,
   },
   checkboxRow: {

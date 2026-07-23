@@ -9,6 +9,25 @@
 // babel config, so an outer reference would be undefined at the moment
 // auth.ts's own createClient() call actually runs. Exporting it as
 // __mockAuth lets the test file grab the exact same instance afterward.
+// auth.ts's conditionalStorage wraps this at module load time too -- a
+// simple in-memory stand-in is enough since these tests exercise the
+// Supabase auth calls, not the storage-gating behavior itself (see
+// LoginScreen.test.tsx and the "keep me signed in" checkbox for that).
+jest.mock("@react-native-async-storage/async-storage", () => {
+  const store = new Map<string, string>();
+  return {
+    getItem: jest.fn((key: string) => Promise.resolve(store.get(key) ?? null)),
+    setItem: jest.fn((key: string, value: string) => {
+      store.set(key, value);
+      return Promise.resolve();
+    }),
+    removeItem: jest.fn((key: string) => {
+      store.delete(key);
+      return Promise.resolve();
+    }),
+  };
+});
+
 jest.mock("@supabase/supabase-js", () => {
   const auth = {
     signUp: jest.fn(),

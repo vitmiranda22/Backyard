@@ -231,6 +231,7 @@ const styles = StyleSheet.create({
     fontFamily: font.display,
     fontSize: 24,
     color: colors.text,
+    textAlign: "center",
     paddingHorizontal: 20,
     paddingBottom: 12,
   },

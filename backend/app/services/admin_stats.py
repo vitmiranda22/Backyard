@@ -124,5 +124,5 @@ async def get_dashboard_stats() -> dict:
         },
         "storage": storage,
         "revenue": revenue,
-        "costs": costs.get_cost_summary(storage.get("total_mb")),
+        "costs": await costs.get_cost_summary(storage.get("total_mb")),
     }

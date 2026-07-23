@@ -515,6 +515,7 @@
   function renderCosts(data) {
     const c = data.costs || {};
     const r2c = c.r2_storage || {};
+    const oa = c.openai || {};
 
     // Free-tier ceiling derived from the response itself (gb - billable_gb)
     // rather than a hardcoded constant here that could drift from the
@@ -527,6 +528,18 @@
         <div class="l">R2 storage (${r2c.gb != null ? r2c.gb : "—"} GB, ${freeGb}GB free)</div>
       </div>
     `;
+    if (oa.configured && !oa.error) {
+      measuredGrid.innerHTML += `
+        <div class="storage-item">
+          <div class="n">$${oa.total_usd.toFixed(2)}</div>
+          <div class="l">OpenAI, last ${oa.period_days}d (${(oa.currency || "usd").toUpperCase()})</div>
+        </div>
+      `;
+    } else if (oa.error) {
+      measuredGrid.innerHTML += '<p class="empty-note">Couldn\'t reach OpenAI\'s Costs API — check OPENAI_ADMIN_API_KEY is still a valid Admin key.</p>';
+    } else {
+      measuredGrid.innerHTML += '<p class="empty-note">OpenAI not configured — set OPENAI_ADMIN_API_KEY (an Admin key, not the narration key) to show spend here.</p>';
+    }
 
     const tiersList = document.getElementById("costs-tiers-list");
     tiersList.innerHTML = (c.known_free_tier_limits || []).map((t) => `

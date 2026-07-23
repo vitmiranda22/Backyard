@@ -39,6 +39,13 @@ class Settings(BaseSettings):
     # OpenAI (AI narration)
     # -------------------------------------------------------------------------
     OPENAI_API_KEY: str
+    # Separate from OPENAI_API_KEY above -- narration generation uses a
+    # regular project key, but the Costs API requires an Admin API key
+    # (Organization > API keys > "Create admin key" on platform.openai.com,
+    # not a project key) with usage.read scope. Optional: the admin
+    # dashboard's Costs section just shows OpenAI as untracked until this
+    # is set, same as it always has.
+    OPENAI_ADMIN_API_KEY: str = ""
 
     # -------------------------------------------------------------------------
     # Google Cloud Text-to-Speech

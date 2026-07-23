@@ -1,15 +1,28 @@
 """
 Cost estimation for the admin dashboard.
 
-Only computes what's precisely knowable from data already tracked (R2
-storage, from the bucket-usage stats admin_stats.py already fetches).
-OpenAI and Google Cloud (the two biggest variable costs — narration text
-generation, Street View photos, TTS) need billing-scoped credentials this
-project doesn't have yet (an OpenAI Admin key with usage.read scope, a
-Google Cloud billing-viewer service account) — those are marked as
-explicitly untracked rather than estimated, since a "Costs" dashboard
-that quietly guesses is worse than one that's honest about its gaps.
+R2 storage is a precise local computation (bytes already tracked, fixed
+public pricing). OpenAI is a real, live API call once OPENAI_ADMIN_API_KEY
+is set (see config.py) -- same "configured / not configured" shape as
+revenuecat_service.get_overview_metrics. Google Cloud (Street View + TTS)
+stays an honest placeholder: unlike OpenAI, there's no single credential
+that unlocks it -- the Cloud Billing API only returns historical cost data
+once BigQuery billing export is enabled for the billing account (a GCP
+console setup step, not just an API key), so faking that integration
+without being able to test it against real GCP config would be worse than
+just saying so.
 """
+
+import logging
+from datetime import datetime, timedelta, timezone
+
+import httpx
+
+from app.config import settings
+
+logger = logging.getLogger(__name__)
+
+REQUEST_TIMEOUT = 15.0
 
 R2_FREE_GB = 10
 R2_PRICE_PER_GB_MONTH = 0.015
@@ -56,14 +69,53 @@ KNOWN_FREE_TIER_LIMITS = [
 ]
 
 UNTRACKED_VARIABLE_COSTS = [
-    {"service": "OpenAI", "reason": "API key lacks the usage.read scope — needs a separate org-level Admin key"},
-    {"service": "Google Cloud (TTS + Street View)", "reason": "No billing API access configured"},
+    {"service": "Google Cloud (TTS + Street View)",
+     "reason": "Needs BigQuery billing export enabled on the GCP billing account, not just an API key"},
 ]
 
 
-def get_cost_summary(total_mb) -> dict:
+async def fetch_openai_costs() -> dict:
+    """
+    Real OpenAI Costs API call (GET /v1/organization/costs), last 30 days.
+    Requires an Admin API key with usage.read scope -- returns
+    {"configured": False} if OPENAI_ADMIN_API_KEY isn't set, matching
+    revenuecat_service.get_overview_metrics's shape so the dashboard
+    handles both the same way.
+
+    https://platform.openai.com/docs/api-reference/usage/costs
+    """
+    if not settings.OPENAI_ADMIN_API_KEY:
+        return {"configured": False}
+
+    start_time = int((datetime.now(timezone.utc) - timedelta(days=30)).timestamp())
+    try:
+        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+            response = await client.get(
+                "https://api.openai.com/v1/organization/costs",
+                params={"start_time": start_time, "bucket_width": "1d", "limit": 31},
+                headers={"Authorization": f"Bearer {settings.OPENAI_ADMIN_API_KEY}"},
+            )
+            response.raise_for_status()
+            data = response.json()
+
+        total = 0.0
+        currency = "usd"
+        for bucket in data.get("data", []):
+            for result in bucket.get("results", []):
+                amount = result.get("amount", {})
+                total += amount.get("value") or 0
+                currency = amount.get("currency", currency)
+
+        return {"configured": True, "total_usd": round(total, 2), "currency": currency, "period_days": 30}
+    except Exception as e:
+        logger.error(f"Failed to fetch OpenAI costs: {e}")
+        return {"configured": True, "error": True}
+
+
+async def get_cost_summary(total_mb) -> dict:
     return {
         "r2_storage": estimate_r2_storage_cost(total_mb),
+        "openai": await fetch_openai_costs(),
         "known_free_tier_limits": KNOWN_FREE_TIER_LIMITS,
         "untracked": UNTRACKED_VARIABLE_COSTS,
     }

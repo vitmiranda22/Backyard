@@ -150,7 +150,13 @@
     "saveDateOfBirth": "Save",
     "dateOfBirthSaved": "Date of birth saved.",
     "couldntSaveDateOfBirth": "Couldn't save that — check the date and try again.",
-    "editDateOfBirthA11y": "Edit date of birth"
+    "editDateOfBirthA11y": "Edit date of birth",
+    "displayName": "Display name",
+    "saveDisplayName": "Save",
+    "displayNameSaved": "Display name saved.",
+    "couldntSaveDisplayName": "Couldn't save that — try again in a moment.",
+    "editDisplayNameA11y": "Edit display name",
+    "nameCannotBeEmpty": "Display name can't be empty"
   },
   "moods": {
     "time_machine": { "label": "Time Machine", "desc": "Get transported to what this spot looked like decades ago" },

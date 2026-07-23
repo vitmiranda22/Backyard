@@ -35,6 +35,14 @@ export default function ProfileScreen({
   const [stats, setStats] = useState<UserStats | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Set at signup from the "full name" field (see SignupScreen), read-only
+  // in the UI until now -- PATCH /user/settings has always accepted this,
+  // ProfileScreen just never exposed a way to reach it.
+  const [displayName, setDisplayName] = useState("");
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [savingName, setSavingName] = useState(false);
+
   // null until settings load, then either a real "YYYY-MM-DD" or "" for
   // any account with none on file (pre-signup-redesign accounts, mainly).
   const [dateOfBirth, setDateOfBirth] = useState<string | null>(null);
@@ -54,6 +62,8 @@ export default function ProfileScreen({
       setEmail(userEmail);
       if (settings) {
         setContentSafety(settings.content_safety);
+        setDisplayName(settings.display_name);
+        setNameInput(settings.display_name);
         setDateOfBirth(settings.date_of_birth ?? "");
         if (settings.date_of_birth) {
           const [y, m, d] = settings.date_of_birth.split("-");
@@ -89,6 +99,26 @@ export default function ProfileScreen({
       return null;
     }
     return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  }
+
+  async function handleSaveName() {
+    const trimmed = nameInput.trim();
+    if (!trimmed) {
+      Alert.alert(t("common.error"), t("profile.nameCannotBeEmpty"));
+      return;
+    }
+    setSavingName(true);
+    try {
+      await updateSettings({ display_name: trimmed });
+      setDisplayName(trimmed);
+      setNameInput(trimmed);
+      setEditingName(false);
+      showToast(t("profile.displayNameSaved"));
+    } catch (e: any) {
+      console.warn("Failed to save display name:", e.message);
+      showToast(t("profile.couldntSaveDisplayName"));
+    }
+    setSavingName(false);
   }
 
   async function handleSaveDob() {
@@ -250,6 +280,48 @@ export default function ProfileScreen({
             accessibilityLabel={t("profile.matureContentToggleA11y")}
           />
         </View>
+      </View>
+
+      <View style={styles.card}>
+        {editingName ? (
+          <>
+            <Text style={styles.rowTitle}>{t("profile.displayName")}</Text>
+            <TextInput
+              style={styles.nameInput}
+              value={nameInput}
+              onChangeText={setNameInput}
+              placeholder={t("profile.displayName")}
+              placeholderTextColor={colors.muted}
+              maxLength={50}
+              autoCapitalize="words"
+            />
+            {savingName ? (
+              <ActivityIndicator color={colors.accent} style={{ marginTop: 10 }} />
+            ) : (
+              <TouchableOpacity
+                style={styles.saveDobBtn}
+                onPress={handleSaveName}
+                accessibilityRole="button"
+                accessibilityLabel={t("profile.saveDisplayName")}
+              >
+                <Text style={styles.saveDobBtnText}>{t("profile.saveDisplayName")}</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        ) : (
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => setEditingName(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t("profile.editDisplayNameA11y")}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowTitle}>{t("profile.displayName")}</Text>
+              <Text style={styles.rowDesc}>{displayName}</Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {dateOfBirth !== null && (
@@ -483,6 +555,16 @@ const styles = StyleSheet.create({
     color: colors.accentText,
     fontSize: 12,
     fontWeight: "700",
+  },
+  nameInput: {
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    color: colors.text,
+    padding: 12,
+    borderRadius: radius.md,
+    fontSize: 15,
+    marginTop: 10,
   },
   dobRow: {
     flexDirection: "row",

@@ -150,7 +150,13 @@
     "saveDateOfBirth": "Guardar",
     "dateOfBirthSaved": "Fecha de nacimiento guardada.",
     "couldntSaveDateOfBirth": "No se pudo guardar — revisa la fecha e inténtalo de nuevo.",
-    "editDateOfBirthA11y": "Editar fecha de nacimiento"
+    "editDateOfBirthA11y": "Editar fecha de nacimiento",
+    "displayName": "Nombre para mostrar",
+    "saveDisplayName": "Guardar",
+    "displayNameSaved": "Nombre guardado.",
+    "couldntSaveDisplayName": "No se pudo guardar — inténtalo de nuevo en un momento.",
+    "editDisplayNameA11y": "Editar nombre para mostrar",
+    "nameCannotBeEmpty": "El nombre no puede estar vacío"
   },
   "moods": {
     "time_machine": { "label": "Máquina del tiempo", "desc": "Descubre cómo se veía este lugar hace décadas" },

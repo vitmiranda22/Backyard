@@ -64,7 +64,7 @@ describe("ProfileScreen", () => {
     jest.clearAllMocks();
     jest.spyOn(Alert, "alert").mockImplementation(() => {});
     mockGetCurrentUserEmail.mockResolvedValue("walker@example.com");
-    mockGetSettings.mockResolvedValue({ content_safety: false });
+    mockGetSettings.mockResolvedValue({ content_safety: false, display_name: "Ada" });
     mockGetUserStats.mockResolvedValue(stats());
   });
 
@@ -133,6 +133,43 @@ describe("ProfileScreen", () => {
     await fireEvent.press(await findByText("profile.badges"));
 
     expect(props.onOpenBadges).toHaveBeenCalled();
+  });
+
+  it("shows the current display name, and saves a new one once edited", async () => {
+    mockUpdateSettings.mockResolvedValue({});
+    const { findByText, findByLabelText, getByPlaceholderText } = await render(<ProfileScreen {...baseProps()} />);
+
+    expect(await findByText("Ada")).toBeTruthy();
+    await fireEvent.press(await findByLabelText("profile.editDisplayNameA11y"));
+
+    await fireEvent.changeText(getByPlaceholderText("profile.displayName"), "Ada Lovelace");
+    await fireEvent.press(await findByText("profile.saveDisplayName"));
+
+    await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ display_name: "Ada Lovelace" }));
+    expect(mockShowToast).toHaveBeenCalledWith("profile.displayNameSaved");
+    expect(await findByText("Ada Lovelace")).toBeTruthy();
+  });
+
+  it("shows a validation alert instead of saving an empty display name", async () => {
+    const { findByLabelText, getByPlaceholderText, findByText } = await render(<ProfileScreen {...baseProps()} />);
+
+    await fireEvent.press(await findByLabelText("profile.editDisplayNameA11y"));
+    await fireEvent.changeText(getByPlaceholderText("profile.displayName"), "   ");
+    await fireEvent.press(await findByText("profile.saveDisplayName"));
+
+    expect(Alert.alert).toHaveBeenCalledWith("common.error", "profile.nameCannotBeEmpty");
+    expect(mockUpdateSettings).not.toHaveBeenCalled();
+  });
+
+  it("shows a toast when saving the display name fails", async () => {
+    mockUpdateSettings.mockRejectedValue(new Error("network error"));
+    const { findByLabelText, getByPlaceholderText, findByText } = await render(<ProfileScreen {...baseProps()} />);
+
+    await fireEvent.press(await findByLabelText("profile.editDisplayNameA11y"));
+    await fireEvent.changeText(getByPlaceholderText("profile.displayName"), "Ada Lovelace");
+    await fireEvent.press(await findByText("profile.saveDisplayName"));
+
+    await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("profile.couldntSaveDisplayName"));
   });
 
   it("shows an 'Add' prompt when no date of birth is on file, and saves one once entered", async () => {

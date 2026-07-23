@@ -242,7 +242,17 @@
     "blocksCount": "{{count}} blocks",
     "autoCompleteFree": "Tour complete! Come back tomorrow, or upgrade for 3 tours a day.",
     "autoCompletePremium": "Tour complete! Start another — up to 3 tours a day.",
-    "yourGuide": "Your guide: {{name}}"
+    "yourGuide": "Your guide: {{name}}",
+    "safety": {
+      "title": "Before you walk",
+      "subtitle": "Backyard narrates the neighborhood — it doesn't guide you across the street. A few reminders while your first block loads:",
+      "tip1": "Cross only at marked crosswalks, and wait for the signal.",
+      "tip2": "Look both ways before stepping into any street — even one-ways.",
+      "tip3": "Keep one ear free or your volume low, so you can hear traffic and sirens.",
+      "tip4": "Stop walking before checking your screen or the map.",
+      "tip5": "Extra caution after dark or somewhere unfamiliar.",
+      "cta": "Got it, let's walk"
+    }
   },
   "tourComplete": {
     "finishingUp": "Finishing up...",

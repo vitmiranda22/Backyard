@@ -46,6 +46,7 @@ Full audit completed and remediated — see git log for the complete trail. Summ
 - [x] Every tour now gets a real spoken intro (free modes get an unnamed welcome line, premium modes keep their named persona) and a spoken outro when the app auto-completes a tour at the block cap — manual early endings don't get an outro, since there's nothing to compensate for
 - [x] 8 of the 9 real test tours are published to Discover (Lisbon, Buenos Aires, Marrakech, Reykjavik, Hanoi, Accra, Wellington, Québec City) — real content across 8 cities instead of SF-only test data. Kyoto is deliberately still private: it contains the actual language-leak/hallucination bugs found during that test (fixed in `prompts.py` since, but not regenerated for this specific tour).
 - [x] Suggested-next-waypoint green arrow: mines the current block's own already-fetched Wikipedia/OSM data for a nearby real point of interest and shows it as a map marker — no new fetch cost, live-verified against real Wikipedia geosearch data.
+- [x] Pre-walk safety reminder: a bottom-sheet popup (crosswalks, looking both ways, traffic awareness, screen-down caution) shows every time a tour starts, dismissible only via an explicit "Got it" tap. Purely a UI overlay — doesn't gate or delay the actual start-tour/narration calls running underneath, so it also gives the first block's generation wait something useful to look at instead of a bare spinner.
 
 ## Monitoring & ops
 
@@ -56,7 +57,7 @@ Full audit completed and remediated — see git log for the complete trail. Summ
 ## Test coverage
 
 - [x] Backend: 129 tests — all of the above plus the age-gate's date-boundary math, signup persistence paths, mode-aware zone-data prioritization, settings' date-of-birth validation, `pick_suggested_next()`, the content-report endpoints' authorization, and `fetch_openai_costs()`
-- [x] Mobile: 166 tests across all screens (now including `SignupScreen` (DOB + the 13-year minimum), `ProfileScreen`'s DOB card and subscription-deletion warning, the suggested-waypoint marker, `ErrorBoundary`, reporting a tour/comment, forgot/reset password, and the request-timeout path) plus the service layer
+- [x] Mobile: 171 tests across all screens (now including `SignupScreen` (DOB + the 13-year minimum), `ProfileScreen`'s DOB card and subscription-deletion warning, the suggested-waypoint marker, `ErrorBoundary`, reporting a tour/comment, forgot/reset password, the request-timeout path, and the pre-walk `SafetyModal`) plus the service layer
 
 ## Gaps found and fixed in this pass
 

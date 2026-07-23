@@ -26,6 +26,7 @@ import { narrateBlock, saveBlock, startTour, askQuestion, endTour, EndTourRespon
 import { startRecording, stopRecording, cancelRecording } from "../services/recording";
 import NarrationCard from "../components/NarrationCard";
 import WaypointCompass from "../components/WaypointCompass";
+import SafetyModal from "../components/SafetyModal";
 import AudioPlayer from "../components/AudioPlayer";
 import { colors, radius } from "../theme";
 import { showToast } from "../services/toast";
@@ -121,6 +122,11 @@ export default function ActiveTourScreen({
   // (see backend zone_data.pick_suggested_next) — rendered as a green
   // waypoint marker on the map. Null often; not every block has one.
   const [suggestedNext, setSuggestedNext] = useState<SuggestedNextWaypoint | null>(null);
+
+  // Shown once at mount, every tour -- purely a visual overlay over
+  // whatever's loading underneath (see SafetyModal). Doesn't gate or
+  // delay init()'s startTour/narration calls below.
+  const [showSafetyModal, setShowSafetyModal] = useState(true);
 
   // Hold-to-ask voice question state.
   const [qaState, setQaState] = useState<"idle" | "recording" | "thinking">("idle");
@@ -523,6 +529,8 @@ export default function ActiveTourScreen({
 
   return (
     <View style={styles.container}>
+      <SafetyModal visible={showSafetyModal} onDismiss={() => setShowSafetyModal(false)} />
+
       {/* Map */}
       <View style={styles.mapWrap}>
         {location ? (

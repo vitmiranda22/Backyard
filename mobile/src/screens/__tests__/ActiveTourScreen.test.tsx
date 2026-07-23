@@ -151,6 +151,27 @@ describe("ActiveTourScreen", () => {
     expect(mockNarrateBlock).toHaveBeenCalledWith(37.77, -122.41, "time_machine", "neutral", false, "auto", "tour-1");
   });
 
+  it("shows the safety modal immediately, and it doesn't block the tour from starting and narrating block 1 underneath it", async () => {
+    const { getByText } = await renderStarted();
+
+    // renderStarted() already waits for block 1's narration to land ("24th
+    // St") -- getting there proves startTour/narrateBlock ran to
+    // completion while the modal was still up, since nothing here ever
+    // pressed its CTA.
+    expect(getByText("activeTour.safety.title")).toBeTruthy();
+    expect(mockStartTour).toHaveBeenCalled();
+    expect(mockNarrateBlock).toHaveBeenCalled();
+  });
+
+  it("dismisses the safety modal when its CTA is pressed", async () => {
+    const { getByText, queryByText } = await renderStarted();
+    expect(getByText("activeTour.safety.title")).toBeTruthy();
+
+    await fireEvent.press(getByText("activeTour.safety.cta"));
+
+    expect(queryByText("activeTour.safety.title")).toBeNull();
+  });
+
   it("renders a green waypoint marker at the suggested_next coordinate when the response includes one", async () => {
     mockNarrateBlock.mockResolvedValue(
       narration({ suggested_next: { name: "Old City Hall", lat: 37.7701, lng: -122.4155 } })

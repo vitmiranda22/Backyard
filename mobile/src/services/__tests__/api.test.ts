@@ -139,4 +139,29 @@ describe("authFetch (via narrateBlock)", () => {
 
     await expect(callNarrateBlock()).rejects.toThrow("HTTP 500");
   });
+
+  it("aborts and throws a friendly message when a request hangs past the timeout", async () => {
+    mockGetToken.mockReturnValue("valid-token");
+    global.fetch = jest.fn().mockImplementation(
+      (_url: string, options: any) =>
+        new Promise((_resolve, reject) => {
+          // A real hung request: nothing ever resolves fetch() on its own --
+          // only AbortController firing (via authFetch's own timeout) ends it.
+          options.signal.addEventListener("abort", () => {
+            const err = new Error("Aborted");
+            err.name = "AbortError";
+            reject(err);
+          });
+        })
+    ) as any;
+
+    jest.useFakeTimers();
+    const pending = callNarrateBlock();
+    // Flushes pending microtasks between advancing the timer and awaiting
+    // the rejection below, so the abort listener above has a chance to run.
+    await Promise.resolve();
+    jest.advanceTimersByTime(45000);
+    await expect(pending).rejects.toThrow("too long to respond");
+    jest.useRealTimers();
+  });
 });

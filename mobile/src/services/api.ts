@@ -7,6 +7,11 @@
 import { API_URL } from "../config";
 import { getToken, refreshToken } from "./auth";
 
+// Generous enough to cover a real cache-miss narration (zone-data fetch +
+// LLM generation + TTS can legitimately take 20-30s) without false-firing,
+// while still catching a truly hung connection instead of spinning forever.
+const REQUEST_TIMEOUT_MS = 45000;
+
 // Helper: make an authenticated request. Retries once on a 401 after
 // forcing a token refresh — a backstop for the rare case where our token
 // went stale despite auth.ts's onAuthStateChange listener (e.g. a request
@@ -17,14 +22,28 @@ async function authFetch(path: string, options: RequestInit = {}, isRetry = fals
     throw new Error("Not authenticated. Please sign in.");
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...options.headers,
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        ...options.headers,
+      },
+      signal: controller.signal,
+    });
+  } catch (e: any) {
+    if (e.name === "AbortError") {
+      throw new Error("That took too long to respond. Check your connection and try again.");
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (response.status === 401 && !isRetry) {
     try {
@@ -133,11 +152,25 @@ export async function askQuestion(
   form.append("voice", voice);
   if (tourId) form.append("tour_id", tourId);
 
-  const response = await fetch(`${API_URL}/ask-question`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    body: form,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/ask-question`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+      signal: controller.signal,
+    });
+  } catch (e: any) {
+    if (e.name === "AbortError") {
+      throw new Error("That took too long to respond. Check your connection and try again.");
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (response.status === 401 && !isRetry) {
     try {

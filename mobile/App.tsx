@@ -10,7 +10,7 @@ import { StatusBar, View, ActivityIndicator, Linking } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as Updates from "expo-updates";
 import * as SecureStore from "expo-secure-store";
-import { restoreSession, signIn, getCurrentUserId } from "./src/services/auth";
+import { restoreSession, signIn, getCurrentUserId, establishRecoverySession } from "./src/services/auth";
 import { DEV_SKIP_LOGIN, DEV_EMAIL, DEV_PASSWORD } from "./src/config";
 import { colors } from "./src/theme";
 import { TourDetail, EndTourResponse, getSettings } from "./src/services/api";
@@ -22,6 +22,8 @@ import { loadSavedLanguage } from "./src/i18n";
 
 import LoginScreen from "./src/screens/LoginScreen";
 import SignupScreen from "./src/screens/SignupScreen";
+import ForgotPasswordScreen from "./src/screens/ForgotPasswordScreen";
+import ResetPasswordScreen from "./src/screens/ResetPasswordScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import ToursScreen from "./src/screens/ToursScreen";
@@ -51,10 +53,27 @@ function parseRouteDeepLink(url: string): string | null {
   return match ? match[1] : null;
 }
 
+// Parses backyard://reset-password#access_token=...&refresh_token=...&type=recovery
+// deep links (from the password-reset email, see auth.ts's
+// requestPasswordReset) into the token pair, or null if the URL doesn't
+// match that shape or is missing either token.
+function parseResetPasswordDeepLink(url: string): { accessToken: string; refreshToken: string } | null {
+  if (!url.startsWith("backyard://reset-password")) return null;
+  const hashIndex = url.indexOf("#");
+  if (hashIndex === -1) return null;
+  const params = new URLSearchParams(url.slice(hashIndex + 1));
+  const accessToken = params.get("access_token");
+  const refreshToken = params.get("refresh_token");
+  if (!accessToken || !refreshToken) return null;
+  return { accessToken, refreshToken };
+}
+
 type Screen =
   | "loading"
   | "login"
   | "signup"
+  | "forgotPassword"
+  | "resetPassword"
   | "onboarding"
   | "main"
   | "mood"
@@ -155,14 +174,30 @@ export default function App() {
   useEffect(() => {
     // A shared link (backyard://route/<id>) opening the app cold or warm —
     // stashed until the session check below lands somewhere past login.
+    // A password-reset link is handled immediately instead, since it needs
+    // to jump straight to ResetPasswordScreen regardless of session state.
+    async function handleIncomingUrl(url: string) {
+      const routeId = parseRouteDeepLink(url);
+      if (routeId) {
+        setPendingRouteId(routeId);
+        return;
+      }
+      const recovery = parseResetPasswordDeepLink(url);
+      if (recovery) {
+        try {
+          await establishRecoverySession(recovery.accessToken, recovery.refreshToken);
+          setScreen("resetPassword");
+        } catch (e) {
+          console.warn("Failed to establish recovery session:", e);
+        }
+      }
+    }
+
     Linking.getInitialURL().then((url) => {
-      if (!url) return;
-      const id = parseRouteDeepLink(url);
-      if (id) setPendingRouteId(id);
+      if (url) handleIncomingUrl(url);
     });
     const sub = Linking.addEventListener("url", ({ url }) => {
-      const id = parseRouteDeepLink(url);
-      if (id) setPendingRouteId(id);
+      handleIncomingUrl(url);
     });
     return () => sub.remove();
   }, []);
@@ -242,6 +277,7 @@ export default function App() {
             identifyCurrentUser();
           }}
           onCreateAccount={() => setScreen("signup")}
+          onForgotPassword={() => setScreen("forgotPassword")}
         />
       )}
 
@@ -250,6 +286,14 @@ export default function App() {
           onBack={() => setScreen("login")}
           onSignedUp={() => setScreen("login")}
         />
+      )}
+
+      {screen === "forgotPassword" && (
+        <ForgotPasswordScreen onBack={() => setScreen("login")} />
+      )}
+
+      {screen === "resetPassword" && (
+        <ResetPasswordScreen onDone={() => setScreen("login")} />
       )}
 
       {screen === "onboarding" && <OnboardingScreen onDone={finishOnboarding} />}

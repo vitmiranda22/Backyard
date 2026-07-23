@@ -38,9 +38,10 @@ const WAVE_HEIGHTS = [6, 14, 9, 20, 11, 16, 7, 13];
 interface LoginScreenProps {
   onLogin: () => void;
   onCreateAccount: () => void;
+  onForgotPassword: () => void;
 }
 
-export default function LoginScreen({ onLogin, onCreateAccount }: LoginScreenProps) {
+export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword }: LoginScreenProps) {
   const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -104,6 +105,14 @@ export default function LoginScreen({ onLogin, onCreateAccount }: LoginScreenPro
           <>
             <TouchableOpacity style={styles.signInBtn} onPress={handleSignIn}>
               <Text style={styles.signInText}>{t("login.signIn")}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.forgotBtn}
+              onPress={onForgotPassword}
+              accessibilityRole="button"
+            >
+              <Text style={styles.forgotText}>{t("login.forgotPassword")}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -201,6 +210,16 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 18,
     fontWeight: "700",
+  },
+  forgotBtn: {
+    padding: 10,
+    marginTop: 6,
+  },
+  forgotText: {
+    color: colors.muted,
+    textAlign: "center",
+    fontSize: 13,
+    fontWeight: "600",
   },
   newHereBtn: {
     padding: 14,

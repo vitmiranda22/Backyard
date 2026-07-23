@@ -66,6 +66,37 @@ export async function signOut() {
   currentToken = null;
 }
 
+// Sends a password-reset email. The link inside redirects to
+// backyard://reset-password#access_token=...&refresh_token=...&type=recovery
+// -- App.tsx's deep-link handler picks that up and calls
+// establishRecoverySession before showing ResetPasswordScreen.
+//
+// Requires "backyard://reset-password" to be added to this Supabase
+// project's Auth > URL Configuration > Redirect URLs allowlist, or
+// Supabase will reject the redirect. One-time setup, not code.
+export async function requestPasswordReset(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: "backyard://reset-password",
+  });
+  if (error) throw error;
+}
+
+// Exchanges the tokens from a recovery deep link for a real (temporary)
+// session, scoped only to changing the password -- without this,
+// updatePassword() below has no session to act on.
+export async function establishRecoverySession(accessToken: string, refreshToken: string) {
+  const { error } = await supabase.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+  if (error) throw error;
+}
+
+export async function updatePassword(newPassword: string) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+}
+
 export function getToken(): string | null {
   return currentToken;
 }

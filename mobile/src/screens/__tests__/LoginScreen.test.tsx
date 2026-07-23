@@ -26,7 +26,7 @@ async function fillForm(getByPlaceholderText: any, email: string, password: stri
 }
 
 function baseProps(overrides = {}) {
-  return { onLogin: jest.fn(), onCreateAccount: jest.fn(), ...overrides };
+  return { onLogin: jest.fn(), onCreateAccount: jest.fn(), onForgotPassword: jest.fn(), ...overrides };
 }
 
 describe("LoginScreen", () => {
@@ -76,6 +76,16 @@ describe("LoginScreen", () => {
     await fireEvent.press(getByText("login.newHere"));
 
     expect(onCreateAccount).toHaveBeenCalled();
+    expect(mockSignIn).not.toHaveBeenCalled();
+  });
+
+  it("calls onForgotPassword when 'Forgot password?' is pressed, without touching auth at all", async () => {
+    const onForgotPassword = jest.fn();
+    const { getByText } = await render(<LoginScreen {...baseProps({ onForgotPassword })} />);
+
+    await fireEvent.press(getByText("login.forgotPassword"));
+
+    expect(onForgotPassword).toHaveBeenCalled();
     expect(mockSignIn).not.toHaveBeenCalled();
   });
 

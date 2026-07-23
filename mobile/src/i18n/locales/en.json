@@ -26,7 +26,32 @@
     "signIn": "Sign In",
     "newHere": "New here? Create an account",
     "missingFields": "Please enter email and password",
-    "signInFailed": "Sign in failed"
+    "signInFailed": "Sign in failed",
+    "forgotPassword": "Forgot password?"
+  },
+  "forgotPassword": {
+    "backA11y": "Back",
+    "heading": "Reset your password",
+    "subheading": "Enter your email and we'll send you a link to set a new one.",
+    "emailPlaceholder": "Email",
+    "sendLink": "Send reset link",
+    "missingEmail": "Please enter your email",
+    "failed": "Couldn't send the reset email",
+    "sentHeading": "Check your email",
+    "sentBody": "If an account exists for that address, a reset link is on its way.",
+    "backToSignIn": "Back to sign in"
+  },
+  "resetPassword": {
+    "heading": "Set a new password",
+    "subheading": "Choose a new password for your account.",
+    "newPasswordPlaceholder": "New password",
+    "confirmPasswordPlaceholder": "Confirm new password",
+    "passwordHelper": "At least 6 characters",
+    "save": "Save new password",
+    "passwordTooShort": "Password must be at least 6 characters",
+    "passwordsDontMatch": "Passwords don't match",
+    "failed": "Couldn't update your password",
+    "success": "Password updated — sign in with your new password"
   },
   "signup": {
     "backA11y": "Back",

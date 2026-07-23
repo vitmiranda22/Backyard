@@ -26,7 +26,32 @@
     "signIn": "Iniciar sesión",
     "newHere": "¿Eres nuevo? Crea una cuenta",
     "missingFields": "Introduce tu correo electrónico y contraseña",
-    "signInFailed": "No se pudo iniciar sesión"
+    "signInFailed": "No se pudo iniciar sesión",
+    "forgotPassword": "¿Olvidaste tu contraseña?"
+  },
+  "forgotPassword": {
+    "backA11y": "Atrás",
+    "heading": "Restablece tu contraseña",
+    "subheading": "Introduce tu correo y te enviaremos un enlace para elegir una nueva.",
+    "emailPlaceholder": "Correo electrónico",
+    "sendLink": "Enviar enlace",
+    "missingEmail": "Introduce tu correo electrónico",
+    "failed": "No se pudo enviar el correo de restablecimiento",
+    "sentHeading": "Revisa tu correo",
+    "sentBody": "Si existe una cuenta con esa dirección, un enlace está en camino.",
+    "backToSignIn": "Volver a iniciar sesión"
+  },
+  "resetPassword": {
+    "heading": "Elige una nueva contraseña",
+    "subheading": "Elige una nueva contraseña para tu cuenta.",
+    "newPasswordPlaceholder": "Nueva contraseña",
+    "confirmPasswordPlaceholder": "Confirma la nueva contraseña",
+    "passwordHelper": "Al menos 6 caracteres",
+    "save": "Guardar nueva contraseña",
+    "passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
+    "passwordsDontMatch": "Las contraseñas no coinciden",
+    "failed": "No se pudo actualizar tu contraseña",
+    "success": "Contraseña actualizada — inicia sesión con tu nueva contraseña"
   },
   "signup": {
     "backA11y": "Atrás",

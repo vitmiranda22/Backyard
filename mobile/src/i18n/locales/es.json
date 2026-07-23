@@ -20,6 +20,7 @@
   },
   "login": {
     "title": "Backyard",
+    "mascotA11y": "Bosco, la mascota de Backyard",
     "signInHeading": "Iniciar sesión",
     "emailPlaceholder": "Correo electrónico",
     "passwordPlaceholder": "Contraseña",
@@ -251,7 +252,6 @@
     "yourGuide": "Tu guía: {{name}}",
     "safety": {
       "title": "Antes de caminar",
-      "subtitle": "Backyard narra el vecindario — no te guía al cruzar la calle. Algunos recordatorios mientras carga tu primer bloque:",
       "tip1": "Cruza solo por los pasos de peatones marcados, y espera la señal.",
       "tip2": "Mira en ambas direcciones antes de entrar a cualquier calle — incluso las de un solo sentido.",
       "tip3": "Deja un oído libre o mantén el volumen bajo, para poder oír el tráfico y las sirenas.",
@@ -262,6 +262,7 @@
   },
   "tourComplete": {
     "finishingUp": "Terminando...",
+    "heroTitle": "¡Recorrido completo!",
     "whatWasThisWalk": "¿Qué fue esta caminata?",
     "nameSubtitle": "Dale un nombre antes de continuar",
     "titlePlaceholder": "ej. Paseo al atardecer por Hayes Valley",

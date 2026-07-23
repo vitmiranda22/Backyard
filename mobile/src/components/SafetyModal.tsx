@@ -5,9 +5,15 @@
 // regardless of whether this is still open.
 
 import React from "react";
-import { View, Text, StyleSheet, Modal, TouchableOpacity } from "react-native";
+import { View, Text, Image, StyleSheet, Modal, TouchableOpacity } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useTranslation } from "react-i18next";
 import { colors, font, radius } from "../theme";
+
+// Bosco, the app's mascot, checking both ways before crossing -- matches
+// the "before you walk" safety framing. Full-bleed hero, same gradient-
+// scrim template used across the other host-layer screens.
+const MASCOT_IMAGE = require("../../assets/bosco-safety.png");
 
 interface SafetyModalProps {
   visible: boolean;
@@ -22,27 +28,31 @@ export default function SafetyModal({ visible, onDismiss }: SafetyModalProps) {
   return (
     <Modal
       visible={visible}
-      transparent
       animationType="slide"
       // No-op on purpose -- Android's hardware back button shouldn't
       // silently dismiss a safety notice any more than tapping the scrim
       // should. The only way out is the CTA button below.
       onRequestClose={() => {}}
     >
-      <View style={styles.scrim}>
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
-          <Text style={styles.title}>{t("activeTour.safety.title")}</Text>
-          <Text style={styles.subtitle}>{t("activeTour.safety.subtitle")}</Text>
+      <View style={styles.container}>
+        <Image source={MASCOT_IMAGE} style={styles.bg} resizeMode="cover" />
 
-          <View style={styles.tipList}>
-            {TIP_ICONS.map((icon, i) => (
-              <View key={i} style={styles.tip}>
-                <Text style={styles.tipIcon}>{icon}</Text>
-                <Text style={styles.tipText}>{t(`activeTour.safety.tip${i + 1}`)}</Text>
-              </View>
-            ))}
-          </View>
+        <LinearGradient colors={["rgba(10,12,18,0.55)", "rgba(10,12,18,0)"]} style={styles.topScrim} />
+        <Text style={styles.topTitle}>{t("activeTour.safety.title")}</Text>
+
+        <LinearGradient
+          colors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.72)", "rgba(10,12,18,0.95)"]}
+          locations={[0, 0.78, 0.9, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+
+        <View style={styles.content}>
+          {TIP_ICONS.map((icon, i) => (
+            <View key={i} style={styles.tip}>
+              <Text style={styles.tipIcon}>{icon}</Text>
+              <Text style={styles.tipText}>{t(`activeTour.safety.tip${i + 1}`)}</Text>
+            </View>
+          ))}
 
           <TouchableOpacity
             style={styles.cta}
@@ -59,63 +69,69 @@ export default function SafetyModal({ visible, onDismiss }: SafetyModalProps) {
 }
 
 const styles = StyleSheet.create({
-  scrim: {
+  container: {
     flex: 1,
-    backgroundColor: "rgba(10, 12, 18, 0.5)",
-    justifyContent: "flex-end",
+    backgroundColor: colors.text,
   },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    padding: 22,
-    paddingBottom: 28,
+  bg: {
+    ...StyleSheet.absoluteFillObject,
   },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    alignSelf: "center",
-    marginBottom: 16,
+  topScrim: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: "22%",
   },
-  title: {
+  topTitle: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingTop: 56,
+    paddingHorizontal: 24,
     fontFamily: font.display,
-    fontSize: 21,
-    color: colors.text,
-    marginBottom: 4,
+    fontSize: 32,
+    lineHeight: 36,
+    fontWeight: "700",
+    color: "#fff",
+    textShadowColor: "rgba(0,0,0,0.55)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 14,
   },
-  subtitle: {
-    fontSize: 12.5,
-    color: colors.muted,
-    lineHeight: 18,
-    marginBottom: 16,
-  },
-  tipList: {
-    gap: 10,
-    marginBottom: 20,
+  content: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 22,
+    paddingBottom: 34,
   },
   tip: {
     flexDirection: "row",
-    gap: 10,
+    gap: 8,
     alignItems: "flex-start",
+    marginBottom: 6,
   },
   tipIcon: {
-    fontSize: 16,
-    width: 22,
+    fontSize: 14,
+    width: 20,
     textAlign: "center",
-    marginTop: 1,
   },
   tipText: {
     flex: 1,
     fontSize: 12.5,
-    color: colors.text,
-    lineHeight: 18,
+    color: "#fff",
+    lineHeight: 17,
+    textShadowColor: "rgba(0,0,0,0.6)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   cta: {
     backgroundColor: colors.accent,
     borderRadius: radius.md,
     padding: 15,
+    marginTop: 10,
   },
   ctaText: {
     textAlign: "center",

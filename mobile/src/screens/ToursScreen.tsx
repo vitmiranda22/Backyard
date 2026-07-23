@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
+  Image,
   FlatList,
   TouchableOpacity,
   StyleSheet,
@@ -20,6 +21,11 @@ import StarRating from "../components/StarRating";
 import { colors, font, radius } from "../theme";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
+
+// Bosco, shrugging/scanning the horizon -- reused for both "My Tours" and
+// "Discover" empty states, since neither is a full standalone screen (the
+// tab bar and nav stay visible underneath).
+const MASCOT_IMAGE = require("../../assets/bosco-empty-state-square.png");
 
 const MOOD_EMOJI: Record<string, string> = {
   time_machine: "🕰️",
@@ -153,6 +159,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
             refreshControl={<RefreshControl refreshing={refreshingMine} onRefresh={onRefreshMine} />}
             ListEmptyComponent={
               <View style={styles.centered}>
+                <Image source={MASCOT_IMAGE} style={styles.emptyImage} accessibilityLabel={t("login.mascotA11y")} />
                 <Text style={styles.emptyText}>{t("tours.noToursYet")}</Text>
               </View>
             }
@@ -184,6 +191,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
           refreshControl={<RefreshControl refreshing={refreshingDiscover} onRefresh={onRefreshDiscover} />}
           ListEmptyComponent={
             <View style={styles.centered}>
+              <Image source={MASCOT_IMAGE} style={styles.emptyImage} accessibilityLabel={t("login.mascotA11y")} />
               <Text style={styles.emptyText}>{t("tours.noRoutesNearby")}</Text>
             </View>
           }
@@ -261,6 +269,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingTop: 60,
+  },
+  emptyImage: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    marginBottom: 14,
   },
   emptyText: {
     color: colors.muted,

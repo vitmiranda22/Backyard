@@ -20,6 +20,7 @@
   },
   "login": {
     "title": "Backyard",
+    "mascotA11y": "Bosco, the Backyard mascot",
     "signInHeading": "Sign in",
     "emailPlaceholder": "Email",
     "passwordPlaceholder": "Password",
@@ -251,7 +252,6 @@
     "yourGuide": "Your guide: {{name}}",
     "safety": {
       "title": "Before you walk",
-      "subtitle": "Backyard narrates the neighborhood — it doesn't guide you across the street. A few reminders while your first block loads:",
       "tip1": "Cross only at marked crosswalks, and wait for the signal.",
       "tip2": "Look both ways before stepping into any street — even one-ways.",
       "tip3": "Keep one ear free or your volume low, so you can hear traffic and sirens.",
@@ -262,6 +262,7 @@
   },
   "tourComplete": {
     "finishingUp": "Finishing up...",
+    "heroTitle": "Tour Complete!",
     "whatWasThisWalk": "What was this walk?",
     "nameSubtitle": "Give it a name before you move on",
     "titlePlaceholder": "e.g. Sunset stroll through Hayes Valley",

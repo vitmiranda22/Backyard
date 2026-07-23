@@ -14,15 +14,22 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Image,
   StyleSheet,
   Alert,
   ActivityIndicator,
   Linking,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useTranslation } from "react-i18next";
 import { signUp } from "../services/auth";
 import { track } from "../services/analytics";
 import { colors, font, radius } from "../theme";
+
+// Same send-off pose as LoginScreen, for auth-flow continuity. Only the
+// method step gets the full-bleed hero treatment -- the email/DOB details
+// step is a dense form that needs to stay a plain, focused card.
+const MASCOT_IMAGE = require("../../assets/bosco-sendoff.png");
 
 const PRIVACY_URL = "https://backyard-api.onrender.com/privacy";
 const TERMS_URL = "https://backyard-api.onrender.com/terms";
@@ -127,37 +134,51 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
 
   if (step === "method") {
     return (
-      <View style={styles.container}>
-        <TouchableOpacity onPress={onBack} accessibilityRole="button" accessibilityLabel={t("signup.backA11y")}>
-          <Text style={styles.backArrow}>←</Text>
+      <View style={styles.methodContainer}>
+        <Image source={MASCOT_IMAGE} style={styles.bg} resizeMode="cover" accessibilityLabel={t("login.mascotA11y")} />
+        <LinearGradient
+          colors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.6)", "rgba(10,12,18,0.94)"]}
+          locations={[0, 0.55, 0.75, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+
+        <TouchableOpacity
+          style={styles.methodBackArrow}
+          onPress={onBack}
+          accessibilityRole="button"
+          accessibilityLabel={t("signup.backA11y")}
+        >
+          <Text style={styles.backArrowOnDark}>←</Text>
         </TouchableOpacity>
 
-        <Text style={styles.brand}>{t("login.title")}</Text>
-        <Text style={styles.heading}>{t("signup.joinHeading")}</Text>
-        <Text style={styles.subheading}>{t("signup.methodSubtitle")}</Text>
+        <View style={styles.methodContent}>
+          <Text style={styles.brandOnDark}>{t("login.title")}</Text>
+          <Text style={styles.headingOnDark}>{t("signup.joinHeading")}</Text>
+          <Text style={styles.subheadingOnDark}>{t("signup.methodSubtitle")}</Text>
 
-        <View style={styles.oauthBtn}>
-          <Text style={styles.oauthText}>{t("signup.continueWithGoogle")}</Text>
-          <View style={styles.soonTag}>
-            <Text style={styles.soonTagText}>{t("common.soon")}</Text>
+          <View style={styles.oauthBtn}>
+            <Text style={styles.oauthText}>{t("signup.continueWithGoogle")}</Text>
+            <View style={styles.soonTag}>
+              <Text style={styles.soonTagText}>{t("common.soon")}</Text>
+            </View>
           </View>
-        </View>
-        <View style={styles.oauthBtn}>
-          <Text style={styles.oauthText}>{t("signup.continueWithApple")}</Text>
-          <View style={styles.soonTag}>
-            <Text style={styles.soonTagText}>{t("common.soon")}</Text>
+          <View style={styles.oauthBtn}>
+            <Text style={styles.oauthText}>{t("signup.continueWithApple")}</Text>
+            <View style={styles.soonTag}>
+              <Text style={styles.soonTagText}>{t("common.soon")}</Text>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>{t("signup.or")}</Text>
-          <View style={styles.dividerLine} />
-        </View>
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLineOnDark} />
+            <Text style={styles.dividerTextOnDark}>{t("signup.or")}</Text>
+            <View style={styles.dividerLineOnDark} />
+          </View>
 
-        <TouchableOpacity style={styles.primaryBtn} onPress={() => setStep("email")}>
-          <Text style={styles.primaryBtnText}>{t("signup.continueWithEmail")}</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.primaryBtn} onPress={() => setStep("email")}>
+            <Text style={styles.primaryBtnText}>{t("signup.continueWithEmail")}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -279,19 +300,70 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingTop: 60,
   },
-  backArrow: {
-    fontSize: 22,
-    color: colors.text,
-    marginBottom: 18,
+  methodContainer: {
+    flex: 1,
+    backgroundColor: colors.text,
   },
-  brand: {
+  bg: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  methodBackArrow: {
+    position: "absolute",
+    top: 56,
+    left: 24,
+    zIndex: 1,
+  },
+  backArrowOnDark: {
+    fontSize: 22,
+    color: "#fff",
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
+  },
+  methodContent: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 24,
+    paddingBottom: 44,
+  },
+  brandOnDark: {
     fontFamily: font.display,
     fontSize: 13,
     fontWeight: "700",
     letterSpacing: 0.3,
     textTransform: "uppercase",
-    color: colors.muted,
+    color: "rgba(255,255,255,0.85)",
     marginBottom: 14,
+  },
+  headingOnDark: {
+    fontFamily: font.display,
+    fontSize: 24,
+    color: "#fff",
+    marginBottom: 4,
+  },
+  subheadingOnDark: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.8)",
+    marginBottom: 22,
+  },
+  dividerLineOnDark: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.25)",
+  },
+  dividerTextOnDark: {
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    color: "rgba(255,255,255,0.7)",
+  },
+  backArrow: {
+    fontSize: 22,
+    color: colors.text,
+    marginBottom: 18,
   },
   heading: {
     fontFamily: font.display,
@@ -344,18 +416,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     marginVertical: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  dividerText: {
-    fontSize: 11,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    color: colors.muted,
   },
   input: {
     backgroundColor: colors.surface,

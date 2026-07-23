@@ -3,11 +3,10 @@ import { render, fireEvent } from "@testing-library/react-native";
 import SafetyModal from "../SafetyModal";
 
 describe("SafetyModal", () => {
-  it("renders the title, subtitle, all 5 tips, and the CTA when visible", async () => {
+  it("renders the title, all 5 tips, and the CTA when visible", async () => {
     const { getByText } = await render(<SafetyModal visible={true} onDismiss={jest.fn()} />);
 
     expect(getByText("activeTour.safety.title")).toBeTruthy();
-    expect(getByText("activeTour.safety.subtitle")).toBeTruthy();
     for (let i = 1; i <= 5; i++) {
       expect(getByText(`activeTour.safety.tip${i}`)).toBeTruthy();
     }

@@ -8,11 +8,13 @@ import {
   TextInput,
   Switch,
   TouchableOpacity,
+  Image,
   StyleSheet,
   ActivityIndicator,
   Share,
   Alert,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useTranslation } from "react-i18next";
 import { endTour, EndTourResponse, publishTour, deleteTour } from "../services/api";
 import TourStatsGrid from "../components/TourStatsGrid";
@@ -21,6 +23,11 @@ import { showToast } from "../services/toast";
 import { tap, success } from "../services/haptics";
 import { track } from "../services/analytics";
 import { maybePromptForReview } from "../services/reviewPrompt";
+
+// Celebrating pose -- shared with BadgeGalleryScreen's header. Only used
+// on the very first "name this walk" moment (below); the denser
+// stats/share step and the post-save confirmation stay plain screens.
+const MASCOT_IMAGE = require("../../assets/bosco-celebrating.png");
 
 interface TourCompleteProps {
   tourId: string;
@@ -195,32 +202,46 @@ export default function TourCompleteScreen({
       );
     }
     return (
-      <View style={styles.container}>
-        <Text style={styles.emoji}>🎉</Text>
-        <Text style={styles.title}>{t("tourComplete.whatWasThisWalk")}</Text>
-        <Text style={styles.nameSubtitle}>{t("tourComplete.nameSubtitle")}</Text>
+      <View style={styles.heroContainer}>
+        <Image source={MASCOT_IMAGE} style={styles.heroBg} resizeMode="cover" accessibilityLabel={t("login.mascotA11y")} />
 
-        <TextInput
-          style={styles.titleInput}
-          value={title}
-          onChangeText={setTitle}
-          placeholder={t("tourComplete.titlePlaceholder")}
-          placeholderTextColor={colors.muted}
-          accessibilityLabel={t("tourComplete.tourTitleA11y")}
-          autoFocus
-          returnKeyType="done"
-          onSubmitEditing={handleContinueFromName}
+        <LinearGradient colors={["rgba(10,12,18,0.5)", "rgba(10,12,18,0)"]} style={styles.heroTopScrim} />
+        <Text style={styles.heroTopTitle}>{t("tourComplete.heroTitle")}</Text>
+
+        <LinearGradient
+          colors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.5)", "rgba(10,12,18,0.88)"]}
+          locations={[0, 0.64, 0.78, 1]}
+          style={StyleSheet.absoluteFill}
         />
 
-        <TouchableOpacity
-          style={[styles.doneBtn, !title.trim() && styles.doneBtnDisabled]}
-          onPress={handleContinueFromName}
-          disabled={!title.trim()}
-          accessibilityRole="button"
-          accessibilityLabel={t("tourComplete.continue")}
-        >
-          <Text style={styles.doneBtnText}>{t("tourComplete.continue")}</Text>
-        </TouchableOpacity>
+        <View style={styles.heroContent}>
+          <View style={styles.heroCard}>
+            <Text style={styles.heroCardTitle}>{t("tourComplete.whatWasThisWalk")}</Text>
+            <Text style={styles.nameSubtitle}>{t("tourComplete.nameSubtitle")}</Text>
+
+            <TextInput
+              style={styles.titleInput}
+              value={title}
+              onChangeText={setTitle}
+              placeholder={t("tourComplete.titlePlaceholder")}
+              placeholderTextColor={colors.muted}
+              accessibilityLabel={t("tourComplete.tourTitleA11y")}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={handleContinueFromName}
+            />
+
+            <TouchableOpacity
+              style={[styles.doneBtn, !title.trim() && styles.doneBtnDisabled]}
+              onPress={handleContinueFromName}
+              disabled={!title.trim()}
+              accessibilityRole="button"
+              accessibilityLabel={t("tourComplete.continue")}
+            >
+              <Text style={styles.doneBtnText}>{t("tourComplete.continue")}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
     );
   }
@@ -318,6 +339,55 @@ export default function TourCompleteScreen({
 }
 
 const styles = StyleSheet.create({
+  heroContainer: {
+    flex: 1,
+    backgroundColor: colors.text,
+  },
+  heroBg: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  heroTopScrim: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: "30%",
+  },
+  heroTopTitle: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingTop: 56,
+    paddingHorizontal: 22,
+    fontFamily: font.display,
+    fontSize: 26,
+    color: "#fff",
+    textAlign: "center",
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 12,
+  },
+  heroContent: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 22,
+    paddingBottom: 34,
+  },
+  heroCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: 20,
+  },
+  heroCardTitle: {
+    fontFamily: font.display,
+    fontSize: 20,
+    color: colors.text,
+    textAlign: "center",
+    marginBottom: 4,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.bg,

@@ -2,13 +2,19 @@
 // earned. Locked ones are greyed out with what it takes to unlock them.
 
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { getUserStats } from "../services/api";
 import { getAllBadges, BadgeStatus } from "../services/badges";
 import { colors, font, radius } from "../theme";
 import { showToast } from "../services/toast";
+
+// Same celebrating pose as TourCompleteScreen's naming moment -- a hero
+// band up top, not a full-screen bleed, since this screen is a scrollable
+// list underneath.
+const MASCOT_IMAGE = require("../../assets/bosco-celebrating.png");
 
 interface BadgeGalleryScreenProps {
   onBack: () => void;
@@ -39,18 +45,29 @@ export default function BadgeGalleryScreen({ onBack }: BadgeGalleryScreenProps) 
   }
 
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 54) + 16 }]}>
-      <TouchableOpacity
-        style={[styles.backBtn, { top: Math.max(insets.top, 54) + 12 }]}
-        onPress={onBack}
-        accessibilityRole="button"
-        accessibilityLabel={t("common.back")}
-      >
-        <Text style={styles.backText}>‹ {t("common.back")}</Text>
-      </TouchableOpacity>
+    <View style={styles.container}>
+      <View style={styles.hero}>
+        <Image source={MASCOT_IMAGE} style={styles.heroBg} resizeMode="cover" accessibilityLabel={t("login.mascotA11y")} />
+        <LinearGradient
+          colors={["rgba(10,12,18,0)", "rgba(10,12,18,0.35)", "rgba(10,12,18,0.8)"]}
+          locations={[0, 0.55, 1]}
+          style={StyleSheet.absoluteFill}
+        />
 
-      <Text style={styles.title}>{t("badgeGallery.title")}</Text>
-      <Text style={styles.subtitle}>{t("badgeGallery.subtitle")}</Text>
+        <TouchableOpacity
+          style={[styles.backBtn, { top: Math.max(insets.top, 54) + 12 }]}
+          onPress={onBack}
+          accessibilityRole="button"
+          accessibilityLabel={t("common.back")}
+        >
+          <Text style={styles.backTextOnDark}>‹ {t("common.back")}</Text>
+        </TouchableOpacity>
+
+        <View style={styles.heroContent}>
+          <Text style={styles.title}>{t("badgeGallery.title")}</Text>
+          <Text style={styles.subtitle}>{t("badgeGallery.subtitle")}</Text>
+        </View>
+      </View>
 
       <ScrollView contentContainerStyle={styles.list}>
         {badges.map((badge) => (
@@ -76,7 +93,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
-    paddingHorizontal: 20,
   },
   centered: {
     flex: 1,
@@ -84,30 +100,54 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.bg,
   },
+  hero: {
+    height: 260,
+    overflow: "hidden",
+  },
+  heroBg: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  heroContent: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 20,
+    paddingBottom: 22,
+  },
   backBtn: {
     position: "absolute",
     left: 20,
     zIndex: 1,
   },
-  backText: {
-    color: colors.accent,
+  backTextOnDark: {
+    color: "#fff",
     fontSize: 15,
     fontWeight: "600",
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
   title: {
     fontFamily: font.display,
     fontSize: 24,
-    color: colors.text,
+    color: "#fff",
     textAlign: "center",
     marginBottom: 4,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
   },
   subtitle: {
     fontSize: 13,
-    color: colors.muted,
+    color: "rgba(255,255,255,0.85)",
     textAlign: "center",
-    marginBottom: 24,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
   list: {
+    padding: 20,
     paddingBottom: 40,
   },
   card: {

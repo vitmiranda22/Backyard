@@ -1,7 +1,8 @@
 // Login screen — "The Guide" direction (picked from the 3-direction mockup
-// review). Leans into the thing that makes this app different: a voice in
-// your ear. Sign-up now lives on its own screen (see SignupScreen.tsx)
-// instead of being a second inline button here.
+// review). Full-bleed Bosco hero behind a top brand/quote block and a
+// bottom sign-in card, on the confirmed gradient-scrim template shared
+// with Signup/Onboarding card 4. Sign-up now lives on its own screen (see
+// SignupScreen.tsx) instead of being a second inline button here.
 
 import React, { useState } from "react";
 import {
@@ -9,21 +10,28 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Image,
   StyleSheet,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useTranslation } from "react-i18next";
 import { signIn } from "../services/auth";
 import { track } from "../services/analytics";
 import { colors, font, radius } from "../theme";
 
+// Bosco, the app's mascot -- distinct from the in-tour narrator personas
+// quoted below. He's the app-level host (login, onboarding, safety); they
+// narrate mood-specific blocks once a tour is underway. Send-off pose,
+// shared with Signup's method step and Onboarding card 4.
+const MASCOT_IMAGE = require("../../assets/bosco-sendoff.png");
+
 // One line per named guide persona (GUIDE_PERSONAS in backend/app/api/tours.py),
 // written in that persona's established voice — picked once per app open
 // (lazy useState initializer below), not re-rolled on every re-render.
-// TODO: once the real mascot logo asset exists, render it above/beside the
-// "Backyard" wordmark below — left as text-only for now rather than a
-// placeholder graphic that would ship to real users.
 const GUIDE_QUOTES = [
   { text: "Every street has a story it never told the papers.", guide: "Silas" },
   { text: "This city buries its secrets in plain sight.", guide: "Silas" },
@@ -32,8 +40,6 @@ const GUIDE_QUOTES = [
   { text: "Every street's got an opinion. So do I.", guide: "Frankie" },
   { text: "I don't do boring walks. Neither should you.", guide: "Frankie" },
 ];
-
-const WAVE_HEIGHTS = [6, 14, 9, 20, 11, 16, 7, 13];
 
 interface LoginScreenProps {
   onLogin: () => void;
@@ -65,118 +71,150 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.brand}>{t("login.title")}</Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <Image
+        source={MASCOT_IMAGE}
+        style={styles.bg}
+        resizeMode="cover"
+        accessibilityLabel={t("login.mascotA11y")}
+      />
 
-      <Text style={styles.quote}>"{quote.text}"</Text>
-      <Text style={styles.quoteAttr}>— {quote.guide}, one of your guides</Text>
-
-      <View style={styles.wave}>
-        {WAVE_HEIGHTS.map((h, i) => (
-          <View key={i} style={[styles.waveBar, { height: h }]} />
-        ))}
+      <LinearGradient colors={["rgba(10,12,18,0.5)", "rgba(10,12,18,0)"]} style={styles.topScrim} />
+      <View style={styles.topContent}>
+        <Text style={styles.brand}>{t("login.title")}</Text>
+        <Text style={styles.quote}>"{quote.text}"</Text>
+        <Text style={styles.quoteAttr}>— {quote.guide}, one of your guides</Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t("login.signInHeading")}</Text>
+      <LinearGradient
+        colors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.55)", "rgba(10,12,18,0.92)"]}
+        locations={[0, 0.68, 0.82, 1]}
+        style={StyleSheet.absoluteFill}
+      />
 
-        <TextInput
-          style={styles.input}
-          placeholder={t("login.emailPlaceholder")}
-          placeholderTextColor={colors.muted}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
+      <View style={styles.content}>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t("login.signInHeading")}</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder={t("login.passwordPlaceholder")}
-          placeholderTextColor={colors.muted}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+          <TextInput
+            style={styles.input}
+            placeholder={t("login.emailPlaceholder")}
+            placeholderTextColor={colors.muted}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
 
-        {loading ? (
-          <ActivityIndicator size="large" color={colors.accent} style={{ margin: 20 }} />
-        ) : (
-          <>
-            <TouchableOpacity style={styles.signInBtn} onPress={handleSignIn}>
-              <Text style={styles.signInText}>{t("login.signIn")}</Text>
-            </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder={t("login.passwordPlaceholder")}
+            placeholderTextColor={colors.muted}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
 
-            <TouchableOpacity
-              style={styles.forgotBtn}
-              onPress={onForgotPassword}
-              accessibilityRole="button"
-            >
-              <Text style={styles.forgotText}>{t("login.forgotPassword")}</Text>
-            </TouchableOpacity>
+          {loading ? (
+            <ActivityIndicator size="large" color={colors.accent} style={{ margin: 20 }} />
+          ) : (
+            <>
+              <TouchableOpacity style={styles.signInBtn} onPress={handleSignIn}>
+                <Text style={styles.signInText}>{t("login.signIn")}</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.newHereBtn}
-              onPress={onCreateAccount}
-              accessibilityRole="button"
-            >
-              <Text style={styles.newHereText}>{t("login.newHere")}</Text>
-            </TouchableOpacity>
-          </>
-        )}
+              <TouchableOpacity
+                style={styles.forgotBtn}
+                onPress={onForgotPassword}
+                accessibilityRole="button"
+              >
+                <Text style={styles.forgotText}>{t("login.forgotPassword")}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.newHereBtn}
+                onPress={onCreateAccount}
+                accessibilityRole="button"
+              >
+                <Text style={styles.newHereText}>{t("login.newHere")}</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
-    justifyContent: "center",
-    padding: 30,
+    backgroundColor: colors.text,
+  },
+  bg: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  topScrim: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: "34%",
+  },
+  topContent: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingTop: 56,
+    paddingHorizontal: 26,
   },
   brand: {
     fontFamily: font.display,
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "700",
     letterSpacing: 0.3,
     textTransform: "uppercase",
-    color: colors.muted,
+    color: "rgba(255,255,255,0.85)",
     textAlign: "center",
-    marginBottom: 26,
+    marginBottom: 14,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
   quote: {
     fontFamily: font.display,
     fontStyle: "italic",
-    fontSize: 22,
-    lineHeight: 29,
-    color: colors.text,
+    fontSize: 18,
+    lineHeight: 24,
+    color: "#fff",
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: 6,
+    textShadowColor: "rgba(0,0,0,0.55)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
   },
   quoteAttr: {
     fontSize: 11,
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.5,
-    color: colors.muted,
+    color: "rgba(255,255,255,0.8)",
     textAlign: "center",
-    marginBottom: 22,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
-  wave: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "center",
-    gap: 4,
-    height: 22,
-    marginBottom: 30,
-  },
-  waveBar: {
-    width: 3,
-    borderRadius: 2,
-    backgroundColor: colors.accent,
-    opacity: 0.55,
+  content: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 24,
+    paddingBottom: 40,
   },
   card: {
     backgroundColor: colors.surface,

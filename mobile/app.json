@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "scheme": "backyard",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/bosco-icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
@@ -35,7 +35,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash-icon.png",
+          "image": "./assets/bosco-icon.png",
           "imageWidth": 1200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"

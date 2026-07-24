@@ -1,15 +1,17 @@
 # Launch checklist
 
-One place to see what's actually done vs. still open before Backyard goes live. Updated as of the "suggest nearby waypoint" green-arrow pass — re-check dates and quotas before relying on this if it's been a while.
+One place to see what's actually done vs. still open before Backyard goes live. Updated as of the Bosco mascot rollout + bug-fix pass (2026-07-23) — re-check dates and quotas before relying on this if it's been a while.
 
 ## Store submission
 
-- [x] Android production build (`.aab`) built and ready — sitting in EAS, not yet uploaded to Play Console
-- [ ] Submit Android build to Play Console (your call on timing)
-- [ ] iOS production build — blocked on the EAS free-tier monthly build quota, resets **Aug 1, 2026**
+- [x] EAS Build upgraded to a paid plan (Starter) — no longer blocked on the free-tier monthly quota; iOS preview build (ad-hoc) and OTA updates both shipping normally
+- [ ] Android production build (`.aab`) — the one previously sitting in EAS predates the location-permission fix and the Bosco/bug-fix work; needs a fresh `eas build --profile production --platform android` before it's usable
+- [ ] Play Console developer account — registered (personal account "Vlai"), identity verification submitted and pending (Google's own process, a few days), Android-device-access check and phone verification still open (see below)
+- [ ] **New Google Play policy** (Nov 2023+, applies to all new personal accounts): before production access is granted at all, the app must run a closed test with **12 testers opted in continuously for 14 days**. This is the real long pole, longer than identity verification — start recruiting testers as soon as the account is verified, don't wait until the build is ready.
+- [ ] Submit Android build to Play Console (blocked on the above)
 - [x] Store listing copy finalized (`docs/store_listing.md`): name, subtitle, full description, keywords, category, privacy/support URLs
-- [ ] Screenshots — not yet captured; needs a real device/simulator with a build installed, can't be done from this environment
-- [ ] Play Console identity verification (Google's own process, multi-day) — blocked, parked
+- [ ] Screenshots — not yet captured; needs a real device with a build installed. You now have both an installable iOS build and (once rebuilt) an Android APK, so this is unblocked whenever you have a few minutes with the phone.
+- [ ] Play Data Safety form (Android) / Privacy Nutrition Label (iOS) — manual store-console forms, must match the privacy policy's real third-party disclosures
 
 ## Auth & onboarding
 
@@ -17,8 +19,9 @@ One place to see what's actually done vs. still open before Backyard goes live. 
 - [x] Signup collects full name, date of birth, and requires explicit Privacy Policy/Terms acceptance before submitting
 - [x] Server-side age-gate: `is_user_underage()` fails closed on unknown DOB, forces mature "content off" narration to PG for anyone under 18 regardless of what the client requests
 - [x] Existing accounts (created before migration `017_signup_dob_privacy.sql`) can now add a date of birth from `ProfileScreen` — `PATCH /user/settings` accepts and validates it server-side, unlocking the mature content toggle once set.
-- [ ] Google/Apple sign-in — buttons are shipped and visible (disabled, "coming soon") but not functional. Needs: OAuth credentials set up in Supabase Auth + Google Cloud Console + Apple Developer Portal (your side), plus native modules that require a new EAS Build (blocked on the iOS quota above for that platform).
-- [ ] Real mascot logo — login/signup currently show the "Backyard" text wordmark only; a marked placeholder was shown in the design mockups but no real asset exists yet to drop in.
+- [ ] Google/Apple sign-in — buttons are shipped and visible (disabled, "coming soon") but not functional. Needs: OAuth credentials set up in Supabase Auth + Google Cloud Console + Apple Developer Portal (your side), plus native modules that require a new EAS Build. Deliberately scoped out of the Bosco/bug-fix pass — real follow-up work, not a placeholder gap anymore.
+- [x] Mascot ("Bosco", a tree character) shipped across 8 host-layer screens — Login, Signup, Safety popup, Onboarding, Tours/Discover empty states, Tour Complete, Badge Gallery, ErrorBoundary — each with its own generated pose, plus a bold "Backyard" wordmark treatment replacing the old plain-text label. Paywall's pose is the one screen still unbuilt.
+- [ ] App icon / splash / adaptive-icon — real Bosco art is committed (`app.json` already points at it) but this is native-build-only, so it hasn't shipped to any real install yet. Will land automatically on the next production build (iOS or Android) for that platform. Android's adaptive-icon specifically still needs a transparent-background cutout of the art first — the current file has an opaque forest background that would look broken in the circular mask.
 
 ## RevenueCat / payments
 

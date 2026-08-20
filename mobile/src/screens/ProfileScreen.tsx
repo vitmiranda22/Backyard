@@ -671,8 +671,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   badgeIconImage: {
-    width: 18,
-    height: 18,
+    width: 28,
+    height: 28,
   },
   badgeLabel: {
     fontSize: 12,

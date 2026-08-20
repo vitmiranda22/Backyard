@@ -47,7 +47,9 @@ export default function BadgeGalleryScreen({ onBack }: BadgeGalleryScreenProps) 
   return (
     <View style={styles.container}>
       <View style={styles.hero}>
-        <Image source={MASCOT_IMAGE} style={styles.heroBg} resizeMode="cover" accessibilityLabel={t("login.mascotA11y")} />
+        <View style={styles.heroBgWrap}>
+          <Image source={MASCOT_IMAGE} style={styles.heroBg} resizeMode="cover" accessibilityLabel={t("login.mascotA11y")} />
+        </View>
         <LinearGradient
           colors={["rgba(10,12,18,0)", "rgba(10,12,18,0.35)", "rgba(10,12,18,0.8)"]}
           locations={[0, 0.55, 1]}
@@ -112,8 +114,19 @@ const styles = StyleSheet.create({
     height: 260,
     overflow: "hidden",
   },
-  heroBg: {
+  // Same oversized-image-with-negative-offset crop as SafetyModal/
+  // TourCompleteScreen -- this hero band is much shorter than a full
+  // screen (260px), so plain resizeMode="cover" alone crops unpredictably
+  // depending on device width, and was cutting Bosco's face out entirely.
+  heroBgWrap: {
     ...StyleSheet.absoluteFillObject,
+    overflow: "hidden",
+  },
+  heroBg: {
+    position: "absolute",
+    width: "100%",
+    height: "268%",
+    top: "-103%",
   },
   heroContent: {
     position: "absolute",
@@ -173,9 +186,9 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   emojiWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: colors.surfaceAlt,
     justifyContent: "center",
     alignItems: "center",
@@ -188,8 +201,8 @@ const styles = StyleSheet.create({
     fontSize: 22,
   },
   iconImage: {
-    width: 30,
-    height: 30,
+    width: 46,
+    height: 46,
   },
   emojiLocked: {
     opacity: 0.4,

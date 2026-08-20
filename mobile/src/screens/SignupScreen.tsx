@@ -141,7 +141,9 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
   if (step === "method") {
     return (
       <View style={styles.methodContainer}>
-        <Image source={MASCOT_IMAGE} style={styles.bg} resizeMode="cover" accessibilityLabel={t("login.mascotA11y")} />
+        <View style={styles.bgWrap}>
+          <Image source={MASCOT_IMAGE} style={styles.bg} resizeMode="cover" accessibilityLabel={t("login.mascotA11y")} />
+        </View>
         <LinearGradient
           colors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.6)", "rgba(10,12,18,0.94)"]}
           locations={[0, 0.55, 0.75, 1]}
@@ -321,8 +323,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.text,
   },
-  bg: {
+  // Same oversized-image-with-negative-offset crop as LoginScreen (same
+  // source image, bosco-sendoff.png) -- plain resizeMode="cover" alone
+  // was cutting Bosco's face out of frame here.
+  bgWrap: {
     ...StyleSheet.absoluteFillObject,
+    overflow: "hidden",
+  },
+  bg: {
+    position: "absolute",
+    width: "100%",
+    height: "200%",
+    top: "-70%",
   },
   methodBackArrow: {
     position: "absolute",

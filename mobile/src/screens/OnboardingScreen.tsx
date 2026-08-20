@@ -53,9 +53,21 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
   if (isWelcomeCard || isSendoffCard) {
     const heroImage = isWelcomeCard ? WELCOME_IMAGE : SENDOFF_IMAGE;
     const cardKey = isWelcomeCard ? "card1" : "card4";
+    // Same oversized-image-with-negative-offset crop as LoginScreen --
+    // these two images share this one style block but Bosco's face sits
+    // at slightly different heights in each, so the offset switches with
+    // the image instead of using one fixed value for both.
+    const heroOffset = isWelcomeCard ? "-74%" : "-70%";
     return (
       <View style={styles.welcomeContainer}>
-        <Image source={heroImage} style={styles.welcomeBg} resizeMode="cover" accessibilityLabel={t("login.mascotA11y")} />
+        <View style={styles.welcomeBgWrap}>
+          <Image
+            source={heroImage}
+            style={[styles.welcomeBg, { top: heroOffset }]}
+            resizeMode="cover"
+            accessibilityLabel={t("login.mascotA11y")}
+          />
+        </View>
         <LinearGradient
           colors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.68)", "rgba(10,12,18,0.94)"]}
           locations={[0, 0.76, 0.88, 1]}
@@ -119,8 +131,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  welcomeBg: {
+  welcomeBgWrap: {
     ...StyleSheet.absoluteFillObject,
+    overflow: "hidden",
+  },
+  welcomeBg: {
+    position: "absolute",
+    width: "100%",
+    height: "200%",
+    // top is set inline per-image above.
   },
   welcomeContent: {
     position: "absolute",

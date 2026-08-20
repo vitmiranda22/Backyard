@@ -19,6 +19,9 @@ import {
   Alert,
   ActivityIndicator,
   Linking,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTranslation } from "react-i18next";
@@ -191,7 +194,16 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      {/* This is a long 7-field form -- taller than the screen on many
+          devices even before a keyboard shows up. Without this ScrollView,
+          the checkbox and submit button at the bottom were unreachable
+          whenever the keyboard was open, and possibly even when it wasn't
+          on shorter devices. */}
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
       <TouchableOpacity onPress={handleBackFromEmail} accessibilityRole="button" accessibilityLabel={t("signup.backA11y")}>
         <Text style={styles.backArrow}>←</Text>
       </TouchableOpacity>
@@ -308,7 +320,8 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
           <Text style={styles.primaryBtnText}>{t("signup.createAccount")}</Text>
         </TouchableOpacity>
       )}
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -316,8 +329,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
+  },
+  scrollContent: {
     padding: 24,
     paddingTop: 60,
+    paddingBottom: 40,
   },
   methodContainer: {
     flex: 1,

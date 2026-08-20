@@ -5,7 +5,7 @@
 // password-recovery flow.
 
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { updatePassword, signOut } from "../services/auth";
 import { colors, font, radius } from "../theme";
@@ -45,7 +45,10 @@ export default function ResetPasswordScreen({ onDone }: ResetPasswordScreenProps
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
       <Text style={styles.heading}>{t("resetPassword.heading")}</Text>
       <Text style={styles.subheading}>{t("resetPassword.subheading")}</Text>
 
@@ -75,7 +78,7 @@ export default function ResetPasswordScreen({ onDone }: ResetPasswordScreenProps
           <Text style={styles.primaryBtnText}>{t("resetPassword.save")}</Text>
         </TouchableOpacity>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

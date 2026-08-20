@@ -256,7 +256,14 @@ export default function TourCompleteScreen({
       style={styles.heroContainer}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ViewShot ref={viewShotRef} style={StyleSheet.absoluteFill} options={{ format: "png", quality: 0.9 }}>
+      {/* flex:1, not StyleSheet.absoluteFill -- this is KeyboardAvoidingView's
+          only child, and an absolutely-positioned child doesn't reliably
+          shrink when "padding" behavior adds paddingBottom for the
+          keyboard (ViewShot is a native wrapper and doesn't forward that
+          resize the way a plain View does), which was letting the
+          keyboard cover the Save button entirely. flex:1 keeps it in
+          normal layout flow so it responds correctly. */}
+      <ViewShot ref={viewShotRef} style={{ flex: 1 }} options={{ format: "png", quality: 0.9 }}>
       <View style={styles.bgWrap}>
         <Image source={MASCOT_IMAGE} style={styles.heroBg} resizeMode="cover" accessibilityLabel={t("login.mascotA11y")} />
       </View>

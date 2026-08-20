@@ -42,8 +42,9 @@ function stats(overrides = {}) {
     moods_tried: ["time_machine"],
     routes_published: 1,
     total_likes_received: 0,
-    walked_at_night: false,
-    walked_early: false,
+    longest_streak_days: 3,
+    night_streak_days: 0,
+    early_streak_days: 0,
     ...overrides,
   };
 }
@@ -117,12 +118,13 @@ describe("ProfileScreen", () => {
   });
 
   it("shows earned badges but not unearned ones", async () => {
-    // first_steps needs >=1 tour, regular_walker needs >=5 — stats() has
-    // exactly 5, so both should be earned; century_club (needs 100km) should not.
+    // first_steps needs >=1 tour, on_a_roll needs a 3-day streak — stats()
+    // has exactly 3, so both should be earned; century_club (needs 200km)
+    // should not.
     const { findByText, queryByText } = await render(<ProfileScreen {...baseProps()} />);
 
     expect(await findByText("badges.first_steps.label")).toBeTruthy();
-    expect(await findByText("badges.regular_walker.label")).toBeTruthy();
+    expect(await findByText("badges.on_a_roll.label")).toBeTruthy();
     expect(queryByText("badges.century_club.label")).toBeNull();
   });
 

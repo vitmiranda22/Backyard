@@ -537,8 +537,9 @@ export interface UserStats {
   moods_tried: string[];
   routes_published: number;
   total_likes_received: number;
-  walked_at_night: boolean;
-  walked_early: boolean;
+  longest_streak_days: number;
+  night_streak_days: number;
+  early_streak_days: number;
 }
 
 export async function getUserStats(): Promise<UserStats> {

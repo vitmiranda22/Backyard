@@ -223,16 +223,18 @@
   },
   "badges": {
     "first_steps": { "label": "Primeros Pasos", "requirement": "Completa 1 recorrido" },
-    "regular_walker": { "label": "Caminante Regular", "requirement": "Completa 5 recorridos" },
-    "marathoner": { "label": "Maratonista", "requirement": "Camina 42km en total" },
-    "explorer": { "label": "Explorador", "requirement": "Visita 3 ciudades distintas" },
-    "century_club": { "label": "Club del Centenario", "requirement": "Camina 100km en total" },
-    "world_traveler": { "label": "Viajero Mundial", "requirement": "Visita 5 ciudades distintas" },
+    "on_a_roll": { "label": "Con Impulso", "requirement": "Camina 3 días seguidos" },
+    "week_streak": { "label": "Racha Semanal", "requirement": "Camina todos los días durante 7 días seguidos" },
+    "iron_streak": { "label": "Racha de Hierro", "requirement": "Camina todos los días durante 30 días seguidos" },
+    "marathoner": { "label": "Maratonista", "requirement": "Camina 75km en total" },
+    "century_club": { "label": "Club del Centenario", "requirement": "Camina 200km en total" },
+    "explorer": { "label": "Explorador", "requirement": "Visita 5 ciudades distintas" },
+    "world_traveler": { "label": "Viajero Mundial", "requirement": "Visita 10 ciudades distintas" },
     "completionist": { "label": "Completista", "requirement": "Prueba los 5 estados de ánimo" },
-    "night_owl": { "label": "Ave Nocturna", "requirement": "Camina un recorrido después de las 8pm" },
-    "early_bird": { "label": "Madrugador", "requirement": "Camina un recorrido antes de las 8am" },
-    "storyteller": { "label": "Narrador", "requirement": "Publica 3 rutas" },
-    "crowd_favorite": { "label": "Favorito del Público", "requirement": "Consigue 10 me gusta en tus rutas" }
+    "night_owl": { "label": "Ave Nocturna", "requirement": "Camina un recorrido después de las 10pm, 7 días seguidos" },
+    "early_bird": { "label": "Madrugador", "requirement": "Camina un recorrido antes de las 6am, 7 días seguidos" },
+    "storyteller": { "label": "Narrador", "requirement": "Publica 8 rutas" },
+    "crowd_favorite": { "label": "Favorito del Público", "requirement": "Consigue 30 me gusta en tus rutas" }
   },
   "activeTour": {
     "startFailed": "No se pudo iniciar el recorrido: {{error}}",

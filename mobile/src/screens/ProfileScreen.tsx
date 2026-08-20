@@ -1,7 +1,7 @@
 // Profile screen — account info, content safety toggle, sign out.
 
 import React, { useEffect, useState } from "react";
-import { View, Text, Switch, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert, ScrollView } from "react-native";
+import { View, Text, Switch, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert, ScrollView, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { getCurrentUserEmail, signOut } from "../services/auth";
@@ -430,7 +430,11 @@ export default function ProfileScreen({
           <View style={[styles.badgeRow, styles.centerRow]}>
             {badges.map((b) => (
               <View key={b.id} style={styles.badgeChip}>
-                <Text style={styles.badgeEmoji}>{b.emoji}</Text>
+                {b.icon ? (
+                  <Image source={b.icon} style={styles.badgeIconImage} resizeMode="contain" />
+                ) : (
+                  <Text style={styles.badgeEmoji}>{b.emoji}</Text>
+                )}
                 <Text style={styles.badgeLabel}>{t(`badges.${b.id}.label`)}</Text>
               </View>
             ))}
@@ -665,6 +669,10 @@ const styles = StyleSheet.create({
   },
   badgeEmoji: {
     fontSize: 14,
+  },
+  badgeIconImage: {
+    width: 18,
+    height: 18,
   },
   badgeLabel: {
     fontSize: 12,

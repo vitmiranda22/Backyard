@@ -73,7 +73,15 @@ export default function BadgeGalleryScreen({ onBack }: BadgeGalleryScreenProps) 
         {badges.map((badge) => (
           <View key={badge.id} style={[styles.card, !badge.earned && styles.cardLocked]}>
             <View style={[styles.emojiWrap, !badge.earned && styles.emojiWrapLocked]}>
-              <Text style={[styles.emoji, !badge.earned && styles.emojiLocked]}>{badge.emoji}</Text>
+              {badge.icon ? (
+                <Image
+                  source={badge.icon}
+                  style={[styles.iconImage, !badge.earned && styles.emojiLocked]}
+                  resizeMode="contain"
+                />
+              ) : (
+                <Text style={[styles.emoji, !badge.earned && styles.emojiLocked]}>{badge.emoji}</Text>
+              )}
             </View>
             <View style={styles.info}>
               <Text style={[styles.label, !badge.earned && styles.labelLocked]}>{t(`badges.${badge.id}.label`)}</Text>
@@ -178,6 +186,10 @@ const styles = StyleSheet.create({
   },
   emoji: {
     fontSize: 22,
+  },
+  iconImage: {
+    width: 30,
+    height: 30,
   },
   emojiLocked: {
     opacity: 0.4,

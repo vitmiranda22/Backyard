@@ -19,8 +19,9 @@ function stats(overrides = {}) {
     moods_tried: [],
     routes_published: 0,
     total_likes_received: 0,
-    walked_at_night: false,
-    walked_early: false,
+    longest_streak_days: 0,
+    night_streak_days: 0,
+    early_streak_days: 0,
     ...overrides,
   };
 }

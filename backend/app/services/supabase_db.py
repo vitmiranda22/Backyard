@@ -902,6 +902,33 @@ async def delete_user_account(user_id: str) -> bool:
         return False
 
 
+def _longest_day_streak(days: set) -> int:
+    """
+    Longest run of consecutive calendar days present in `days`, anywhere
+    in the user's history (not just the current run) -- once a streak
+    badge is earned it should stay earned, so this is a lifetime best,
+    not "are you still on a streak right now." Shared by the plain daily
+    streak and the Night Owl / Early Bird streaks below, each just passes
+    a differently-filtered set of dates.
+    """
+    if not days:
+        return 0
+
+    longest = 0
+    for d in days:
+        # Only walk forward from a true streak start, so this stays O(n)
+        # overall instead of re-walking the same run from every day in it.
+        if (d - timedelta(days=1)) in days:
+            continue
+        length = 1
+        cur = d
+        while (cur + timedelta(days=1)) in days:
+            cur += timedelta(days=1)
+            length += 1
+        longest = max(longest, length)
+    return longest
+
+
 async def get_user_stats(user_id: str) -> dict:
     """
     Aggregate stats for gamification badges, computed from existing tour
@@ -916,8 +943,9 @@ async def get_user_stats(user_id: str) -> dict:
         "moods_tried": [],
         "routes_published": 0,
         "total_likes_received": 0,
-        "walked_at_night": False,
-        "walked_early": False,
+        "longest_streak_days": 0,
+        "night_streak_days": 0,
+        "early_streak_days": 0,
     }
     try:
         client = _get_client()
@@ -934,20 +962,33 @@ async def get_user_stats(user_id: str) -> dict:
 
         tour_ids = [r["id"] for r in rows if r.get("id")]
 
-        walked_at_night = False
-        walked_early = False
+        # Night Owl / Early Bird badges need a streak of days each *within
+        # that specific hour window*, not just "ever walked late once" --
+        # so these build their own separate date sets rather than a single
+        # boolean, then reuse the same streak-counting logic as the plain
+        # daily streak above.
+        all_days = set()
+        night_days = set()
+        early_days = set()
         for r in rows:
             created_at = r.get("created_at")
             if not created_at:
                 continue
             try:
-                hour = datetime.fromisoformat(created_at.replace("Z", "+00:00")).hour
+                dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
             except ValueError:
                 continue
-            if hour >= 20 or hour < 5:
-                walked_at_night = True
-            if 5 <= hour < 8:
-                walked_early = True
+            d = dt.date()
+            all_days.add(d)
+            # Night Owl / Early Bird badge thresholds -- see badges.ts.
+            if dt.hour >= 22:
+                night_days.add(d)
+            if dt.hour < 6:
+                early_days.add(d)
+
+        longest_streak_days = _longest_day_streak(all_days)
+        night_streak_days = _longest_day_streak(night_days)
+        early_streak_days = _longest_day_streak(early_days)
 
         total_likes_received = 0
         if tour_ids:
@@ -966,8 +1007,9 @@ async def get_user_stats(user_id: str) -> dict:
             "moods_tried": sorted({r["mood"] for r in rows if r.get("mood")}),
             "routes_published": sum(1 for r in rows if r.get("is_public")),
             "total_likes_received": total_likes_received,
-            "walked_at_night": walked_at_night,
-            "walked_early": walked_early,
+            "longest_streak_days": longest_streak_days,
+            "night_streak_days": night_streak_days,
+            "early_streak_days": early_streak_days,
         }
     except Exception as e:
         logger.error(f"Failed to get user stats: {e}")

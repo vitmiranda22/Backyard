@@ -334,11 +334,15 @@ class UserStatsResponse(BaseModel):
     moods_tried: List[str] = []
     routes_published: int = 0
     total_likes_received: int = 0
-    # Based on each tour's created_at hour in UTC, not the walker's local
-    # time — an accepted approximation until location-based timezone
-    # lookup is worth the added complexity for a gamification nice-to-have.
-    walked_at_night: bool = False
-    walked_early: bool = False
+    # Longest run of consecutive calendar days with at least one tour,
+    # anywhere in the user's history -- powers the streak badges. The
+    # night/early variants only count days with a tour inside that hour
+    # window (UTC, not the walker's local time -- an accepted
+    # approximation until location-based timezone lookup is worth the
+    # added complexity for a gamification nice-to-have).
+    longest_streak_days: int = 0
+    night_streak_days: int = 0
+    early_streak_days: int = 0
 
 
 class VoiceSampleResponse(BaseModel):

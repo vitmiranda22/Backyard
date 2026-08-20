@@ -223,16 +223,18 @@
   },
   "badges": {
     "first_steps": { "label": "First Steps", "requirement": "Complete 1 tour" },
-    "regular_walker": { "label": "Regular Walker", "requirement": "Complete 5 tours" },
-    "marathoner": { "label": "Marathoner", "requirement": "Walk 42km total" },
-    "explorer": { "label": "Explorer", "requirement": "Visit 3 different cities" },
-    "century_club": { "label": "Century Club", "requirement": "Walk 100km total" },
-    "world_traveler": { "label": "World Traveler", "requirement": "Visit 5 different cities" },
+    "on_a_roll": { "label": "On a Roll", "requirement": "Walk 3 days in a row" },
+    "week_streak": { "label": "Week Streak", "requirement": "Walk every day for 7 days straight" },
+    "iron_streak": { "label": "Iron Streak", "requirement": "Walk every day for 30 days straight" },
+    "marathoner": { "label": "Marathoner", "requirement": "Walk 75km total" },
+    "century_club": { "label": "Century Club", "requirement": "Walk 200km total" },
+    "explorer": { "label": "Explorer", "requirement": "Visit 5 different cities" },
+    "world_traveler": { "label": "World Traveler", "requirement": "Visit 10 different cities" },
     "completionist": { "label": "Completionist", "requirement": "Try all 5 moods" },
-    "night_owl": { "label": "Night Owl", "requirement": "Walk a tour after 8pm" },
-    "early_bird": { "label": "Early Bird", "requirement": "Walk a tour before 8am" },
-    "storyteller": { "label": "Storyteller", "requirement": "Publish 3 routes" },
-    "crowd_favorite": { "label": "Crowd Favorite", "requirement": "Get 10 likes on your routes" }
+    "night_owl": { "label": "Night Owl", "requirement": "Walk a tour after 10pm, 7 days straight" },
+    "early_bird": { "label": "Early Bird", "requirement": "Walk a tour before 6am, 7 days straight" },
+    "storyteller": { "label": "Storyteller", "requirement": "Publish 8 routes" },
+    "crowd_favorite": { "label": "Crowd Favorite", "requirement": "Get 30 likes on your routes" }
   },
   "activeTour": {
     "startFailed": "Failed to start tour: {{error}}",

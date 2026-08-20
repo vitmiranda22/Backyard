@@ -1070,7 +1070,19 @@ async def toggle_like(tour_id: str, user_id: str):
             client.table("tour_likes").delete().eq("tour_id", tour_id).eq("user_id", user_id).execute()
             liked = False
         else:
-            client.table("tour_likes").insert({"tour_id": tour_id, "user_id": user_id}).execute()
+            try:
+                client.table("tour_likes").insert({"tour_id": tour_id, "user_id": user_id}).execute()
+            except Exception as insert_error:
+                # A concurrent duplicate tap can lose this race against the
+                # existence check above -- the UNIQUE(tour_id, user_id)
+                # constraint then rejects the insert even though the like
+                # itself already landed from the other request. Treat that
+                # specific case as success rather than falling through to
+                # the generic except below, which would otherwise report a
+                # false "failed to like" back to a user whose tap actually
+                # worked.
+                if "23505" not in str(getattr(insert_error, "code", "")) and "duplicate key" not in str(insert_error).lower():
+                    raise
             liked = True
 
         count_result = (
@@ -1113,18 +1125,38 @@ async def create_content_report(
         if existing.data:
             return existing.data[0]
 
-        result = (
-            client.table("content_reports")
-            .insert({
-                "reporter_id": reporter_id,
-                "target_type": target_type,
-                "target_id": target_id,
-                "reason": reason,
-                "detail": detail,
-            })
-            .execute()
-        )
-        return result.data[0] if result.data else None
+        try:
+            result = (
+                client.table("content_reports")
+                .insert({
+                    "reporter_id": reporter_id,
+                    "target_type": target_type,
+                    "target_id": target_id,
+                    "reason": reason,
+                    "detail": detail,
+                })
+                .execute()
+            )
+            return result.data[0] if result.data else None
+        except Exception as insert_error:
+            # Same race as toggle_like above: a concurrent duplicate report
+            # from the same user can lose against the existence check, then
+            # get rejected by the UNIQUE constraint even though the report
+            # already exists. Re-fetch and return it instead of reporting a
+            # false failure for a report that did in fact go through.
+            if "23505" in str(getattr(insert_error, "code", "")) or "duplicate key" in str(insert_error).lower():
+                existing_retry = (
+                    client.table("content_reports")
+                    .select("*")
+                    .eq("reporter_id", reporter_id)
+                    .eq("target_type", target_type)
+                    .eq("target_id", target_id)
+                    .limit(1)
+                    .execute()
+                )
+                if existing_retry.data:
+                    return existing_retry.data[0]
+            raise
     except Exception as e:
         logger.error(f"Failed to create content report: {e}")
         return None

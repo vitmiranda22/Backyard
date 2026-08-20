@@ -35,7 +35,9 @@ export default function SafetyModal({ visible, onDismiss }: SafetyModalProps) {
       onRequestClose={() => {}}
     >
       <View style={styles.container}>
-        <Image source={MASCOT_IMAGE} style={styles.bg} resizeMode="cover" />
+        <View style={styles.bgWrap}>
+          <Image source={MASCOT_IMAGE} style={styles.bg} resizeMode="cover" />
+        </View>
 
         <LinearGradient colors={["rgba(10,12,18,0.55)", "rgba(10,12,18,0)"]} style={styles.topScrim} />
         <Text style={styles.topTitle}>{t("activeTour.safety.title")}</Text>
@@ -73,8 +75,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.text,
   },
-  bg: {
+  // Same oversized-image-with-negative-offset crop as TourCompleteScreen/
+  // LoginScreen -- plain resizeMode="cover" alone doesn't reliably keep
+  // Bosco's face in frame across different device aspect ratios.
+  bgWrap: {
     ...StyleSheet.absoluteFillObject,
+    overflow: "hidden",
+  },
+  bg: {
+    position: "absolute",
+    width: "100%",
+    height: "200%",
+    top: "-65%",
   },
   topScrim: {
     position: "absolute",
@@ -95,6 +107,7 @@ const styles = StyleSheet.create({
     lineHeight: 36,
     fontWeight: "700",
     color: "#fff",
+    textAlign: "center",
     textShadowColor: "rgba(0,0,0,0.55)",
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 14,

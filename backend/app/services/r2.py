@@ -282,4 +282,3 @@ async def delete_objects(keys: list) -> int:
     except Exception as e:
         logger.error(f"Failed to batch-delete R2 objects: {e}")
         return 0
-        return {"total_objects": None, "total_mb": None, "by_prefix": {}}

@@ -84,12 +84,18 @@ export default function HomeScreen({
         try {
           const loc = await getCurrentLocation();
           setLocation(loc);
-          const place = await reverseGeocode(loc.lat, loc.lng);
-          if (place && (place.neighborhood || place.city)) {
-            setPlaceLabel(
-              [place.neighborhood, place.city].filter(Boolean).join(", ")
-            );
-          }
+
+          // Neither of these depends on the other, so they fire together
+          // instead of the place label needlessly blocking the nearby-
+          // routes pins from starting to load until it's done.
+          reverseGeocode(loc.lat, loc.lng).then((place) => {
+            if (place && (place.neighborhood || place.city)) {
+              setPlaceLabel(
+                [place.neighborhood, place.city].filter(Boolean).join(", ")
+              );
+            }
+          });
+
           // Most-voted nearby routes, shown as pins right on the home map.
           getNearbyRoutes(loc.lat, loc.lng, { sortBy: "rating", limit: 10 })
             .then(setNearbyRoutes)

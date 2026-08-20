@@ -3,6 +3,7 @@
 // Handles requesting location permission and watching the user's position.
 
 import * as Location from "expo-location";
+import { GPS_INTERVAL_MS } from "../config";
 
 export async function requestLocationPermission(): Promise<boolean> {
   const { status } = await Location.requestForegroundPermissionsAsync();
@@ -111,7 +112,7 @@ export function compassLabel(bearingDeg: number): string {
 // Start watching position — returns a subscription you can remove later
 export async function watchPosition(
   callback: (lat: number, lng: number) => void,
-  intervalMs: number = 5000
+  intervalMs: number = GPS_INTERVAL_MS
 ) {
   const subscription = await Location.watchPositionAsync(
     {

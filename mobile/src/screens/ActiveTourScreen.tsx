@@ -145,6 +145,9 @@ export default function ActiveTourScreen({
   const pathRef = useRef<{ latitude: number; longitude: number }[]>([]);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
+  // Reentrancy guard for handleEndTour -- see its own comment.
+  const endingRef = useRef(false);
+
   // Use a ref for isLoading so GPS callbacks always see the current value
   const isLoadingRef = useRef(false);
 
@@ -472,6 +475,14 @@ export default function ActiveTourScreen({
   // walker's own manual "End Tour" press. Only the former gets a spoken
   // wrap-up -- ending early by choice has nothing to compensate for.
   async function handleEndTour(isAutoComplete: boolean = false) {
+    // Guards against a rare but real double-fire -- e.g. the walker taps
+    // "End Tour" at the same moment the last block's audio finishes and
+    // NarrationCard's onAudioFinished calls this too. Without this, both
+    // paths would call /end-tour and regenerate the outro TTS a second
+    // time (a real backend cost, not just a UI glitch).
+    if (endingRef.current) return;
+    endingRef.current = true;
+
     tap();
     if (subscriptionRef.current) {
       subscriptionRef.current.remove();

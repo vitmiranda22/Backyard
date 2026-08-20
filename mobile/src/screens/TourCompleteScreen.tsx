@@ -19,6 +19,7 @@ import {
   Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { endTour, EndTourResponse, publishTour, deleteTour } from "../services/api";
 import TourStatsGrid from "../components/TourStatsGrid";
@@ -54,6 +55,7 @@ export default function TourCompleteScreen({
   onDone,
 }: TourCompleteProps) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const [title, setTitle] = useState("");
   const [mood, setMood] = useState("");
   const [loading, setLoading] = useState(true);
@@ -209,7 +211,7 @@ export default function TourCompleteScreen({
       </View>
 
       <TouchableOpacity
-        style={styles.closeBtn}
+        style={[styles.closeBtn, { top: Math.max(insets.top, 16) }]}
         onPress={handleDiscard}
         disabled={saving || discarding}
         accessibilityRole="button"
@@ -219,7 +221,9 @@ export default function TourCompleteScreen({
       </TouchableOpacity>
 
       <LinearGradient colors={["rgba(10,12,18,0.5)", "rgba(10,12,18,0)"]} style={styles.heroTopScrim} />
-      <Text style={styles.heroTopTitle}>{t("tourComplete.heroTitle")}</Text>
+      <Text style={[styles.heroTopTitle, { paddingTop: Math.max(insets.top, 20) }]}>
+        {t("tourComplete.heroTitle")}
+      </Text>
 
       <LinearGradient
         colors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.4)", "rgba(10,12,18,0.9)"]}
@@ -236,7 +240,7 @@ export default function TourCompleteScreen({
             value={title}
             onChangeText={setTitle}
             placeholder={t("tourComplete.titlePlaceholder")}
-            placeholderTextColor={colors.muted}
+            placeholderTextColor="rgba(255,255,255,0.55)"
             accessibilityLabel={t("tourComplete.tourTitleA11y")}
             autoFocus
             returnKeyType="done"
@@ -311,7 +315,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: "100%",
     height: "200%",
-    top: "-65%",
+    top: "-50%",
   },
   closeBtn: {
     position: "absolute",
@@ -358,16 +362,23 @@ const styles = StyleSheet.create({
     padding: 18,
     paddingBottom: 24,
   },
+  // Semi-transparent instead of a solid card -- Bosco's photo shows through
+  // behind the form instead of getting fully covered by an opaque panel.
+  // The dark gradient scrim behind this (see heroContent's sibling above)
+  // already darkens this part of the image, which is what keeps the white
+  // text below legible against a photo background.
   heroCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: "rgba(15,16,22,0.42)",
     borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
     padding: 16,
   },
   heroCardLabel: {
     fontSize: 11,
     fontWeight: "700",
     textTransform: "uppercase",
-    color: colors.muted,
+    color: "rgba(255,255,255,0.75)",
     textAlign: "center",
     marginBottom: 8,
   },
@@ -391,13 +402,13 @@ const styles = StyleSheet.create({
   },
   titleInput: {
     width: "100%",
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: "rgba(255,255,255,0.14)",
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: "rgba(255,255,255,0.28)",
     borderRadius: radius.md,
     padding: 12,
     fontSize: 15,
-    color: colors.text,
+    color: "#fff",
     textAlign: "center",
     marginBottom: 14,
   },
@@ -413,7 +424,7 @@ const styles = StyleSheet.create({
   shareText: {
     fontSize: 13,
     fontWeight: "700",
-    color: colors.text,
+    color: "#fff",
   },
   doneBtnDisabled: {
     backgroundColor: colors.border,

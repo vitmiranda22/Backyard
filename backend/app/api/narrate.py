@@ -47,6 +47,8 @@ from app.models.schemas import (
     ErrorResponse,
     ZoneDataUsed,
     SuggestedNextResponse,
+    Mood,
+    Voice,
 )
 from app.services import geocode, openai_service, tts, r2, supabase_db, streetview
 from app.services.zone_data import (
@@ -555,8 +557,8 @@ async def ask_question(
     audio: UploadFile = File(...),
     lat: float = Form(...),
     lng: float = Form(...),
-    mood: str = Form("time_machine"),
-    voice: str = Form("neutral"),
+    mood: Mood = Form(Mood.TIME_MACHINE),
+    voice: Voice = Form(Voice.NEUTRAL),
     tour_id: str = Form(None),
 ):
     """

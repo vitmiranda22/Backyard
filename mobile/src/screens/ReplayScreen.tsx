@@ -93,8 +93,14 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
       return;
     }
 
-    // Don't wait for the next GPS tick — the next waypoint might already be close
-    // (common when waypoints are near each other).
+    // Don't wait for the next GPS tick — the next waypoint might already be
+    // close (common when waypoints are near each other). checkProximity
+    // reads activeBlockRef/targetIndexRef, which the useEffects above only
+    // sync AFTER this render commits -- calling it synchronously here would
+    // otherwise still see the stale (pre-advance) refs, making this early
+    // check a no-op that always waits for the next real GPS tick instead.
+    activeBlockRef.current = null;
+    targetIndexRef.current = nextIndex;
     if (location) {
       checkProximity(location.lat, location.lng);
     }

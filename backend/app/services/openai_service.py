@@ -419,7 +419,3 @@ async def answer_question(
     except Exception as e:
         logger.error(f"Question answering failed: {e}")
         return None
-
-    except Exception as e:
-        logger.error(f"Connector generation failed: {e}")
-        return None, fallback_summary

@@ -70,6 +70,16 @@ export default function AudioPlayer({
             }
           }
         );
+        // This effect may already have been cleaned up (a newer audioUrl
+        // came in, or the component unmounted) while createAsync's network
+        // fetch was still in flight -- shouldPlay:true means that sound
+        // already started playing itself, so it must be unloaded here
+        // rather than left to silently keep playing over whatever the
+        // newer effect loads into soundRef.
+        if (isCancelled) {
+          sound.unloadAsync();
+          return;
+        }
         soundRef.current = sound;
       } catch (e) {
         console.error("Failed to load audio:", e);

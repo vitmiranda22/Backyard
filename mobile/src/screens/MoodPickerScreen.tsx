@@ -35,6 +35,10 @@ export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequ
   const [richness, setRichness] = useState<RichnessInfo | null>(null);
   const [previewing, setPreviewing] = useState<string | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
+  // Bumped on every handlePreview call so an in-flight request that's been
+  // superseded by a newer tap can tell it's stale once its network calls
+  // finally resolve, instead of unconditionally overwriting soundRef.
+  const previewTokenRef = useRef(0);
 
   useEffect(() => {
     getCurrentLocation()
@@ -60,10 +64,18 @@ export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequ
       await soundRef.current.unloadAsync();
       soundRef.current = null;
     }
+    const myToken = ++previewTokenRef.current;
     setPreviewing(moodId);
     try {
       const sample = await getMoodSample(moodId);
       const { sound } = await Audio.Sound.createAsync({ uri: sample.audio_url }, { shouldPlay: true });
+      // A different preview was tapped while this one's network calls were
+      // still in flight -- shouldPlay:true already started this sound, so
+      // it must be unloaded rather than left playing over the newer one.
+      if (previewTokenRef.current !== myToken) {
+        sound.unloadAsync();
+        return;
+      }
       soundRef.current = sound;
       sound.setOnPlaybackStatusUpdate((status) => {
         if (status.isLoaded && status.didJustFinish) {
@@ -73,7 +85,7 @@ export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequ
     } catch (e: any) {
       console.warn("Failed to preview mood:", e.message);
       showToast(t("moodPicker.couldntPreview"));
-      setPreviewing(null);
+      if (previewTokenRef.current === myToken) setPreviewing(null);
     }
   }
 

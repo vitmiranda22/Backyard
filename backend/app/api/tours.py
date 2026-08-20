@@ -370,6 +370,11 @@ async def save_block(
         f"seq={request.sequence} street={request.street_name}"
     )
 
+    # Same per-minute abuse guard every other write endpoint in this file
+    # enforces -- this one was previously the only exception, with no
+    # comment explaining it as deliberate, so it wasn't.
+    await _enforce_minute_rate_limit(user_id)
+
     # Verify the tour belongs to this user
     tour = await supabase_db.get_tour(request.tour_id)
     if not tour:
@@ -391,6 +396,22 @@ async def save_block(
                 "retry": False,
             },
         )
+
+    # Server-side mirror of ActiveTourScreen.tsx's MAX_BLOCKS -- until now
+    # the free/premium tour-length cap only existed client-side, so a
+    # scripted caller could save unlimited blocks against a tour it owns.
+    if user_id not in UNLIMITED_TEST_ACCOUNT_IDS:
+        is_premium = await supabase_db.get_user_premium_status(user_id)
+        max_blocks = settings.PREMIUM_TOUR_BLOCK_LIMIT if is_premium else settings.FREE_TOUR_BLOCK_LIMIT
+        if request.sequence > max_blocks:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": f"This tour is capped at {max_blocks} blocks.",
+                    "code": "tour_block_limit",
+                    "retry": False,
+                },
+            )
 
     # Confirm any client-supplied storage keys actually point at real
     # Backyard-issued audio/image for this exact location/tour, rather than

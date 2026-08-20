@@ -18,10 +18,6 @@ function platformApiKey(): string {
   return Platform.OS === "ios" ? REVENUECAT_IOS_API_KEY : REVENUECAT_ANDROID_API_KEY;
 }
 
-export function isPurchasesConfigured(): boolean {
-  return !!platformApiKey();
-}
-
 export function initPurchases(userId: string) {
   const apiKey = platformApiKey();
   if (!apiKey || configured) return;

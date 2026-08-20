@@ -3,7 +3,7 @@
 // the share toggle, and save/discard all live on one Bosco hero screen now
 // (previously a forced two-step flow: name, then a separate stats screen).
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -21,6 +21,9 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
+import * as ImagePicker from "expo-image-picker";
+import * as Sharing from "expo-sharing";
+import ViewShot from "react-native-view-shot";
 import { endTour, EndTourResponse, publishTour, deleteTour } from "../services/api";
 import TourStatsGrid from "../components/TourStatsGrid";
 import { colors, font, radius } from "../theme";
@@ -63,6 +66,13 @@ export default function TourCompleteScreen({
   const [discarding, setDiscarding] = useState(false);
   const [shareAsRoute, setShareAsRoute] = useState(true);
   const [saved, setSaved] = useState(false);
+  const [selfieUri, setSelfieUri] = useState<string | null>(null);
+  // Captured from the hero scene (Bosco + Polaroid + stats card) right
+  // before handleSave switches away to the "saved" confirmation view --
+  // that view doesn't render the hero at all, so this has to be grabbed
+  // while it's still mounted, not later when Share is actually tapped.
+  const [shareImageUri, setShareImageUri] = useState<string | null>(null);
+  const viewShotRef = useRef<ViewShot>(null);
 
   const durationSec = Math.round((Date.now() - startTime) / 1000);
   const durationMin = Math.round(durationSec / 60);
@@ -109,10 +119,41 @@ export default function TourCompleteScreen({
     }
   }, []);
 
+  async function handleAddPhoto() {
+    tap();
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      showToast(t("tourComplete.cameraPermissionDenied"));
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.7,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (!result.canceled && result.assets && result.assets[0]) {
+      setSelfieUri(result.assets[0].uri);
+    }
+  }
+
   async function handleSave() {
     if (!title.trim()) return;
     tap();
     setSaving(true);
+
+    // Grab the hero scene (Bosco + Polaroid selfie + stats card) as a
+    // shareable image now, while it's still on screen -- the "saved"
+    // confirmation view that replaces it below doesn't render any of this.
+    // Best-effort: a failed capture just falls back to text-only sharing.
+    try {
+      if (viewShotRef.current?.capture) {
+        const uri = await viewShotRef.current.capture();
+        setShareImageUri(uri);
+      }
+    } catch (e) {
+      console.warn("Failed to capture share image (continuing anyway):", e);
+    }
+
     try {
       if (tourId) {
         await publishTour(tourId, shareAsRoute, title.trim());
@@ -161,9 +202,18 @@ export default function TourCompleteScreen({
 
   async function handleShare() {
     try {
-      await Share.share({
-        message: t("tourComplete.shareMessage", { title, tourId }),
-      });
+      const canShareImage = shareImageUri && (await Sharing.isAvailableAsync());
+      if (canShareImage) {
+        await Sharing.shareAsync(shareImageUri!, {
+          dialogTitle: t("tourComplete.shareThisRouteA11y"),
+        });
+      } else {
+        // Capture failed, or Sharing isn't available on this platform --
+        // still share something rather than nothing.
+        await Share.share({
+          message: t("tourComplete.shareMessage", { title, tourId }),
+        });
+      }
       track("route_shared", { source: "tour_complete" });
     } catch (e) {
       console.warn("Share failed:", e);
@@ -206,19 +256,10 @@ export default function TourCompleteScreen({
       style={styles.heroContainer}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <ViewShot ref={viewShotRef} style={StyleSheet.absoluteFill} options={{ format: "png", quality: 0.9 }}>
       <View style={styles.bgWrap}>
         <Image source={MASCOT_IMAGE} style={styles.heroBg} resizeMode="cover" accessibilityLabel={t("login.mascotA11y")} />
       </View>
-
-      <TouchableOpacity
-        style={[styles.closeBtn, { top: Math.max(insets.top, 16) }]}
-        onPress={handleDiscard}
-        disabled={saving || discarding}
-        accessibilityRole="button"
-        accessibilityLabel={t("tourComplete.closeA11y")}
-      >
-        <Text style={styles.closeBtnText}>✕</Text>
-      </TouchableOpacity>
 
       <LinearGradient colors={["rgba(10,12,18,0.5)", "rgba(10,12,18,0)"]} style={styles.heroTopScrim} />
       <Text style={[styles.heroTopTitle, { paddingTop: Math.max(insets.top, 20) }]}>
@@ -230,6 +271,27 @@ export default function TourCompleteScreen({
         locations={[0, 0.76, 0.86, 1]}
         style={StyleSheet.absoluteFill}
       />
+
+      {/* Polaroid-style keepsake photo -- tap to add one if there isn't
+          one yet, tap again to retake. Included inside the ViewShot above
+          so it's part of the image that gets shared. */}
+      <TouchableOpacity
+        style={styles.polaroid}
+        onPress={handleAddPhoto}
+        accessibilityRole="button"
+        accessibilityLabel={t("tourComplete.addPhotoA11y")}
+      >
+        {selfieUri ? (
+          <Image source={{ uri: selfieUri }} style={styles.polaroidPhoto} />
+        ) : (
+          <View style={[styles.polaroidPhoto, styles.polaroidPlaceholder]}>
+            <Text style={styles.polaroidPlaceholderText}>{t("tourComplete.addPhoto")}</Text>
+          </View>
+        )}
+        <Text style={styles.polaroidCaption} numberOfLines={1}>
+          {title.trim() || t("tourComplete.titlePlaceholder")}
+        </Text>
+      </TouchableOpacity>
 
       <View style={styles.heroContent}>
         <View style={styles.heroCard}>
@@ -296,6 +358,19 @@ export default function TourCompleteScreen({
           )}
         </View>
       </View>
+      </ViewShot>
+
+      {/* Outside the ViewShot deliberately -- this is app chrome, not
+          something that should end up in the shared image. */}
+      <TouchableOpacity
+        style={[styles.closeBtn, { top: Math.max(insets.top, 16) }]}
+        onPress={handleDiscard}
+        disabled={saving || discarding}
+        accessibilityRole="button"
+        accessibilityLabel={t("tourComplete.closeA11y")}
+      >
+        <Text style={styles.closeBtnText}>✕</Text>
+      </TouchableOpacity>
     </KeyboardAvoidingView>
   );
 }
@@ -361,6 +436,49 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     padding: 18,
     paddingBottom: 24,
+  },
+  polaroid: {
+    position: "absolute",
+    top: 130,
+    right: 26,
+    width: 118,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 8,
+    paddingBottom: 14,
+    transform: [{ rotate: "6deg" }],
+    shadowColor: "#000",
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
+  polaroidPhoto: {
+    width: "100%",
+    height: 100,
+    borderRadius: 3,
+  },
+  polaroidPlaceholder: {
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  polaroidPlaceholderText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.muted,
+    textAlign: "center",
+    paddingHorizontal: 6,
+  },
+  polaroidCaption: {
+    fontSize: 10,
+    color: "#555",
+    textAlign: "center",
+    marginTop: 6,
+    fontStyle: "italic",
   },
   // Semi-transparent instead of a solid card -- Bosco's photo shows through
   // behind the form instead of getting fully covered by an opaque panel.

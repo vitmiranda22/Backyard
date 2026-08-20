@@ -9,7 +9,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.vitorsm9004.backyard",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -45,6 +45,13 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Backyard uses your location to narrate the block you're standing on and guide you toward nearby points of interest during a tour."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Backyard uses your photo library so you can pick a photo to remember this walk by.",
+          "cameraPermission": "Backyard uses your camera so you can take a photo to remember this walk by."
         }
       ]
     ],

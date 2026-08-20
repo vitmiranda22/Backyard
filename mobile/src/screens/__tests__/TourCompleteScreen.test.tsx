@@ -11,6 +11,27 @@ jest.mock("../../services/toast", () => ({ showToast: jest.fn() }));
 jest.mock("../../services/haptics", () => ({ tap: jest.fn(), success: jest.fn() }));
 jest.mock("../../services/analytics", () => ({ track: jest.fn() }));
 jest.mock("../../services/reviewPrompt", () => ({ maybePromptForReview: jest.fn() }));
+jest.mock("expo-image-picker", () => ({
+  requestCameraPermissionsAsync: jest.fn().mockResolvedValue({ granted: true }),
+  launchCameraAsync: jest.fn().mockResolvedValue({ canceled: true }),
+}));
+jest.mock("expo-sharing", () => ({
+  isAvailableAsync: jest.fn().mockResolvedValue(false),
+  shareAsync: jest.fn().mockResolvedValue(undefined),
+}));
+// No native view to actually snapshot in the test renderer -- resolves
+// immediately with a fake URI instead of hanging on a real native capture.
+jest.mock("react-native-view-shot", () => {
+  const React = require("react");
+  const MockViewShot = React.forwardRef((props: any, ref: any) => {
+    React.useImperativeHandle(ref, () => ({
+      capture: jest.fn().mockResolvedValue("file:///fake-share-image.png"),
+    }));
+    const { View } = require("react-native");
+    return React.createElement(View, props, props.children);
+  });
+  return { __esModule: true, default: MockViewShot };
+});
 
 import TourCompleteScreen from "../TourCompleteScreen";
 import { endTour, publishTour, deleteTour } from "../../services/api";

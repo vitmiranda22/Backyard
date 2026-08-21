@@ -11,7 +11,7 @@ jest.mock("../../services/location", () => {
     watchPosition: jest.fn(),
     watchHeading: jest.fn(),
     getCurrentLocation: jest.fn(),
-    snapToRoad: jest.fn().mockResolvedValue({ lat: 0, lng: 0 }),
+    snapSegmentToRoad: jest.fn().mockResolvedValue([{ lat: 0, lng: 0 }]),
   };
 });
 jest.mock("../../services/api", () => ({
@@ -96,7 +96,6 @@ function narration(overrides = {}) {
     mood: "time_machine",
     content_safety_applied: false,
     cached: false,
-    suggested_next: null,
     ...overrides,
   };
 }
@@ -170,23 +169,6 @@ describe("ActiveTourScreen", () => {
     await fireEvent.press(getByText("activeTour.safety.cta"));
 
     expect(queryByText("activeTour.safety.title")).toBeNull();
-  });
-
-  it("renders a green waypoint marker at the suggested_next coordinate when the response includes one", async () => {
-    mockNarrateBlock.mockResolvedValue(
-      narration({ suggested_next: { name: "Old City Hall", lat: 37.7701, lng: -122.4155 } })
-    );
-    const { getByTestId } = await renderStarted();
-
-    const marker = getByTestId("suggested-next-marker");
-    expect(marker.props.coordinate).toEqual({ latitude: 37.7701, longitude: -122.4155 });
-    expect(marker.props.title).toBe("Old City Hall");
-  });
-
-  it("renders no waypoint marker when the response has no suggested_next", async () => {
-    const { queryByTestId } = await renderStarted(); // narration() defaults suggested_next to null
-
-    expect(queryByTestId("suggested-next-marker")).toBeNull();
   });
 
   it("saves the block once narration succeeds", async () => {

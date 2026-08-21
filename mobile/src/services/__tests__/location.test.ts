@@ -1,4 +1,4 @@
-import { bearingBetween, distanceMeters, compassLabel, snapToRoad, reverseGeocode } from "../location";
+import { bearingBetween, distanceMeters, compassLabel, snapToRoad, snapSegmentToRoad, reverseGeocode } from "../location";
 
 describe("bearingBetween", () => {
   it("returns 0 (north) for due-north movement", () => {
@@ -83,6 +83,59 @@ describe("snapToRoad", () => {
     const result = await snapToRoad(37.7799, -122.4199);
 
     expect(result).toEqual({ lat: 37.7799, lng: -122.4199 });
+  });
+});
+
+describe("snapSegmentToRoad", () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  it("returns the matched road geometry on a successful OSRM response", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      json: async () => ({
+        code: "Ok",
+        matchings: [
+          {
+            geometry: {
+              coordinates: [
+                [-122.42, 37.78],
+                [-122.4205, 37.7805],
+                [-122.421, 37.781],
+              ],
+            },
+          },
+        ],
+      }),
+    }) as any;
+
+    const result = await snapSegmentToRoad({ lat: 37.78, lng: -122.42 }, { lat: 37.781, lng: -122.421 });
+
+    expect(result).toEqual([
+      { lat: 37.78, lng: -122.42 },
+      { lat: 37.7805, lng: -122.4205 },
+      { lat: 37.781, lng: -122.421 },
+    ]);
+  });
+
+  it("falls back to just the endpoint when OSRM returns a non-Ok code", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      json: async () => ({ code: "NoMatch", matchings: [] }),
+    }) as any;
+
+    const result = await snapSegmentToRoad({ lat: 37.78, lng: -122.42 }, { lat: 37.781, lng: -122.421 });
+
+    expect(result).toEqual([{ lat: 37.781, lng: -122.421 }]);
+  });
+
+  it("falls back to just the endpoint on a network error, never throws", async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error("network down")) as any;
+
+    const result = await snapSegmentToRoad({ lat: 37.78, lng: -122.42 }, { lat: 37.781, lng: -122.421 });
+
+    expect(result).toEqual([{ lat: 37.781, lng: -122.421 }]);
   });
 });
 

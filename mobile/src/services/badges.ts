@@ -10,10 +10,8 @@ import { UserStats } from "./api";
 export interface Badge {
   id: string;
   emoji: string;
-  // Real wood-carved artwork, once it exists for this badge -- see
-  // mobile/assets/badges/. Falls back to the emoji until then, so a badge
-  // can ship with a placeholder and get its real icon later with no other
-  // code changes.
+  // Real wood-carved artwork -- see mobile/assets/badges/. Falls back to
+  // the emoji if a badge doesn't have one yet.
   icon?: ImageSourcePropType;
 }
 
@@ -31,11 +29,10 @@ const BADGE_DEFS: { id: string; emoji: string; icon?: ImageSourcePropType; earne
   { id: "explorer", emoji: "🧭", icon: require("../../assets/badges/explorer.png"), earned: (s) => s.cities_visited >= 5 },
   { id: "world_traveler", emoji: "🌍", icon: require("../../assets/badges/world_traveler.png"), earned: (s) => s.cities_visited >= 10 },
   { id: "completionist", emoji: "🌟", icon: require("../../assets/badges/completionist.png"), earned: (s) => s.moods_tried.length >= 5 },
-  // Not yet drawn -- stay on the emoji fallback until their artwork exists.
-  { id: "night_owl", emoji: "🌙", earned: (s) => s.night_streak_days >= 7 },
-  { id: "early_bird", emoji: "🌅", earned: (s) => s.early_streak_days >= 7 },
-  { id: "storyteller", emoji: "📖", earned: (s) => s.routes_published >= 8 },
-  { id: "crowd_favorite", emoji: "❤️", earned: (s) => s.total_likes_received >= 30 },
+  { id: "night_owl", emoji: "🌙", icon: require("../../assets/badges/night_owl.png"), earned: (s) => s.night_streak_days >= 7 },
+  { id: "early_bird", emoji: "🌅", icon: require("../../assets/badges/early_bird.png"), earned: (s) => s.early_streak_days >= 7 },
+  { id: "storyteller", emoji: "📖", icon: require("../../assets/badges/storyteller.png"), earned: (s) => s.routes_published >= 8 },
+  { id: "crowd_favorite", emoji: "❤️", icon: require("../../assets/badges/crowd_favorite.png"), earned: (s) => s.total_likes_received >= 30 },
 ];
 
 export function getEarnedBadges(stats: UserStats): Badge[] {

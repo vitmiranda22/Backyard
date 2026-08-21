@@ -9,7 +9,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, Pressable, StyleSheet, Alert, Animated, Easing, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import MapView, { Marker } from "react-native-maps";
+import MapView from "react-native-maps";
 import { Audio } from "expo-av";
 import RoutePolyline from "../components/RoutePolyline";
 import { useZoneTracker } from "../hooks/useZoneTracker";
@@ -20,9 +20,9 @@ import {
   bearingBetween,
   distanceMeters,
   compassLabel,
-  snapToRoad,
+  snapSegmentToRoad,
 } from "../services/location";
-import { narrateBlock, saveBlock, startTour, askQuestion, endTour, EndTourResponse, SuggestedNextWaypoint } from "../services/api";
+import { narrateBlock, saveBlock, startTour, askQuestion, endTour, EndTourResponse } from "../services/api";
 import { startRecording, stopRecording, cancelRecording } from "../services/recording";
 import NarrationCard from "../components/NarrationCard";
 import WaypointCompass from "../components/WaypointCompass";
@@ -118,11 +118,6 @@ export default function ActiveTourScreen({
   // compass points back at this as you keep walking.
   const [blockOrigin, setBlockOrigin] = useState<{ lat: number; lng: number } | null>(null);
 
-  // A real nearby point of interest mined from this block's own zone data
-  // (see backend zone_data.pick_suggested_next) — rendered as a green
-  // waypoint marker on the map. Null often; not every block has one.
-  const [suggestedNext, setSuggestedNext] = useState<SuggestedNextWaypoint | null>(null);
-
   // Shown once at mount, every tour -- purely a visual overlay over
   // whatever's loading underneath (see SafetyModal). Doesn't gate or
   // delay init()'s startTour/narration calls below.
@@ -143,6 +138,11 @@ export default function ActiveTourScreen({
   const headingSubRef = useRef<any>(null);
   const tourIdRef = useRef<string | null>(null);
   const pathRef = useRef<{ latitude: number; longitude: number }[]>([]);
+
+  // Last raw (unsnapped) GPS fix -- snapSegmentToRoad needs the actual two
+  // endpoints of the walker's real movement to map-match the road between
+  // them, not two already-snapped points (which would compound distortion).
+  const lastRawRef = useRef<{ lat: number; lng: number } | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Reentrancy guard for handleEndTour -- see its own comment.
@@ -268,6 +268,7 @@ export default function ActiveTourScreen({
         ]);
         setLocation(loc);
         setPath([{ latitude: loc.lat, longitude: loc.lng }]);
+        lastRawRef.current = { lat: loc.lat, lng: loc.lng };
         triggerNarration(loc.lat, loc.lng, "auto");
 
         // Start watching position for zone changes
@@ -277,10 +278,17 @@ export default function ActiveTourScreen({
           // Snapped separately, not awaited here -- zone-crossing/narration
           // logic below always uses the walker's real raw GPS position;
           // only the drawn trailing line gets the (best-effort, visual-only)
-          // road-snapped point once it resolves.
-          snapToRoad(lat, lng).then((snapped) => {
-            setPath((prev) => [...prev, { latitude: snapped.lat, longitude: snapped.lng }]);
-          });
+          // road-matched geometry once it resolves. Matched against the
+          // PREVIOUS raw fix, not the previous snapped point, so the line
+          // follows the actual street between the two real positions
+          // instead of cutting straight across a block on a turn.
+          const prevRaw = lastRawRef.current;
+          lastRawRef.current = { lat, lng };
+          if (prevRaw) {
+            snapSegmentToRoad(prevRaw, { lat, lng }).then((segment) => {
+              setPath((prev) => [...prev, ...segment.map((p) => ({ latitude: p.lat, longitude: p.lng }))]);
+            });
+          }
 
           const { isNewZone, geoHash } = checkZone(lat, lng);
           if (!isNewZone) return;
@@ -354,7 +362,6 @@ export default function ActiveTourScreen({
       setAudioUrl(result.audio_url);
       setImageUrl(result.image_url);
       setBlockOrigin({ lat, lng });
-      setSuggestedNext(result.suggested_next);
 
       // Only hold off future auto-triggers if there's actual audio to be
       // interrupted — a text-only block (audio generation failed) has
@@ -556,19 +563,6 @@ export default function ActiveTourScreen({
             showsUserLocation
           >
             {path.length > 1 && <RoutePolyline coordinates={path} />}
-            {suggestedNext && (
-              <Marker
-                testID="suggested-next-marker"
-                coordinate={{ latitude: suggestedNext.lat, longitude: suggestedNext.lng }}
-                title={suggestedNext.name}
-                anchor={{ x: 0.5, y: 1 }}
-                tracksViewChanges={false}
-              >
-                <View style={styles.suggestedNextPin}>
-                  <View style={styles.suggestedNextArrow} />
-                </View>
-              </Marker>
-            )}
           </MapView>
         ) : (
           <View style={styles.mapPlaceholder}>
@@ -716,26 +710,6 @@ const styles = StyleSheet.create({
   compassOverlay: {
     position: "absolute",
     right: 16,
-  },
-  suggestedNextPin: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: colors.pro,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  suggestedNextArrow: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 5,
-    borderRightWidth: 5,
-    borderBottomWidth: 7,
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    borderBottomColor: colors.pro,
   },
   statsBar: {
     flexDirection: "row",

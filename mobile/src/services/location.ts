@@ -69,6 +69,40 @@ export async function snapToRoad(lat: number, lng: number): Promise<{ lat: numbe
   }
 }
 
+// Snaps the SEGMENT between two consecutive raw GPS fixes onto the actual
+// street network, for the live trailing-path line -- snapToRoad above only
+// snaps each point individually, so the straight line drawn between two
+// independently-snapped points can still cut across a block whenever the
+// walker turns a corner between fixes. OSRM's map-matching endpoint (as
+// opposed to /nearest) returns the real road geometry connecting the two
+// points, so the drawn line follows the turn instead of cutting through it.
+// Falls back to just the endpoint (old straight-line behavior) on any
+// failure -- purely visual, never something that should block the live map.
+export async function snapSegmentToRoad(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number }
+): Promise<{ lat: number; lng: number }[]> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 3000);
+  try {
+    const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
+    const res = await fetch(
+      `https://router.project-osrm.org/match/v1/foot/${coords}?geometries=geojson&overview=full`,
+      { signal: controller.signal }
+    );
+    const data = await res.json();
+    const geoCoords = data?.matchings?.[0]?.geometry?.coordinates;
+    if (data?.code === "Ok" && Array.isArray(geoCoords) && geoCoords.length > 0) {
+      return geoCoords.map((c: number[]) => ({ lat: c[1], lng: c[0] }));
+    }
+    return [to];
+  } catch {
+    return [to];
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 // Start watching device compass heading — powers the waypoint compass.
 // Returns a subscription you can remove later, same shape as watchPosition.
 export async function watchHeading(callback: (headingDeg: number) => void) {

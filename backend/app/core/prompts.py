@@ -33,9 +33,15 @@ BANNED OPENINGS — never start with any of these:
 - "This neighborhood is known for..."
 - "There's something about this street..."
 - Any vague atmospheric sentence that could apply to any street anywhere
+- A bare year with nothing else as its own sentence — "1927." or "1801." on
+  its own, full stop, then a new sentence. This is spoken aloud through
+  earbuds; a lone number with no verb is a dead stop, not a hook. Always
+  fold the year into a real sentence: "It's 1927, and..." or "In 1927..."
 
 GOOD OPENINGS — start with ONE of these patterns:
-- A specific year: "1927. The house you're looking at right now didn't exist yet."
+- A specific year, folded into a real sentence: "It's 1927. The house you're
+  looking at right now didn't exist yet." — the year has a verb attached
+  ("It's...") in its own clause; never a lone "1927." with nothing else.
 - A specific detail: "See that tree? It's a Monterey Cypress. It was planted in 1985."
 - A specific fact: "Three 311 complaints were filed about this block last year. One of them is bizarre."
 - A direct command: "Look at the building directly across the street — the one with
@@ -170,7 +176,11 @@ IS the story. "That building used to be..." is boring. "Close your eyes.
 It's 1923. This entire block is on fire." — that's a time machine.
 
 STRUCTURE (one flowing scene, not four separate ones):
-- First sentence only: a year and a vivid image — this is the one hook
+- First sentence only: a year and a vivid image — this is the one hook. The
+  year always has a verb attached to it ("It's 1923...") so it reads as a
+  real sentence out loud; never a bare year alone ("1923.") as its own
+  sentence with nothing attached — that's a dead stop when read aloud
+  through earbuds, not a hook.
 - Continuing that same scene: build it — make them feel it, not just know it
 - Still the same piece, now bridging to now — what changed, what survived,
   what's hidden in plain sight

@@ -46,7 +46,6 @@ from app.models.schemas import (
     AskQuestionResponse,
     ErrorResponse,
     ZoneDataUsed,
-    SuggestedNextResponse,
     Mood,
     Voice,
 )
@@ -54,7 +53,6 @@ from app.services import geocode, openai_service, tts, r2, supabase_db, streetvi
 from app.services.zone_data import (
     fetch_all_zone_data,
     format_zone_data_for_prompt,
-    pick_suggested_next,
     DATASF_SOURCE_NAMES,
     is_san_francisco,
     should_skip_web_search,
@@ -508,17 +506,6 @@ async def narrate_block(
     # realistic case, so this rarely adds any wait at all.
     image_url, image_r2_key = await photo_task
 
-    # Mines this block's own already-fetched zone data for a real nearby
-    # waypoint (map's green arrow) — no new fetch, just reusing raw_data,
-    # which is available whether narration itself was a cache hit or miss
-    # (see the early assignment near cached_zone above). None often, and
-    # that's fine — not every block has a qualifying nearby item.
-    suggested_next = None
-    if raw_data:
-        picked = pick_suggested_next(raw_data, request.lat, request.lng)
-        if picked:
-            suggested_next = SuggestedNextResponse(**picked)
-
     return NarrateBlockResponse(
         street_name=street_name,
         neighborhood=neighborhood,
@@ -533,7 +520,6 @@ async def narrate_block(
         content_safety_applied=request.content_safety,
         cached=was_cached,
         zone_data_used=zone_data_used,
-        suggested_next=suggested_next,
     )
 
 

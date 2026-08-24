@@ -146,6 +146,17 @@ export default function App() {
     setScreen(seen ? "main" : "onboarding");
   }
 
+  // Shared by both LoginScreen (onLogin) and SignupScreen (onSignedUp) --
+  // a session is a session regardless of how it was established (password,
+  // Apple, Google, or a freshly-confirmed email signup), so whoever just
+  // got one should land in the app the same way, not bounce through a
+  // second manual login.
+  function handleAuthenticated() {
+    goToMainOrOnboarding();
+    refreshSettings();
+    identifyCurrentUser();
+  }
+
   function finishOnboarding() {
     SecureStore.setItemAsync(ONBOARDING_KEY, "true").catch(() => {});
     setScreen("main");
@@ -271,11 +282,7 @@ export default function App() {
 
       {screen === "login" && (
         <LoginScreen
-          onLogin={() => {
-            goToMainOrOnboarding();
-            refreshSettings();
-            identifyCurrentUser();
-          }}
+          onLogin={handleAuthenticated}
           onCreateAccount={() => setScreen("signup")}
           onForgotPassword={() => setScreen("forgotPassword")}
         />
@@ -284,7 +291,7 @@ export default function App() {
       {screen === "signup" && (
         <SignupScreen
           onBack={() => setScreen("login")}
-          onSignedUp={() => setScreen("login")}
+          onSignedUp={handleAuthenticated}
         />
       )}
 

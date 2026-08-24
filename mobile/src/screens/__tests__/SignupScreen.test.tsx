@@ -189,11 +189,12 @@ describe("SignupScreen", () => {
     expect(mockSignUp).not.toHaveBeenCalled();
   });
 
-  it("creates the account with the composed YYYY-MM-DD date once every field is valid and privacy is accepted", async () => {
-    mockSignUp.mockResolvedValue({});
+  it("creates the account and calls onSignedUp directly when a session comes back immediately (email confirmation off)", async () => {
+    mockSignUp.mockResolvedValue({ session: { access_token: "new-session-token" }, user: { id: "u1" } });
     const onSignedUp = jest.fn();
+    const onBack = jest.fn();
     const { getByText, getByPlaceholderText, getByLabelText } = await render(
-      <SignupScreen {...baseProps({ onSignedUp })} />
+      <SignupScreen {...baseProps({ onSignedUp, onBack })} />
     );
     await goToEmailStep(getByText);
 
@@ -213,6 +214,33 @@ describe("SignupScreen", () => {
     await waitFor(() => expect(mockSignUp).toHaveBeenCalledWith("ada@example.com", "password123", "Ada Lovelace", "1990-03-05"));
     expect(mockTrack).toHaveBeenCalledWith("signup_completed");
     expect(onSignedUp).toHaveBeenCalled();
+    expect(onBack).not.toHaveBeenCalled();
+    expect(Alert.alert).not.toHaveBeenCalled();
+  });
+
+  it("shows a check-your-email message and returns to Login when no session comes back (email confirmation required)", async () => {
+    mockSignUp.mockResolvedValue({ session: null, user: { id: "u1" } });
+    const onSignedUp = jest.fn();
+    const onBack = jest.fn();
+    const { getByText, getByPlaceholderText, getByLabelText } = await render(
+      <SignupScreen {...baseProps({ onSignedUp, onBack })} />
+    );
+    await goToEmailStep(getByText);
+
+    await fireEvent.changeText(getByPlaceholderText("signup.fullNamePlaceholder"), "Ada Lovelace");
+    await fireEvent.changeText(getByPlaceholderText("signup.emailPlaceholder"), "ada@example.com");
+    await fireEvent.changeText(getByPlaceholderText("signup.dobMonthPlaceholder"), "3");
+    await fireEvent.changeText(getByPlaceholderText("signup.dobDayPlaceholder"), "5");
+    await fireEvent.changeText(getByPlaceholderText("signup.dobYearPlaceholder"), "1990");
+    await fireEvent.changeText(getByPlaceholderText("signup.passwordPlaceholder"), "password123");
+    await fireEvent.changeText(getByPlaceholderText("signup.confirmPasswordPlaceholder"), "password123");
+    await fireEvent.press(getByLabelText("signup.privacyCheckboxA11y"));
+
+    await fireEvent.press(getByLabelText("signup.createAccount"));
+
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith("common.success", "signup.checkEmailToConfirm"));
+    expect(onSignedUp).not.toHaveBeenCalled();
+    expect(onBack).toHaveBeenCalled();
   });
 
   it("tapping the Privacy Policy / Terms links opens the real hosted pages", async () => {

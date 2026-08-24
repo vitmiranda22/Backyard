@@ -91,7 +91,8 @@
     "tooYoung": "Debes tener al menos 13 años para crear una cuenta de Backyard.",
     "mustAcceptPrivacy": "Acepta la Política de Privacidad y los Términos de Servicio",
     "signUpFailed": "No se pudo crear la cuenta",
-    "accountCreated": "¡Cuenta creada! Ya puedes iniciar sesión."
+    "accountCreated": "¡Cuenta creada! Ya puedes iniciar sesión.",
+    "checkEmailToConfirm": "¡Cuenta creada! Revisa tu correo para confirmarla y luego inicia sesión."
   },
   "home": {
     "somewhereWorthExploring": "Un lugar que vale la pena explorar",

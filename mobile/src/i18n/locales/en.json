@@ -91,7 +91,8 @@
     "tooYoung": "You must be at least 13 years old to create a Backyard account.",
     "mustAcceptPrivacy": "Please accept the Privacy Policy and Terms of Service",
     "signUpFailed": "Sign up failed",
-    "accountCreated": "Account created! You can now sign in."
+    "accountCreated": "Account created! You can now sign in.",
+    "checkEmailToConfirm": "Account created! Check your email to confirm it, then sign in."
   },
   "home": {
     "somewhereWorthExploring": "Somewhere worth exploring",

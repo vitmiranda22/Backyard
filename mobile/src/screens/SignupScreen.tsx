@@ -160,10 +160,20 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
 
     setLoading(true);
     try {
-      await signUp(email.trim(), password, fullName.trim(), dob);
+      const result = await signUp(email.trim(), password, fullName.trim(), dob);
       track("signup_completed");
-      Alert.alert(t("common.success"), t("signup.accountCreated"));
-      onSignedUp();
+      if (result.session) {
+        // A session came back immediately -- this project's Supabase Auth
+        // isn't requiring email confirmation, so there's no reason to make
+        // the walker log in a second time right after they just signed up.
+        onSignedUp();
+      } else {
+        // Confirmation required -- no session exists yet to log in with,
+        // no matter how this screen routes from here. Back to Login, where
+        // they'll land once they've clicked the email link.
+        Alert.alert(t("common.success"), t("signup.checkEmailToConfirm"));
+        onBack();
+      }
     } catch (e: any) {
       Alert.alert(t("signup.signUpFailed"), e.message || t("common.tryAgain"));
     }

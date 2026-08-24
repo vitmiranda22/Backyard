@@ -4,17 +4,26 @@ import { render, fireEvent, waitFor } from "@testing-library/react-native";
 
 jest.mock("../../services/auth", () => ({
   signUp: jest.fn(),
+  signInWithApple: jest.fn(),
+  signInWithGoogle: jest.fn(),
 }));
 jest.mock("../../services/analytics", () => ({
   track: jest.fn(),
 }));
+jest.mock("expo-apple-authentication", () => ({
+  isAvailableAsync: jest.fn(),
+}));
 
 import SignupScreen from "../SignupScreen";
-import { signUp } from "../../services/auth";
+import { signUp, signInWithApple, signInWithGoogle } from "../../services/auth";
 import { track } from "../../services/analytics";
+import * as AppleAuthentication from "expo-apple-authentication";
 
 const mockSignUp = signUp as jest.Mock;
+const mockSignInWithApple = signInWithApple as jest.Mock;
+const mockSignInWithGoogle = signInWithGoogle as jest.Mock;
 const mockTrack = track as jest.Mock;
+const mockIsAppleAvailable = AppleAuthentication.isAvailableAsync as jest.Mock;
 
 function baseProps(overrides = {}) {
   return { onBack: jest.fn(), onSignedUp: jest.fn(), ...overrides };
@@ -29,14 +38,62 @@ describe("SignupScreen", () => {
     jest.clearAllMocks();
     jest.spyOn(Alert, "alert").mockImplementation(() => {});
     jest.spyOn(Linking, "openURL").mockResolvedValue(undefined as any);
+    mockIsAppleAvailable.mockResolvedValue(false);
   });
 
-  it("method step: Google/Apple are visually disabled and never call signUp", async () => {
-    const { getByText } = await render(<SignupScreen {...baseProps()} />);
+  it("method step: hides the Apple button on a device where Sign in with Apple isn't available", async () => {
+    mockIsAppleAvailable.mockResolvedValue(false);
+    const { getByText, queryByText } = await render(<SignupScreen {...baseProps()} />);
 
     expect(getByText("signup.continueWithGoogle")).toBeTruthy();
-    expect(getByText("signup.continueWithApple")).toBeTruthy();
+    await waitFor(() => expect(queryByText("signup.continueWithApple")).toBeNull());
+  });
+
+  it("method step: Google sign-up exchanges the token, tracks the event, and calls onSignedUp", async () => {
+    mockSignInWithGoogle.mockResolvedValue({});
+    const onSignedUp = jest.fn();
+    const { getByText } = await render(<SignupScreen {...baseProps({ onSignedUp })} />);
+
+    await fireEvent.press(getByText("signup.continueWithGoogle"));
+
+    await waitFor(() => expect(onSignedUp).toHaveBeenCalled());
+    expect(mockSignInWithGoogle).toHaveBeenCalled();
     expect(mockSignUp).not.toHaveBeenCalled();
+    expect(mockTrack).toHaveBeenCalledWith("signup_completed", { provider: "google" });
+  });
+
+  it("method step: Apple sign-up exchanges the token, tracks the event, and calls onSignedUp", async () => {
+    mockIsAppleAvailable.mockResolvedValue(true);
+    mockSignInWithApple.mockResolvedValue({});
+    const onSignedUp = jest.fn();
+    const { findByText } = await render(<SignupScreen {...baseProps({ onSignedUp })} />);
+
+    await fireEvent.press(await findByText("signup.continueWithApple"));
+
+    await waitFor(() => expect(onSignedUp).toHaveBeenCalled());
+    expect(mockSignInWithApple).toHaveBeenCalled();
+    expect(mockTrack).toHaveBeenCalledWith("signup_completed", { provider: "apple" });
+  });
+
+  it("method step: a cancelled Google sign-up shows no alert and never calls onSignedUp", async () => {
+    mockSignInWithGoogle.mockRejectedValue({ code: "SIGN_IN_CANCELLED" });
+    const onSignedUp = jest.fn();
+    const { getByText } = await render(<SignupScreen {...baseProps({ onSignedUp })} />);
+
+    await fireEvent.press(getByText("signup.continueWithGoogle"));
+
+    await waitFor(() => expect(mockSignInWithGoogle).toHaveBeenCalled());
+    expect(Alert.alert).not.toHaveBeenCalled();
+    expect(onSignedUp).not.toHaveBeenCalled();
+  });
+
+  it("method step: a real Google sign-up failure shows the server's error message", async () => {
+    mockSignInWithGoogle.mockRejectedValue(new Error("network error"));
+    const { getByText } = await render(<SignupScreen {...baseProps()} />);
+
+    await fireEvent.press(getByText("signup.continueWithGoogle"));
+
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith("signup.signUpFailed", "network error"));
   });
 
   it("method step: back calls onBack", async () => {

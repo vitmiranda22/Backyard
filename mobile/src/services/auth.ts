@@ -7,7 +7,26 @@
 
 import { createClient } from "@supabase/supabase-js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../config";
+import { Platform } from "react-native";
+import * as AppleAuthentication from "expo-apple-authentication";
+import { GoogleSignin, isSuccessResponse } from "@react-native-google-signin/google-signin";
+import { SUPABASE_URL, SUPABASE_ANON_KEY, GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID } from "../config";
+
+let googleConfigured = false;
+
+// GoogleSignin.configure() only needs to run once per app launch -- webClientId
+// is what Supabase's Google provider checks the ID token's audience against,
+// iosClientId is what the native SDK on this device actually authenticates
+// with. Both are required together; passing only one silently breaks the
+// token exchange rather than erroring clearly, so both come from config.ts.
+function ensureGoogleConfigured() {
+  if (googleConfigured) return;
+  GoogleSignin.configure({
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
+  });
+  googleConfigured = true;
+}
 
 const KEEP_SIGNED_IN_KEY = "backyard_keep_signed_in";
 
@@ -111,9 +130,73 @@ export async function signIn(email: string, password: string) {
   return data;
 }
 
+// Sign in with Apple -- iOS only (AppleAuthentication.isAvailableAsync()
+// gates the button itself; this throws if called on a platform/device
+// where it isn't available rather than silently no-op-ing). Apple only
+// hands back the user's name on the very FIRST authorization ever granted
+// to this app -- fullName is passed through as full_name metadata same as
+// email signup, but will be null on every subsequent sign-in, which is
+// expected, not a bug.
+export async function signInWithApple() {
+  const credential = await AppleAuthentication.signInAsync({
+    requestedScopes: [
+      AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+      AppleAuthentication.AppleAuthenticationScope.EMAIL,
+    ],
+  });
+  if (!credential.identityToken) {
+    throw new Error("Apple sign-in did not return an identity token.");
+  }
+  const fullName = credential.fullName
+    ? [credential.fullName.givenName, credential.fullName.familyName].filter(Boolean).join(" ")
+    : undefined;
+  const { data, error } = await supabase.auth.signInWithIdToken({
+    provider: "apple",
+    token: credential.identityToken,
+  });
+  if (error) throw error;
+  if (fullName && data.user) {
+    // Best-effort -- if this fails the account still exists with a
+    // fallback display_name (see handle_new_user()'s COALESCE), just
+    // without the real name.
+    await supabase.auth.updateUser({ data: { full_name: fullName } }).catch(() => {});
+  }
+  if (data.session) {
+    currentToken = data.session.access_token;
+  }
+  return data;
+}
+
+// Sign in with Google -- available on both platforms, unlike Apple.
+export async function signInWithGoogle() {
+  ensureGoogleConfigured();
+  await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true }).catch(() => {
+    // No-op on iOS, where Play Services doesn't exist and this always
+    // rejects -- hasPlayServices is an Android-only concern.
+  });
+  const response = await GoogleSignin.signIn();
+  if (!isSuccessResponse(response) || !response.data.idToken) {
+    throw new Error("Google sign-in did not return an identity token.");
+  }
+  const { data, error } = await supabase.auth.signInWithIdToken({
+    provider: "google",
+    token: response.data.idToken,
+  });
+  if (error) throw error;
+  if (data.session) {
+    currentToken = data.session.access_token;
+  }
+  return data;
+}
+
 export async function signOut() {
   await supabase.auth.signOut();
   currentToken = null;
+  // Best-effort -- clears Google's own cached session so the NEXT sign-in
+  // shows the account picker again instead of silently reusing this one.
+  // No-op (rejects harmlessly) if the walker never signed in with Google
+  // or GoogleSignin was never configured this launch.
+  await GoogleSignin.signOut().catch(() => {});
 }
 
 // Sends a password-reset email. The link inside redirects to

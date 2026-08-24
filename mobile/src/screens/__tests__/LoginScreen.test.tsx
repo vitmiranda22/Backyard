@@ -4,18 +4,27 @@ import { render, fireEvent, waitFor } from "@testing-library/react-native";
 
 jest.mock("../../services/auth", () => ({
   signIn: jest.fn(),
+  signInWithApple: jest.fn(),
+  signInWithGoogle: jest.fn(),
   setKeepSignedIn: jest.fn(),
 }));
 jest.mock("../../services/analytics", () => ({
   track: jest.fn(),
 }));
+jest.mock("expo-apple-authentication", () => ({
+  isAvailableAsync: jest.fn(),
+}));
 
 import LoginScreen from "../LoginScreen";
-import { signIn } from "../../services/auth";
+import { signIn, signInWithApple, signInWithGoogle } from "../../services/auth";
 import { track } from "../../services/analytics";
+import * as AppleAuthentication from "expo-apple-authentication";
 
 const mockSignIn = signIn as jest.Mock;
+const mockSignInWithApple = signInWithApple as jest.Mock;
+const mockSignInWithGoogle = signInWithGoogle as jest.Mock;
 const mockTrack = track as jest.Mock;
+const mockIsAppleAvailable = AppleAuthentication.isAvailableAsync as jest.Mock;
 
 // This RTL version's render()/fireEvent both use async act() internally
 // and must be awaited, or state updates from an event aren't guaranteed
@@ -34,6 +43,53 @@ describe("LoginScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    mockIsAppleAvailable.mockResolvedValue(false);
+  });
+
+  it("hides the Apple button on a device where Sign in with Apple isn't available", async () => {
+    mockIsAppleAvailable.mockResolvedValue(false);
+    const { getByText, queryByText } = await render(<LoginScreen {...baseProps()} />);
+
+    expect(getByText("login.continueWithGoogle")).toBeTruthy();
+    await waitFor(() => expect(queryByText("login.continueWithApple")).toBeNull());
+  });
+
+  it("Google sign-in exchanges the token, tracks the event, and calls onLogin", async () => {
+    mockSignInWithGoogle.mockResolvedValue({});
+    const onLogin = jest.fn();
+    const { getByText } = await render(<LoginScreen {...baseProps({ onLogin })} />);
+
+    await fireEvent.press(getByText("login.continueWithGoogle"));
+
+    await waitFor(() => expect(onLogin).toHaveBeenCalled());
+    expect(mockSignInWithGoogle).toHaveBeenCalled();
+    expect(mockSignIn).not.toHaveBeenCalled();
+    expect(mockTrack).toHaveBeenCalledWith("login_completed", { provider: "google" });
+  });
+
+  it("Apple sign-in exchanges the token, tracks the event, and calls onLogin", async () => {
+    mockIsAppleAvailable.mockResolvedValue(true);
+    mockSignInWithApple.mockResolvedValue({});
+    const onLogin = jest.fn();
+    const { findByText } = await render(<LoginScreen {...baseProps({ onLogin })} />);
+
+    await fireEvent.press(await findByText("login.continueWithApple"));
+
+    await waitFor(() => expect(onLogin).toHaveBeenCalled());
+    expect(mockSignInWithApple).toHaveBeenCalled();
+    expect(mockTrack).toHaveBeenCalledWith("login_completed", { provider: "apple" });
+  });
+
+  it("a cancelled Google sign-in shows no alert and never calls onLogin", async () => {
+    mockSignInWithGoogle.mockRejectedValue({ code: "SIGN_IN_CANCELLED" });
+    const onLogin = jest.fn();
+    const { getByText } = await render(<LoginScreen {...baseProps({ onLogin })} />);
+
+    await fireEvent.press(getByText("login.continueWithGoogle"));
+
+    await waitFor(() => expect(mockSignInWithGoogle).toHaveBeenCalled());
+    expect(Alert.alert).not.toHaveBeenCalled();
+    expect(onLogin).not.toHaveBeenCalled();
   });
 
   it("shows a validation alert instead of calling signIn when fields are empty", async () => {

@@ -4,7 +4,7 @@
 // with Signup/Onboarding card 4. Sign-up now lives on its own screen (see
 // SignupScreen.tsx) instead of being a second inline button here.
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -18,8 +18,9 @@ import {
   Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import * as AppleAuthentication from "expo-apple-authentication";
 import { useTranslation } from "react-i18next";
-import { signIn, setKeepSignedIn } from "../services/auth";
+import { signIn, signInWithApple, signInWithGoogle, setKeepSignedIn } from "../services/auth";
 import { track } from "../services/analytics";
 import { colors, font, radius } from "../theme";
 
@@ -54,6 +55,36 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
   const [loading, setLoading] = useState(false);
   const [keepSignedIn, setKeepSignedInState] = useState(true);
   const [quote] = useState(() => GUIDE_QUOTES[Math.floor(Math.random() * GUIDE_QUOTES.length)]);
+  const [appleAvailable, setAppleAvailable] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<"apple" | "google" | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS === "ios") {
+      AppleAuthentication.isAvailableAsync().then(setAppleAvailable);
+    }
+  }, []);
+
+  async function handleSocialSignIn(provider: "apple" | "google") {
+    setSocialLoading(provider);
+    try {
+      await setKeepSignedIn(keepSignedIn);
+      if (provider === "apple") {
+        await signInWithApple();
+      } else {
+        await signInWithGoogle();
+      }
+      track("login_completed", { provider });
+      onLogin();
+    } catch (e: any) {
+      // ERR_REQUEST_CANCELED (Apple) / SIGN_IN_CANCELLED (Google) fire on a
+      // plain user-dismissed picker -- not a real failure worth an alert.
+      const cancelled = e?.code === "ERR_REQUEST_CANCELED" || e?.code === "SIGN_IN_CANCELLED";
+      if (!cancelled) {
+        Alert.alert(t("login.signInFailed"), e.message || t("common.tryAgain"));
+      }
+    }
+    setSocialLoading(null);
+  }
 
   async function handleSignIn() {
     if (!email || !password) {
@@ -139,12 +170,38 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
             <Text style={styles.checkboxLabel}>{t("login.keepSignedIn")}</Text>
           </TouchableOpacity>
 
-          {loading ? (
+          {loading || socialLoading ? (
             <ActivityIndicator size="large" color={colors.accent} style={{ margin: 20 }} />
           ) : (
             <>
               <TouchableOpacity style={styles.signInBtn} onPress={handleSignIn}>
                 <Text style={styles.signInText}>{t("login.signIn")}</Text>
+              </TouchableOpacity>
+
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>{t("login.orContinueWith")}</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {appleAvailable && (
+                <TouchableOpacity
+                  style={styles.appleBtn}
+                  onPress={() => handleSocialSignIn("apple")}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("login.continueWithApple")}
+                >
+                  <Text style={styles.appleBtnText}>{t("login.continueWithApple")}</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={styles.googleBtn}
+                onPress={() => handleSocialSignIn("google")}
+                accessibilityRole="button"
+                accessibilityLabel={t("login.continueWithGoogle")}
+              >
+                <Text style={styles.googleBtnText}>{t("login.continueWithGoogle")}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -307,6 +364,49 @@ const styles = StyleSheet.create({
     color: colors.accentText,
     textAlign: "center",
     fontSize: 18,
+    fontWeight: "700",
+  },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 16,
+    marginBottom: 12,
+    gap: 10,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.muted,
+  },
+  appleBtn: {
+    backgroundColor: "#000",
+    padding: 14,
+    borderRadius: radius.md,
+    marginBottom: 10,
+  },
+  appleBtnText: {
+    color: "#fff",
+    textAlign: "center",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  googleBtn: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    borderRadius: radius.md,
+    marginBottom: 4,
+  },
+  googleBtnText: {
+    color: colors.text,
+    textAlign: "center",
+    fontSize: 15,
     fontWeight: "700",
   },
   forgotBtn: {

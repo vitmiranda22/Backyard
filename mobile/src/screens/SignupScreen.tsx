@@ -1,14 +1,15 @@
 // Create Account screen — "The Guide" direction. Two steps in one
-// component: pick a method (Google/Apple visible but disabled -- both
-// need native modules + OAuth credentials that don't exist yet, see the
-// mockup review notes -- or Email), then, for Email, a details form
-// collecting name/DOB/password plus a required Privacy Policy/Terms
-// acceptance checkbox. DOB is read server-side to age-gate the app's
-// mature content mode (see backend is_user_underage) -- entered as three
-// plain text fields rather than a native date picker, which would also
-// need a new build to add.
+// component: pick a method (Google/Apple/Email), then, for Email, a
+// details form collecting name/DOB/password plus a required Privacy
+// Policy/Terms acceptance checkbox. DOB is read server-side to age-gate
+// the app's mature content mode (see backend is_user_underage) -- entered
+// as three plain text fields rather than a native date picker, which
+// would also need a new build to add. Google/Apple skip the details form
+// entirely -- Supabase creates the account on first authorization, DOB
+// gets backfilled later via ProfileScreen's existing "Add" flow for
+// accounts with none on file (see handle_new_user()'s nullable column).
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -24,8 +25,9 @@ import {
   Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import * as AppleAuthentication from "expo-apple-authentication";
 import { useTranslation } from "react-i18next";
-import { signUp } from "../services/auth";
+import { signUp, signInWithApple, signInWithGoogle } from "../services/auth";
 import { track } from "../services/analytics";
 import { colors, font, radius } from "../theme";
 
@@ -64,6 +66,33 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
   const [confirmPassword, setConfirmPassword] = useState("");
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<"apple" | "google" | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS === "ios") {
+      AppleAuthentication.isAvailableAsync().then(setAppleAvailable);
+    }
+  }, []);
+
+  async function handleSocialSignUp(provider: "apple" | "google") {
+    setSocialLoading(provider);
+    try {
+      if (provider === "apple") {
+        await signInWithApple();
+      } else {
+        await signInWithGoogle();
+      }
+      track("signup_completed", { provider });
+      onSignedUp();
+    } catch (e: any) {
+      const cancelled = e?.code === "ERR_REQUEST_CANCELED" || e?.code === "SIGN_IN_CANCELLED";
+      if (!cancelled) {
+        Alert.alert(t("signup.signUpFailed"), e.message || t("common.tryAgain"));
+      }
+    }
+    setSocialLoading(null);
+  }
 
   function parsedDob(): string | null {
     const m = parseInt(month, 10);
@@ -166,18 +195,30 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
           <Text style={styles.wordmarkOnDark}>{t("login.title")}</Text>
           <Text style={styles.subheadingOnDark}>{t("signup.methodSubtitle")}</Text>
 
-          <View style={styles.oauthBtn}>
-            <Text style={styles.oauthText}>{t("signup.continueWithGoogle")}</Text>
-            <View style={styles.soonTag}>
-              <Text style={styles.soonTagText}>{t("common.soon")}</Text>
-            </View>
-          </View>
-          <View style={styles.oauthBtn}>
-            <Text style={styles.oauthText}>{t("signup.continueWithApple")}</Text>
-            <View style={styles.soonTag}>
-              <Text style={styles.soonTagText}>{t("common.soon")}</Text>
-            </View>
-          </View>
+          {socialLoading ? (
+            <ActivityIndicator size="large" color="#fff" style={{ marginBottom: 16 }} />
+          ) : (
+            <>
+              {appleAvailable && (
+                <TouchableOpacity
+                  style={styles.oauthBtn}
+                  onPress={() => handleSocialSignUp("apple")}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("signup.continueWithApple")}
+                >
+                  <Text style={styles.oauthText}>{t("signup.continueWithApple")}</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={styles.oauthBtn}
+                onPress={() => handleSocialSignUp("google")}
+                accessibilityRole="button"
+                accessibilityLabel={t("signup.continueWithGoogle")}
+              >
+                <Text style={styles.oauthText}>{t("signup.continueWithGoogle")}</Text>
+              </TouchableOpacity>
+            </>
+          )}
 
           <View style={styles.dividerRow}>
             <View style={styles.dividerLineOnDark} />
@@ -430,30 +471,18 @@ const styles = StyleSheet.create({
   oauthBtn: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
     padding: 14,
     marginBottom: 12,
-    opacity: 0.6,
   },
   oauthText: {
-    flex: 1,
     fontSize: 15,
     fontWeight: "600",
     color: colors.text,
-  },
-  soonTag: {
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
-  },
-  soonTagText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: colors.muted,
   },
   dividerRow: {
     flexDirection: "row",

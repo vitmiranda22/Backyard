@@ -41,6 +41,14 @@ export const SENTRY_DSN = "https://49568006e6b19952177c8155c2d48f69@o45117086547
 export const POSTHOG_API_KEY = "phc_sUrUzTDMUktXmGJmPFSU78cMcHvY4KT2uEzJwoNoVRi3";
 export const POSTHOG_HOST = "https://us.i.posthog.com";
 
+// Sign in with Google -- webClientId is the "Web application" OAuth client
+// (its ID is what Supabase verifies the Google ID token's audience against,
+// per its Google provider setup), iosClientId is the native "iOS" OAuth
+// client the on-device Google Sign-In SDK needs. Two different client IDs,
+// both required -- see GoogleSignin.configure() in services/auth.ts.
+export const GOOGLE_WEB_CLIENT_ID = "187668922138-v514m5lhu8aa0plotaefbmb2403qqu77.apps.googleusercontent.com";
+export const GOOGLE_IOS_CLIENT_ID = "187668922138-qku980bkulpne0275jon6agbdevnqlsk.apps.googleusercontent.com";
+
 // In-app purchases (RevenueCat) — iOS is live (Backyard Pro entitlement,
 // monthly/annual App Store subscriptions). Android is still a no-op until
 // REVENUECAT_ANDROID_API_KEY is filled in — the Paywall screen falls back

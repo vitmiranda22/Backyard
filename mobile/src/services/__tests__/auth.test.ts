@@ -32,6 +32,8 @@ jest.mock("@supabase/supabase-js", () => {
   const auth = {
     signUp: jest.fn(),
     signInWithPassword: jest.fn(),
+    signInWithIdToken: jest.fn(),
+    updateUser: jest.fn(),
     signOut: jest.fn(),
     getUser: jest.fn(),
     refreshSession: jest.fn(),
@@ -44,8 +46,29 @@ jest.mock("@supabase/supabase-js", () => {
   };
 });
 
+// Real native modules -- TurboModuleRegistry.getEnforcing() (google-signin)
+// throws immediately at import time outside a real native runtime, so this
+// has to be mocked before auth.ts (which imports both at module scope) is
+// ever required, same reasoning as the supabase-js mock above.
+jest.mock("expo-apple-authentication", () => ({
+  signInAsync: jest.fn(),
+  isAvailableAsync: jest.fn(),
+  AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
+}));
+jest.mock("@react-native-google-signin/google-signin", () => ({
+  GoogleSignin: {
+    configure: jest.fn(),
+    hasPlayServices: jest.fn().mockResolvedValue(true),
+    signIn: jest.fn(),
+    signOut: jest.fn().mockResolvedValue(undefined),
+  },
+  isSuccessResponse: jest.fn((response: any) => response?.type === "success"),
+}));
+
 import * as auth from "../auth";
 import * as supabaseJs from "@supabase/supabase-js";
+import * as AppleAuthentication from "expo-apple-authentication";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
 const mockAuth = (supabaseJs as any).__mockAuth;
 
@@ -74,6 +97,102 @@ describe("auth service", () => {
       });
 
       await expect(auth.signIn("a@b.com", "wrong")).rejects.toEqual({ message: "Invalid credentials" });
+    });
+  });
+
+  describe("signInWithApple", () => {
+    it("exchanges the identity token and updates the display name on first authorization", async () => {
+      (AppleAuthentication.signInAsync as jest.Mock).mockResolvedValue({
+        identityToken: "apple-id-token",
+        fullName: { givenName: "Ada", familyName: "Lovelace" },
+      });
+      mockAuth.signInWithIdToken.mockResolvedValue({
+        data: { session: { access_token: "apple-token" }, user: { id: "u1" } },
+        error: null,
+      });
+      mockAuth.updateUser.mockResolvedValue({ data: {}, error: null });
+
+      const result = await auth.signInWithApple();
+
+      expect(mockAuth.signInWithIdToken).toHaveBeenCalledWith({
+        provider: "apple",
+        token: "apple-id-token",
+      });
+      expect(mockAuth.updateUser).toHaveBeenCalledWith({ data: { full_name: "Ada Lovelace" } });
+      expect(auth.getToken()).toBe("apple-token");
+      expect(result.user).toEqual({ id: "u1" });
+    });
+
+    it("skips updateUser when Apple doesn't return a name (every sign-in after the first)", async () => {
+      (AppleAuthentication.signInAsync as jest.Mock).mockResolvedValue({
+        identityToken: "apple-id-token-2",
+        fullName: null,
+      });
+      mockAuth.signInWithIdToken.mockResolvedValue({
+        data: { session: { access_token: "apple-token-2" }, user: { id: "u1" } },
+        error: null,
+      });
+
+      await auth.signInWithApple();
+
+      expect(mockAuth.updateUser).not.toHaveBeenCalled();
+    });
+
+    it("throws when Apple returns no identity token", async () => {
+      (AppleAuthentication.signInAsync as jest.Mock).mockResolvedValue({ identityToken: null, fullName: null });
+
+      await expect(auth.signInWithApple()).rejects.toThrow("Apple sign-in did not return an identity token.");
+      expect(mockAuth.signInWithIdToken).not.toHaveBeenCalled();
+    });
+
+    it("throws Supabase's own error rather than swallowing it", async () => {
+      (AppleAuthentication.signInAsync as jest.Mock).mockResolvedValue({
+        identityToken: "apple-id-token",
+        fullName: null,
+      });
+      mockAuth.signInWithIdToken.mockResolvedValue({ data: { session: null }, error: { message: "bad token" } });
+
+      await expect(auth.signInWithApple()).rejects.toEqual({ message: "bad token" });
+    });
+  });
+
+  describe("signInWithGoogle", () => {
+    it("exchanges the identity token and returns the data", async () => {
+      (GoogleSignin.signIn as jest.Mock).mockResolvedValue({
+        type: "success",
+        data: { idToken: "google-id-token" },
+      });
+      mockAuth.signInWithIdToken.mockResolvedValue({
+        data: { session: { access_token: "google-token" }, user: { id: "u2" } },
+        error: null,
+      });
+
+      const result = await auth.signInWithGoogle();
+
+      expect(GoogleSignin.configure).toHaveBeenCalled();
+      expect(mockAuth.signInWithIdToken).toHaveBeenCalledWith({
+        provider: "google",
+        token: "google-id-token",
+      });
+      expect(auth.getToken()).toBe("google-token");
+      expect(result.user).toEqual({ id: "u2" });
+    });
+
+    it("throws when Google sign-in is cancelled (no success response)", async () => {
+      (GoogleSignin.signIn as jest.Mock).mockResolvedValue({ type: "cancelled" });
+
+      await expect(auth.signInWithGoogle()).rejects.toThrow("Google sign-in did not return an identity token.");
+      expect(mockAuth.signInWithIdToken).not.toHaveBeenCalled();
+    });
+
+    it("throws Supabase's own error rather than swallowing it", async () => {
+      (GoogleSignin.signIn as jest.Mock).mockResolvedValue({
+        type: "success",
+        data: { idToken: "google-id-token" },
+      });
+      mockAuth.signInWithIdToken.mockResolvedValue({ data: { session: null }, error: { message: "bad token" } });
+
+      await expect(auth.signInWithGoogle()).rejects.toEqual({ message: "bad token" });
     });
   });
 

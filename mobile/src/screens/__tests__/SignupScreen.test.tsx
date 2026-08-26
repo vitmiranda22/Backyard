@@ -10,9 +10,19 @@ jest.mock("../../services/auth", () => ({
 jest.mock("../../services/analytics", () => ({
   track: jest.fn(),
 }));
-jest.mock("expo-apple-authentication", () => ({
-  isAvailableAsync: jest.fn(),
-}));
+jest.mock("expo-apple-authentication", () => {
+  const { TouchableOpacity } = require("react-native");
+  return {
+    isAvailableAsync: jest.fn(),
+    // The real component renders Apple's own native, non-mockable button --
+    // stand in with a plain pressable carrying the same testID/onPress so
+    // tests can still find and press it.
+    AppleAuthenticationButton: ({ onPress, testID }: any) =>
+      require("react").createElement(TouchableOpacity, { onPress, testID }),
+    AppleAuthenticationButtonType: { CONTINUE: 0 },
+    AppleAuthenticationButtonStyle: { BLACK: 0 },
+  };
+});
 
 import SignupScreen from "../SignupScreen";
 import { signUp, signInWithApple, signInWithGoogle } from "../../services/auth";
@@ -43,10 +53,10 @@ describe("SignupScreen", () => {
 
   it("method step: hides the Apple button on a device where Sign in with Apple isn't available", async () => {
     mockIsAppleAvailable.mockResolvedValue(false);
-    const { getByText, queryByText } = await render(<SignupScreen {...baseProps()} />);
+    const { getByText, queryByTestId } = await render(<SignupScreen {...baseProps()} />);
 
     expect(getByText("signup.continueWithGoogle")).toBeTruthy();
-    await waitFor(() => expect(queryByText("signup.continueWithApple")).toBeNull());
+    await waitFor(() => expect(queryByTestId("apple-auth-button")).toBeNull());
   });
 
   it("method step: Google sign-up exchanges the token, tracks the event, and calls onSignedUp", async () => {
@@ -66,9 +76,9 @@ describe("SignupScreen", () => {
     mockIsAppleAvailable.mockResolvedValue(true);
     mockSignInWithApple.mockResolvedValue({});
     const onSignedUp = jest.fn();
-    const { findByText } = await render(<SignupScreen {...baseProps({ onSignedUp })} />);
+    const { findByTestId } = await render(<SignupScreen {...baseProps({ onSignedUp })} />);
 
-    await fireEvent.press(await findByText("signup.continueWithApple"));
+    await fireEvent.press(await findByTestId("apple-auth-button"));
 
     await waitFor(() => expect(onSignedUp).toHaveBeenCalled());
     expect(mockSignInWithApple).toHaveBeenCalled();

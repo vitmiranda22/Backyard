@@ -7,13 +7,19 @@
 // "Coming soon" stub it always showed — nothing breaks in the meantime.
 
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { PurchasesPackage, PACKAGE_TYPE } from "react-native-purchases";
 import { colors, font, radius } from "../theme";
 import { getPackages, purchasePackage, restorePurchases } from "../services/purchases";
 import { track } from "../services/analytics";
+
+// Same hosted pages linked from SignupScreen's privacy checkbox -- required
+// here too per App Store Guideline 3.1.2: any screen offering an
+// auto-renewable subscription must link both, not just the signup flow.
+const PRIVACY_URL = "https://backyard-api.onrender.com/privacy";
+const TERMS_URL = "https://backyard-api.onrender.com/terms";
 
 const PERK_KEYS = [
   { emoji: "🕵️", key: "paywall.perkMoods" },
@@ -108,6 +114,7 @@ export default function PaywallScreen({ onClose, onPurchased }: PaywallScreenPro
             accessibilityRole="button"
             accessibilityLabel={t("paywall.upgradeMonthlyA11y", { price: monthly?.product.priceString ?? "$4.99" })}
           >
+            <Text style={styles.planBtnLabel}>{t("paywall.planMonthly")}</Text>
             <Text style={styles.planBtnText}>
               {monthly?.product.priceString ?? "$4.99"} {t("paywall.perMonth")}
             </Text>
@@ -119,11 +126,14 @@ export default function PaywallScreen({ onClose, onPurchased }: PaywallScreenPro
             accessibilityRole="button"
             accessibilityLabel={t("paywall.upgradeYearlyA11y", { price: annual?.product.priceString ?? "$39.99" })}
           >
+            <Text style={styles.planBtnOutlineLabel}>{t("paywall.planAnnual")}</Text>
             <Text style={styles.planBtnOutlineText}>
               {annual?.product.priceString ?? "$39.99"} {t("paywall.perYear")}
             </Text>
             <Text style={styles.planBtnSub}>{t("paywall.save33")}</Text>
           </TouchableOpacity>
+
+          <Text style={styles.autoRenews}>{t("paywall.autoRenews")}</Text>
         </>
       )}
 
@@ -141,6 +151,16 @@ export default function PaywallScreen({ onClose, onPurchased }: PaywallScreenPro
       <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel={t("paywall.notNow")}>
         <Text style={styles.notNow}>{t("paywall.notNow")}</Text>
       </TouchableOpacity>
+
+      <View style={styles.legalRow}>
+        <Text style={styles.legalLink} onPress={() => Linking.openURL(TERMS_URL)}>
+          {t("paywall.termsOfUse")}
+        </Text>
+        <Text style={styles.legalSeparator}>·</Text>
+        <Text style={styles.legalLink} onPress={() => Linking.openURL(PRIVACY_URL)}>
+          {t("paywall.privacyPolicy")}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -202,6 +222,16 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     marginBottom: 12,
   },
+  planBtnLabel: {
+    color: colors.proText,
+    textAlign: "center",
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    opacity: 0.85,
+    marginBottom: 2,
+  },
   planBtnText: {
     color: colors.proText,
     textAlign: "center",
@@ -213,7 +243,17 @@ const styles = StyleSheet.create({
     borderColor: colors.pro,
     padding: 16,
     borderRadius: radius.md,
-    marginBottom: 20,
+    marginBottom: 12,
+  },
+  planBtnOutlineLabel: {
+    color: colors.pro,
+    textAlign: "center",
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    opacity: 0.85,
+    marginBottom: 2,
   },
   planBtnOutlineText: {
     color: colors.pro,
@@ -227,6 +267,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
+  autoRenews: {
+    color: colors.muted,
+    textAlign: "center",
+    fontSize: 11,
+    lineHeight: 15,
+    marginBottom: 8,
+  },
   restoreText: {
     color: colors.muted,
     textAlign: "center",
@@ -237,5 +284,21 @@ const styles = StyleSheet.create({
     color: colors.muted,
     textAlign: "center",
     fontSize: 14,
+  },
+  legalRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 16,
+  },
+  legalLink: {
+    color: colors.muted,
+    fontSize: 12,
+    textDecorationLine: "underline",
+  },
+  legalSeparator: {
+    color: colors.muted,
+    fontSize: 12,
   },
 });

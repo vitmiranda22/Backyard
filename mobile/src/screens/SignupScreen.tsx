@@ -210,14 +210,14 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
           ) : (
             <>
               {appleAvailable && (
-                <TouchableOpacity
-                  style={styles.oauthBtn}
+                <AppleAuthentication.AppleAuthenticationButton
+                  testID="apple-auth-button"
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                  cornerRadius={radius.md}
+                  style={styles.appleBtn}
                   onPress={() => handleSocialSignUp("apple")}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("signup.continueWithApple")}
-                >
-                  <Text style={styles.oauthText}>{t("signup.continueWithApple")}</Text>
-                </TouchableOpacity>
+                />
               )}
               <TouchableOpacity
                 style={styles.oauthBtn}
@@ -477,6 +477,14 @@ const styles = StyleSheet.create({
     color: colors.muted,
     marginBottom: 6,
     marginTop: 2,
+  },
+  // AppleAuthenticationButton forbids backgroundColor/borderRadius in its own
+  // style prop (those go through buttonStyle/cornerRadius instead, see where
+  // this is used) -- height is required or the button renders with zero size.
+  appleBtn: {
+    width: "100%",
+    height: 48,
+    marginBottom: 12,
   },
   oauthBtn: {
     flexDirection: "row",

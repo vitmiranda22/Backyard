@@ -185,14 +185,14 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
               </View>
 
               {appleAvailable && (
-                <TouchableOpacity
+                <AppleAuthentication.AppleAuthenticationButton
+                  testID="apple-auth-button"
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                  cornerRadius={radius.md}
                   style={styles.appleBtn}
                   onPress={() => handleSocialSignIn("apple")}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("login.continueWithApple")}
-                >
-                  <Text style={styles.appleBtnText}>{t("login.continueWithApple")}</Text>
-                </TouchableOpacity>
+                />
               )}
 
               <TouchableOpacity
@@ -383,17 +383,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.muted,
   },
+  // AppleAuthenticationButton forbids backgroundColor/borderRadius in its
+  // own style prop (those go through buttonStyle/cornerRadius instead, see
+  // where this is used) -- height is required or the button renders with
+  // zero size, width matches the other auth buttons on this card.
   appleBtn: {
-    backgroundColor: "#000",
-    padding: 14,
-    borderRadius: radius.md,
+    width: "100%",
+    height: 48,
     marginBottom: 10,
-  },
-  appleBtnText: {
-    color: "#fff",
-    textAlign: "center",
-    fontSize: 15,
-    fontWeight: "700",
   },
   googleBtn: {
     backgroundColor: colors.surface,

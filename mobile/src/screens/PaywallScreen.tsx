@@ -11,7 +11,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Lin
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { PurchasesPackage, PACKAGE_TYPE } from "react-native-purchases";
-import { colors, font, radius } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 import { getPackages, purchasePackage, restorePurchases } from "../services/purchases";
 import { track } from "../services/analytics";
 
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
-    padding: 24,
+    padding: spacing.lg,
     paddingTop: 60,
     justifyContent: "center",
   },
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   emoji: {
     fontSize: 44,
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   title: {
     fontFamily: font.display,
@@ -194,13 +194,13 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: type.label,
     color: colors.muted,
     textAlign: "center",
     marginBottom: 28,
   },
   perks: {
-    marginBottom: 32,
+    marginBottom: spacing.xl,
   },
   perkRow: {
     flexDirection: "row",
@@ -213,12 +213,12 @@ const styles = StyleSheet.create({
   },
   perkText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: type.label,
     color: colors.text,
   },
   planBtn: {
     backgroundColor: colors.pro,
-    padding: 16,
+    padding: spacing.md,
     borderRadius: radius.md,
     marginBottom: 12,
   },
@@ -235,13 +235,13 @@ const styles = StyleSheet.create({
   planBtnText: {
     color: colors.proText,
     textAlign: "center",
-    fontSize: 16,
+    fontSize: type.body,
     fontWeight: "700",
   },
   planBtnOutline: {
     borderWidth: 1,
     borderColor: colors.pro,
-    padding: 16,
+    padding: spacing.md,
     borderRadius: radius.md,
     marginBottom: 12,
   },
@@ -258,13 +258,13 @@ const styles = StyleSheet.create({
   planBtnOutlineText: {
     color: colors.pro,
     textAlign: "center",
-    fontSize: 16,
+    fontSize: type.body,
     fontWeight: "700",
   },
   planBtnSub: {
     color: colors.muted,
     textAlign: "center",
-    fontSize: 12,
+    fontSize: type.caption,
     marginTop: 2,
   },
   autoRenews: {
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 11,
     lineHeight: 15,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   restoreText: {
     color: colors.muted,
@@ -283,22 +283,22 @@ const styles = StyleSheet.create({
   notNow: {
     color: colors.muted,
     textAlign: "center",
-    fontSize: 14,
+    fontSize: type.label,
   },
   legalRow: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    gap: 8,
-    marginTop: 16,
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
   legalLink: {
     color: colors.muted,
-    fontSize: 12,
+    fontSize: type.caption,
     textDecorationLine: "underline",
   },
   legalSeparator: {
     color: colors.muted,
-    fontSize: 12,
+    fontSize: type.caption,
   },
 });

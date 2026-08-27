@@ -20,7 +20,7 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import { useTranslation } from "react-i18next";
 import { signIn, signInWithApple, signInWithGoogle, setKeepSignedIn } from "../services/auth";
 import { track } from "../services/analytics";
-import { colors, font, radius } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 import BoscoHero from "../components/BoscoHero";
 
 // Bosco, the app's mascot -- distinct from the in-tour narrator personas
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
   quote: {
     fontFamily: font.display,
     fontStyle: "italic",
-    fontSize: 18,
+    fontSize: type.title,
     lineHeight: 24,
     color: "#fff",
     textAlign: "center",
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: "flex-end",
-    padding: 24,
+    padding: spacing.lg,
     paddingBottom: 40,
   },
   card: {
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     fontSize: 19,
     color: colors.text,
     textAlign: "center",
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   input: {
     backgroundColor: colors.surfaceAlt,
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: radius.md,
     marginBottom: 12,
-    fontSize: 16,
+    fontSize: type.body,
   },
   checkboxRow: {
     flexDirection: "row",
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
   },
   checkboxMark: {
     color: colors.accentText,
-    fontSize: 12,
+    fontSize: type.caption,
     fontWeight: "700",
   },
   checkboxLabel: {
@@ -325,20 +325,20 @@ const styles = StyleSheet.create({
   },
   signInBtn: {
     backgroundColor: colors.accent,
-    padding: 16,
+    padding: spacing.md,
     borderRadius: radius.md,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   signInText: {
     color: colors.accentText,
     textAlign: "center",
-    fontSize: 18,
+    fontSize: type.title,
     fontWeight: "700",
   },
   dividerRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 16,
+    marginTop: spacing.md,
     marginBottom: 12,
     gap: 10,
   },
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
   },
   dividerText: {
-    fontSize: 12,
+    fontSize: type.caption,
     fontWeight: "600",
     color: colors.muted,
   },
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: 14,
     borderRadius: radius.md,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   googleBtnText: {
     color: colors.text,
@@ -387,12 +387,12 @@ const styles = StyleSheet.create({
   },
   newHereBtn: {
     padding: 14,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   newHereText: {
     color: colors.accent,
     textAlign: "center",
-    fontSize: 14,
+    fontSize: type.label,
     fontWeight: "600",
   },
 });

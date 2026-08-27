@@ -13,7 +13,7 @@ import CommentsSection from "../components/CommentsSection";
 import EmptyState from "../components/EmptyState";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
-import { colors, font, radius } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 
 const MOOD_EMOJI: Record<string, string> = {
   time_machine: "🕰️",
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
+    gap: spacing.md,
   },
   reportLink: {
     color: colors.muted,
@@ -313,14 +313,14 @@ const styles = StyleSheet.create({
   },
   emoji: {
     fontSize: 48,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   title: {
     fontFamily: font.display,
-    fontSize: 24,
+    fontSize: type.headline,
     color: colors.text,
     textAlign: "center",
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   creator: {
     fontSize: 13,
@@ -330,15 +330,15 @@ const styles = StyleSheet.create({
   ratingRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 16,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   ratingCount: {
     fontSize: 13,
     color: colors.muted,
   },
   likeBtn: {
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   likeBtnText: {
     fontSize: 15,
@@ -347,11 +347,11 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: "row",
-    gap: 16,
-    marginBottom: 16,
+    gap: spacing.md,
+    marginBottom: spacing.md,
   },
   statText: {
-    fontSize: 14,
+    fontSize: type.label,
     color: colors.text,
   },
   mapPreview: {
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: radius.md,
     overflow: "hidden",
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   map: {
     flex: 1,
@@ -372,11 +372,11 @@ const styles = StyleSheet.create({
   },
   logSection: {
     width: "100%",
-    marginTop: 24,
+    marginTop: spacing.lg,
   },
   logHeader: {
     fontFamily: font.display,
-    fontSize: 18,
+    fontSize: type.title,
     color: colors.text,
     marginBottom: 12,
     alignSelf: "flex-start",
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   logStreet: {
-    fontSize: 14,
+    fontSize: type.label,
     fontWeight: "700",
     color: colors.text,
     marginBottom: 6,
@@ -411,14 +411,14 @@ const styles = StyleSheet.create({
   },
   startBtn: {
     backgroundColor: colors.accent,
-    padding: 16,
+    padding: spacing.md,
     margin: 20,
     borderRadius: radius.md,
   },
   startBtnText: {
     color: colors.accentText,
     textAlign: "center",
-    fontSize: 16,
+    fontSize: type.body,
     fontWeight: "bold",
   },
 });

@@ -28,7 +28,7 @@ import NarrationCard from "../components/NarrationCard";
 import WaypointCompass from "../components/WaypointCompass";
 import SafetyModal from "../components/SafetyModal";
 import AudioPlayer from "../components/AudioPlayer";
-import { colors, radius } from "../theme";
+import { colors, radius, type, spacing } from "../theme";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
 import { scheduleUnfinishedTourReminder, cancelReminder } from "../services/notifications";
@@ -748,7 +748,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingVertical: 10,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
@@ -756,12 +756,12 @@ const styles = StyleSheet.create({
   },
   statsText: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: type.label,
     fontWeight: "600",
   },
   moodBadge: {
     color: colors.accent,
-    fontSize: 14,
+    fontSize: type.label,
     fontWeight: "700",
     textTransform: "capitalize",
   },
@@ -769,9 +769,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceAlt,
     borderTopWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingTop: 12,
-    paddingBottom: 4,
+    paddingBottom: spacing.xs,
   },
   answerHeader: {
     flexDirection: "row",
@@ -787,15 +787,15 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   answerClose: {
-    fontSize: 14,
+    fontSize: type.label,
     color: colors.muted,
     fontWeight: "700",
   },
   answerText: {
-    fontSize: 14,
+    fontSize: type.label,
     color: colors.text,
     lineHeight: 20,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   footer: {
     alignItems: "center",
@@ -838,8 +838,8 @@ const styles = StyleSheet.create({
     color: colors.proText,
   },
   footerHint: {
-    marginTop: 8,
-    fontSize: 12,
+    marginTop: spacing.sm,
+    fontSize: type.caption,
     color: colors.muted,
   },
 });

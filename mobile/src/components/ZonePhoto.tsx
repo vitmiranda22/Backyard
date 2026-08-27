@@ -3,7 +3,6 @@
 
 import React, { useState } from "react";
 import {
-  Image,
   ImageStyle,
   Modal,
   StyleProp,
@@ -13,6 +12,11 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+// expo-image instead of RN's built-in Image -- these are remote HTTPS
+// zone photos (R2-hosted), and plain Image has weak/inconsistent disk
+// caching, especially on Android. expo-image caches properly and decodes
+// more efficiently, so revisiting a route doesn't re-fetch the same photo.
+import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
 import { colors } from "../theme";
 
@@ -28,7 +32,7 @@ export default function ZonePhoto({ uri, thumbnailStyle }: ZonePhotoProps) {
   return (
     <>
       <TouchableOpacity activeOpacity={0.85} onPress={() => setOpen(true)}>
-        <Image source={{ uri }} style={[styles.thumbnail, thumbnailStyle]} resizeMode="cover" />
+        <Image source={{ uri }} style={[styles.thumbnail, thumbnailStyle]} contentFit="cover" />
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -43,7 +47,7 @@ export default function ZonePhoto({ uri, thumbnailStyle }: ZonePhotoProps) {
             >
               <Text style={styles.closeText}>✕</Text>
             </TouchableOpacity>
-            <Image source={{ uri }} style={styles.fullImage} resizeMode="contain" />
+            <Image source={{ uri }} style={styles.fullImage} contentFit="contain" />
           </View>
         </TouchableWithoutFeedback>
       </Modal>

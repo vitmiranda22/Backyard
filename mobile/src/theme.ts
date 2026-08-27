@@ -11,7 +11,13 @@ export const colors = {
   surfaceAlt: "#F3F4F9",
   border: "#E3E5F1",
   text: "#1B1E27",
-  muted: "#6B7280",
+  // Darkened from #6B7280 -- that failed WCAG AA contrast (4.5:1) on both
+  // `bg` (~4.28:1) and `surfaceAlt` (~4.40:1), including on compliance-
+  // relevant text like the Paywall's Terms/Privacy links. This clears
+  // AA with real headroom on every surface color (5.3-6.0:1), which
+  // matters more than usual here since this app is mostly used outdoors
+  // in bright sunlight, where effective contrast perception drops.
+  muted: "#5A6472",
   accent: "#FF6B4A",
   accentText: "#FFFFFF",
   pro: "#1F7A6C",

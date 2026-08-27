@@ -1205,6 +1205,34 @@ async def create_content_report(
 
 
 # =============================================================================
+# Webhook idempotency
+# =============================================================================
+
+async def mark_webhook_event_processed(event_id: str) -> bool:
+    """
+    Records that a RevenueCat webhook event has been acted on. Returns True
+    the first time a given event_id is seen (caller should process it),
+    False if it's already been recorded -- a retry or a replayed capture of
+    a previously-valid request, which the caller should no-op instead of
+    re-applying (e.g. re-toggling is_premium).
+
+    Fails open (returns True) on an unexpected DB error rather than
+    swallowing the event -- an unprocessed premium grant/revoke because of
+    a transient infra fault is worse than the rare risk of double-
+    processing during that same fault.
+    """
+    try:
+        client = _get_client()
+        client.table("webhook_events_processed").insert({"event_id": event_id}).execute()
+        return True
+    except Exception as e:
+        if "23505" in str(getattr(e, "code", "")) or "duplicate key" in str(e).lower():
+            return False
+        logger.error(f"Failed to record webhook event idempotency (processing anyway): {e}")
+        return True
+
+
+# =============================================================================
 # Voice preview samples
 # =============================================================================
 

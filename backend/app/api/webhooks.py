@@ -47,8 +47,16 @@ async def revenuecat_webhook(request: Request, authorization: str = Header(defau
     event = body.get("event", {})
     event_type = event.get("type")
     app_user_id = event.get("app_user_id")
+    event_id = event.get("id")
 
     if not app_user_id:
+        return JSONResponse(status_code=200, content={"ok": True})
+
+    # RevenueCat retries deliveries (same event.id) and a captured valid
+    # request could otherwise be replayed to re-toggle premium status --
+    # only act on an event id the first time it's seen.
+    if event_id and not await supabase_db.mark_webhook_event_processed(event_id):
+        logger.info(f"Ignoring already-processed RevenueCat event id={event_id}")
         return JSONResponse(status_code=200, content={"ok": True})
 
     if event_type in _GRANTS_PREMIUM:

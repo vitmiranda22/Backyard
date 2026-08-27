@@ -25,10 +25,14 @@ export const REPLAY_PROXIMITY_M = 35;
 // App.tsx only honors this when __DEV__ is true, so a release/production
 // build can never accidentally auto-authenticate real users as this
 // shared account regardless of this value — safe to leave true for local
-// dev convenience. Set to false here too if you want it off locally.
+// dev convenience. Fill in DEV_EMAIL/DEV_PASSWORD with your own throwaway
+// test account locally -- never commit real credentials here, this file is
+// tracked in git and a previous version shipped a real password in plain
+// text (since rotated/removed; if you're that account's owner, change its
+// password in the Supabase dashboard).
 export const DEV_SKIP_LOGIN = true;
-export const DEV_EMAIL = "devtest@backyard.app";
-export const DEV_PASSWORD = "BackyardDev123!";
+export const DEV_EMAIL = "";
+export const DEV_PASSWORD = "";
 
 // Crash reporting — scaffolded, inactive until you create a Sentry project
 // and paste its DSN here. A blank value is a no-op (see src/services/sentry.ts).

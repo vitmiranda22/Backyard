@@ -471,6 +471,7 @@ async def save_block(
     response_model=EndTourResponse,
     responses={
         404: {"model": ErrorResponse},
+        429: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
     summary="End an active tour and finalize stats",
@@ -484,6 +485,12 @@ async def end_tour(
     the neighborhoods visited, and marks the tour as complete.
     """
     logger.info(f"Ending tour: tour={request.tour_id[:8]}... user={user_id[:8]}...")
+
+    # Unlike every other cost-triggering endpoint here, this one was
+    # missing this check -- end_tour calls osrm_service (external HTTP)
+    # and _get_tour_outro() (full TTS synthesis + R2 upload), both real
+    # costs a tight loop could otherwise run up unbounded.
+    await _enforce_minute_rate_limit(user_id)
 
     # Verify ownership
     tour = await supabase_db.get_tour(request.tour_id)

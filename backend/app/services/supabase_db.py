@@ -601,6 +601,7 @@ async def end_tour(
     city: str = None,
     location: str = None,
     path_points: list = None,
+    flagged_implausible_speed: bool = False,
 ):
     """Finalize a tour with stats and title.
 
@@ -614,6 +615,7 @@ async def end_tour(
         update_data = {
             "title": title,
             "blocks_visited": blocks_visited,
+            "flagged_implausible_speed": flagged_implausible_speed,
         }
         if total_distance_m is not None:
             update_data["total_distance_m"] = total_distance_m
@@ -957,6 +959,11 @@ async def get_user_stats(user_id: str) -> dict:
             .select("id, total_distance_m, city, blocks_visited, mood, is_public, created_at")
             .eq("creator_id", user_id)
             .gt("blocks_visited", 0)
+            # Excludes tours flagged for an implausible walking speed (see
+            # end_tour) from badge/streak/distance stats -- the tour itself
+            # still exists and shows normally in the creator's own history,
+            # it just doesn't count toward gamification.
+            .eq("flagged_implausible_speed", False)
             .execute()
         )
         rows = result.data if result.data else []

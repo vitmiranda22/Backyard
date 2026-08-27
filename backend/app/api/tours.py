@@ -10,6 +10,7 @@ The mobile app calls these in sequence as the user walks.
 """
 
 import logging
+import math
 import geohash2
 from typing import List, Optional
 
@@ -263,6 +264,38 @@ async def _enforce_minute_rate_limit(user_id: str):
                 "retry": True,
             },
         )
+
+
+def _haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    r = 6371000  # Earth radius, meters
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    d_phi = math.radians(lat2 - lat1)
+    d_lambda = math.radians(lng2 - lng1)
+    a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
+    return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+# Well above real walking or even light-jogging pace (~1.4-2 m/s average),
+# low enough to catch cycling/driving-speed GPS spoofing -- generous on
+# purpose so ordinary GPS drift/noise on a real walk never trips it.
+_IMPLAUSIBLE_SPEED_MPS = 5.0
+
+
+def _is_speed_implausible(path: list, duration_sec: Optional[int]) -> bool:
+    """
+    True if the actual GPS path (not the client's rough
+    blocksVisited*150 total_distance_m estimate) implies an average
+    speed no real walk could produce. Security audit finding: GPS
+    spoofing is trivial (any mock-location app), and end_tour previously
+    trusted client-reported distance/duration with only range validation.
+    """
+    if not path or len(path) < 2 or not duration_sec or duration_sec <= 0:
+        return False
+    path_length_m = sum(
+        _haversine_m(path[i].lat, path[i].lng, path[i + 1].lat, path[i + 1].lng)
+        for i in range(len(path) - 1)
+    )
+    return (path_length_m / duration_sec) > _IMPLAUSIBLE_SPEED_MPS
 
 
 @router.post(
@@ -562,6 +595,16 @@ async def end_tour(
         snapped_points = await osrm_service.snap_path_to_roads(raw_points)
         path_points = snapped_points
 
+    # Server-computed from the actual GPS trace (not the client's rough
+    # blocksVisited*150 total_distance_m estimate) -- see
+    # _is_speed_implausible's docstring. Never blocks the save, just
+    # excludes the tour from badges/rankings.
+    flagged_implausible_speed = _is_speed_implausible(request.path or [], request.duration_sec)
+    if flagged_implausible_speed:
+        logger.warning(
+            f"Tour flagged for implausible speed: tour={request.tour_id[:8]}... user={user_id[:8]}..."
+        )
+
     # Update the tour record
     updated = await supabase_db.end_tour(
         tour_id=request.tour_id,
@@ -574,6 +617,7 @@ async def end_tour(
         city=city,
         location=location,
         path_points=path_points,
+        flagged_implausible_speed=flagged_implausible_speed,
     )
 
     if not updated:

@@ -18,7 +18,7 @@ import { getTours, TourSummary, getNearbyRoutes, NearbyRoute } from "../services
 import { requestLocationPermission, getCurrentLocation } from "../services/location";
 import StarRating from "../components/StarRating";
 import EmptyState from "../components/EmptyState";
-import { colors, font, radius } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
 
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
   },
   header: {
     fontFamily: font.display,
-    fontSize: 24,
+    fontSize: type.headline,
     color: colors.text,
     textAlign: "center",
     paddingHorizontal: 20,
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   },
   segmentBtn: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
     borderRadius: radius.pill,
     alignItems: "center",
   },
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 32,
+    paddingBottom: spacing.xl,
     flexGrow: 1,
   },
   centered: {
@@ -311,24 +311,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 14,
+    fontSize: type.label,
     fontWeight: "700",
     color: colors.text,
   },
   meta: {
-    fontSize: 12,
+    fontSize: type.caption,
     color: colors.muted,
     marginTop: 2,
   },
   date: {
-    fontSize: 12,
+    fontSize: type.caption,
     color: colors.muted,
   },
   ratingRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    marginTop: 4,
+    gap: spacing.xs,
+    marginTop: spacing.xs,
   },
   ratingCount: {
     fontSize: 11,

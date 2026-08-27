@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import AudioPlayer from "./AudioPlayer";
 import ZonePhoto from "./ZonePhoto";
 import EmptyState from "./EmptyState";
-import { colors, radius } from "../theme";
+import { colors, radius, type, spacing } from "../theme";
 
 interface NarrationCardProps {
   isLoading: boolean;
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "-4deg" }],
     borderRadius: radius.md,
     backgroundColor: colors.surface,
-    padding: 4,
+    padding: spacing.xs,
     shadowColor: "#000",
     shadowOpacity: 0.25,
     shadowRadius: 10,
@@ -179,11 +179,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceAlt,
   },
   content: {
-    padding: 16,
+    padding: spacing.md,
     paddingTop: 26,
   },
   streetName: {
-    fontSize: 12,
+    fontSize: type.caption,
     fontWeight: "700",
     letterSpacing: 0.4,
     textTransform: "uppercase",
@@ -192,29 +192,29 @@ const styles = StyleSheet.create({
     maxWidth: "85%",
   },
   narrationText: {
-    fontSize: 16,
+    fontSize: type.body,
     fontWeight: "500",
     color: colors.text,
     lineHeight: 24,
   },
   expandHint: {
-    fontSize: 12,
+    fontSize: type.caption,
     fontWeight: "700",
     color: colors.accent,
     textAlign: "center",
-    marginTop: 8,
-    marginBottom: 4,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
   },
   loadingText: {
     color: colors.muted,
     textAlign: "center",
-    marginTop: 8,
-    fontSize: 14,
+    marginTop: spacing.sm,
+    fontSize: type.label,
   },
   emptyText: {
     color: colors.muted,
     textAlign: "center",
-    fontSize: 14,
+    fontSize: type.label,
     padding: 20,
   },
   modalScrim: {
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   modalScroll: {
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   modalText: {
     fontSize: 15,

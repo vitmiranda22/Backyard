@@ -6,7 +6,7 @@ import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { colors, font, radius } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 import { tap } from "../services/haptics";
 import BoscoHero from "../components/BoscoHero";
 
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    padding: 24,
+    padding: spacing.lg,
     paddingTop: 60,
   },
   welcomeSkip: {
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   },
   welcomeSkipText: {
     color: "rgba(255,255,255,0.9)",
-    fontSize: 14,
+    fontSize: type.label,
     fontWeight: "600",
   },
   welcomeTitle: {
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   welcomeBody: {
-    fontSize: 14,
+    fontSize: type.label,
     color: "rgba(255,255,255,0.85)",
     lineHeight: 21,
     marginBottom: 20,
@@ -164,14 +164,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
-    padding: 24,
+    padding: spacing.lg,
     paddingTop: 60,
     justifyContent: "space-between",
   },
   skip: {
     alignSelf: "flex-end",
     color: colors.muted,
-    fontSize: 14,
+    fontSize: type.label,
     fontWeight: "600",
   },
   content: {
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   },
   emoji: {
     fontSize: 56,
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   title: {
     fontFamily: font.display,
@@ -200,8 +200,8 @@ const styles = StyleSheet.create({
   dots: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 8,
-    marginBottom: 24,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
   dot: {
     width: 8,
@@ -215,13 +215,13 @@ const styles = StyleSheet.create({
   },
   nextBtn: {
     backgroundColor: colors.accent,
-    padding: 16,
+    padding: spacing.md,
     borderRadius: radius.md,
   },
   nextBtnText: {
     color: colors.accentText,
     textAlign: "center",
-    fontSize: 16,
+    fontSize: type.body,
     fontWeight: "700",
   },
 });

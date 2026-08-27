@@ -28,7 +28,7 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import { useTranslation } from "react-i18next";
 import { signUp, signInWithApple, signInWithGoogle } from "../services/auth";
 import { track } from "../services/analytics";
-import { colors, font, radius } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 import BoscoHero from "../components/BoscoHero";
 
 // Same send-off pose as LoginScreen, for auth-flow continuity. Only the
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   scrollContent: {
-    padding: 24,
+    padding: spacing.lg,
     paddingTop: 60,
     paddingBottom: 40,
   },
@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    padding: 24,
+    padding: spacing.lg,
     paddingBottom: 44,
   },
   wordmarkOnDark: {
@@ -473,13 +473,13 @@ const styles = StyleSheet.create({
     fontSize: 26,
     color: "#fff",
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: spacing.sm,
     textShadowColor: "rgba(0,0,0,0.5)",
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 10,
   },
   subheadingOnDark: {
-    fontSize: 14,
+    fontSize: type.label,
     color: "rgba(255,255,255,0.8)",
     textAlign: "center",
     marginBottom: 22,
@@ -503,19 +503,19 @@ const styles = StyleSheet.create({
   },
   heading: {
     fontFamily: font.display,
-    fontSize: 24,
+    fontSize: type.headline,
     color: colors.text,
     textAlign: "center",
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   subheading: {
-    fontSize: 14,
+    fontSize: type.label,
     color: colors.muted,
     textAlign: "center",
     marginBottom: 22,
   },
   fieldLabel: {
-    fontSize: 12,
+    fontSize: type.caption,
     fontWeight: "600",
     color: colors.muted,
     marginBottom: 6,
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    marginVertical: 16,
+    marginVertical: spacing.md,
   },
   input: {
     backgroundColor: colors.surface,
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: radius.md,
     marginBottom: 10,
-    fontSize: 16,
+    fontSize: type.body,
   },
   dobField: {
     flexDirection: "row",
@@ -567,16 +567,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   dobFieldValue: {
-    fontSize: 16,
+    fontSize: type.body,
     color: colors.text,
     fontWeight: "600",
   },
   dobFieldPlaceholder: {
-    fontSize: 16,
+    fontSize: type.body,
     color: colors.muted,
   },
   dobFieldIcon: {
-    fontSize: 16,
+    fontSize: type.body,
     opacity: 0.6,
   },
   dobSheetScrim: {
@@ -594,12 +594,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 16,
+    padding: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   dobSheetCancel: {
-    fontSize: 14,
+    fontSize: type.label,
     fontWeight: "600",
     color: colors.muted,
   },
@@ -609,14 +609,14 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   dobSheetDone: {
-    fontSize: 14,
+    fontSize: type.label,
     fontWeight: "700",
     color: colors.accent,
   },
   helperText: {
     fontSize: 11.5,
     color: colors.muted,
-    marginTop: 4,
+    marginTop: spacing.xs,
     marginBottom: 14,
   },
   errorText: {
@@ -662,7 +662,7 @@ const styles = StyleSheet.create({
   },
   primaryBtn: {
     backgroundColor: colors.accent,
-    padding: 16,
+    padding: spacing.md,
     borderRadius: radius.md,
   },
   primaryBtnDisabled: {
@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     color: colors.accentText,
     textAlign: "center",
-    fontSize: 18,
+    fontSize: type.title,
     fontWeight: "700",
   },
 });

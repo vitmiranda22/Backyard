@@ -8,7 +8,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { Audio } from "expo-av";
-import { colors, font, radius } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 import { tap } from "../services/haptics";
 import { showToast } from "../services/toast";
 import { getCurrentLocation } from "../services/location";
@@ -172,16 +172,16 @@ const styles = StyleSheet.create({
     fontSize: 26,
     color: colors.text,
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: type.label,
     color: colors.muted,
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
   richnessCaption: {
-    fontSize: 12,
+    fontSize: type.caption,
     color: colors.muted,
     textAlign: "center",
     marginTop: -14,
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
+    padding: spacing.md,
     borderRadius: radius.md,
     marginBottom: 10,
     alignItems: "center",
@@ -214,16 +214,16 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 8,
+    marginLeft: spacing.sm,
   },
   previewBtnText: {
-    fontSize: 12,
+    fontSize: type.caption,
     color: colors.text,
   },
   labelRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: spacing.sm,
     marginBottom: 2,
   },
   modeLabel: {

@@ -15,7 +15,7 @@ import {
   reverseGeocode,
 } from "../services/location";
 import { getNearbyRoutes, getTourDetail, NearbyRoute } from "../services/api";
-import { colors, font, radius } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
 
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.92)",
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
     paddingHorizontal: 10,
     borderRadius: radius.pill,
     shadowColor: "#000",
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   locationPillText: {
     fontSize: 13,
@@ -371,11 +371,11 @@ const styles = StyleSheet.create({
   startBtnText: {
     color: colors.accentText,
     textAlign: "center",
-    fontSize: 16,
+    fontSize: type.body,
     fontWeight: "700",
   },
   moodRow: {
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   moodChip: {
     flexDirection: "row",
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     paddingVertical: 9,
     paddingHorizontal: 13,
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   moodEmoji: {
     fontSize: 15,

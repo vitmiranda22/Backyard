@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { Audio } from "expo-av";
 import { getSettings, updateSettings, getVoiceSample } from "../services/api";
-import { colors, font, radius } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
 
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: font.display,
-    fontSize: 24,
+    fontSize: type.headline,
     color: colors.text,
     textAlign: "center",
     marginBottom: 4,
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.muted,
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
   card: {
     flexDirection: "row",
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
+    padding: spacing.md,
     borderRadius: radius.md,
     marginBottom: 10,
   },
@@ -267,15 +267,15 @@ const styles = StyleSheet.create({
   labelRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: spacing.sm,
   },
   label: {
-    fontSize: 16,
+    fontSize: type.body,
     fontWeight: "700",
     color: colors.text,
   },
   desc: {
-    fontSize: 12,
+    fontSize: type.caption,
     color: colors.muted,
     marginTop: 2,
   },
@@ -304,10 +304,10 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
   check: {
-    fontSize: 18,
+    fontSize: type.title,
     color: colors.accent,
     fontWeight: "700",
-    marginLeft: 8,
+    marginLeft: spacing.sm,
   },
   previewBtn: {
     width: 32,
@@ -318,10 +318,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 8,
+    marginLeft: spacing.sm,
   },
   previewBtnText: {
-    fontSize: 12,
+    fontSize: type.caption,
     color: colors.text,
   },
 });

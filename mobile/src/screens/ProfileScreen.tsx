@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { getCurrentUserEmail, signOut } from "../services/auth";
 import { getSettings, updateSettings, getUserStats, deleteAccount, UserStats } from "../services/api";
 import { getEarnedBadges, Badge } from "../services/badges";
-import { colors, font, radius } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 import { showToast } from "../services/toast";
 import { SUPPORTED_LANGUAGES, setLanguage } from "../i18n";
 
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
   },
   header: {
     fontFamily: font.display,
-    fontSize: 24,
+    fontSize: type.headline,
     color: colors.text,
     marginBottom: 20,
   },
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
-    padding: 16,
+    padding: spacing.md,
     marginBottom: 14,
   },
   label: {
@@ -502,10 +502,10 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
   email: {
-    fontSize: 16,
+    fontSize: type.body,
     fontWeight: "600",
     color: colors.text,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   row: {
     flexDirection: "row",
@@ -518,14 +518,14 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   rowDesc: {
-    fontSize: 12,
+    fontSize: type.caption,
     color: colors.muted,
     marginTop: 2,
   },
   premiumBadge: {
     backgroundColor: colors.pro,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
     borderRadius: radius.pill,
   },
   premiumBadgeText: {
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
   },
   addDobPillText: {
     color: colors.accentText,
-    fontSize: 12,
+    fontSize: type.caption,
     fontWeight: "700",
   },
   nameInput: {
@@ -653,7 +653,7 @@ const styles = StyleSheet.create({
   badgeRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: spacing.sm,
     marginTop: 10,
   },
   badgeChip: {
@@ -668,14 +668,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   badgeEmoji: {
-    fontSize: 14,
+    fontSize: type.label,
   },
   badgeIconImage: {
     width: 28,
     height: 28,
   },
   badgeLabel: {
-    fontSize: 12,
+    fontSize: type.caption,
     fontWeight: "600",
     color: colors.text,
   },

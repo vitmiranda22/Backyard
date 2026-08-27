@@ -300,7 +300,8 @@
     "discard": "Descartar",
     "couldntSaveDetails": "No se pudieron guardar los detalles de tu recorrido, pero tu caminata quedó registrada.",
     "couldntDiscard": "No se pudo descartar esta caminata — inténtalo de nuevo en un momento.",
-    "shareMessage": "¡Acabo de caminar \"{{title}}\" en Backyard! Míralo: backyard://route/{{tourId}}"
+    "shareMessage": "¡Acabo de caminar \"{{title}}\" en Backyard! Míralo: backyard://route/{{tourId}}",
+    "detailsHint": "Las estadísticas y opciones para compartir vuelven al terminar de escribir."
   },
   "routeDetail": {
     "failedToLoad": "No se pudo cargar la ruta",

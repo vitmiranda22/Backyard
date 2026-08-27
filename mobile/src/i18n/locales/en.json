@@ -300,7 +300,8 @@
     "discard": "Discard",
     "couldntSaveDetails": "Couldn't save your tour details, but your walk is recorded.",
     "couldntDiscard": "Couldn't discard this walk — try again in a moment.",
-    "shareMessage": "I just walked \"{{title}}\" on Backyard! Check it out: backyard://route/{{tourId}}"
+    "shareMessage": "I just walked \"{{title}}\" on Backyard! Check it out: backyard://route/{{tourId}}",
+    "detailsHint": "Stats and sharing options return once you're done typing."
   },
   "routeDetail": {
     "failedToLoad": "Failed to load route",

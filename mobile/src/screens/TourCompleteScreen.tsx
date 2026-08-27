@@ -16,6 +16,7 @@ import {
   Share,
   Alert,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -73,6 +74,22 @@ export default function TourCompleteScreen({
   // while it's still mounted, not later when Share is actually tapped.
   const [shareImageUri, setShareImageUri] = useState<string | null>(null);
   const viewShotRef = useRef<ViewShot>(null);
+  // Hides the photo/polaroid/stats/share-toggle while the keyboard is open --
+  // KeyboardAvoidingView's "padding" behavior below shrinks this whole hero
+  // to fit above the keyboard, and with all of that content still competing
+  // for the leftover space the screen reads as cramped. Cutting it down to
+  // just the title field + Save button while typing gives that shrunk space
+  // room to breathe; everything else comes back once the keyboard closes.
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener("keyboardDidShow", () => setIsKeyboardVisible(true));
+    const hideSub = Keyboard.addListener("keyboardDidHide", () => setIsKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const durationSec = Math.round((Date.now() - startTime) / 1000);
   const durationMin = Math.round(durationSec / 60);
@@ -272,33 +289,39 @@ export default function TourCompleteScreen({
         scrimColors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.4)", "rgba(10,12,18,0.9)"]}
         scrimLocations={[0, 0.76, 0.86, 1]}
       >
-      <Text style={[styles.heroTopTitle, { paddingTop: Math.max(insets.top, 20) }]}>
-        {t("tourComplete.heroTitle")}
-      </Text>
+      {!isKeyboardVisible && (
+        <Text style={[styles.heroTopTitle, { paddingTop: Math.max(insets.top, 20) }]}>
+          {t("tourComplete.heroTitle")}
+        </Text>
+      )}
+
+      {isKeyboardVisible && <View style={styles.keyboardOverlay} pointerEvents="none" />}
 
       {/* Polaroid-style keepsake photo -- tap to add one if there isn't
           one yet, tap again to retake. Included inside the ViewShot above
           so it's part of the image that gets shared. */}
-      <TouchableOpacity
-        style={styles.polaroid}
-        onPress={handleAddPhoto}
-        accessibilityRole="button"
-        accessibilityLabel={t("tourComplete.addPhotoA11y")}
-      >
-        {selfieUri ? (
-          <Image source={{ uri: selfieUri }} style={styles.polaroidPhoto} />
-        ) : (
-          <View style={[styles.polaroidPhoto, styles.polaroidPlaceholder]}>
-            <Text style={styles.polaroidPlaceholderText}>{t("tourComplete.addPhoto")}</Text>
-          </View>
-        )}
-        <Text style={styles.polaroidCaption} numberOfLines={1}>
-          {title.trim() || t("tourComplete.titlePlaceholder")}
-        </Text>
-      </TouchableOpacity>
+      {!isKeyboardVisible && (
+        <TouchableOpacity
+          style={styles.polaroid}
+          onPress={handleAddPhoto}
+          accessibilityRole="button"
+          accessibilityLabel={t("tourComplete.addPhotoA11y")}
+        >
+          {selfieUri ? (
+            <Image source={{ uri: selfieUri }} style={styles.polaroidPhoto} />
+          ) : (
+            <View style={[styles.polaroidPhoto, styles.polaroidPlaceholder]}>
+              <Text style={styles.polaroidPlaceholderText}>{t("tourComplete.addPhoto")}</Text>
+            </View>
+          )}
+          <Text style={styles.polaroidCaption} numberOfLines={1}>
+            {title.trim() || t("tourComplete.titlePlaceholder")}
+          </Text>
+        </TouchableOpacity>
+      )}
 
-      <View style={styles.heroContent}>
-        <View style={styles.heroCard}>
+      <View style={[styles.heroContent, isKeyboardVisible && styles.heroContentCompact]}>
+        <View style={[styles.heroCard, isKeyboardVisible && styles.heroCardCompact]}>
           <Text style={styles.heroCardLabel}>{t("tourComplete.whatWasThisWalk")}</Text>
 
           <TextInput
@@ -312,7 +335,7 @@ export default function TourCompleteScreen({
             returnKeyType="done"
           />
 
-          {loading ? (
+          {!isKeyboardVisible && (loading ? (
             <ActivityIndicator size="small" color={colors.accent} style={styles.statsLoading} />
           ) : (
             <TourStatsGrid
@@ -321,17 +344,19 @@ export default function TourCompleteScreen({
               durationMin={durationMin}
               mood={mood}
             />
-          )}
+          ))}
 
-          <View style={styles.shareRow}>
-            <Text style={styles.shareText}>{t("tourComplete.shareAsRouteQuestion")}</Text>
-            <Switch
-              value={shareAsRoute}
-              onValueChange={setShareAsRoute}
-              trackColor={{ false: colors.border, true: colors.accent }}
-              accessibilityLabel={t("tourComplete.publishToggleA11y")}
-            />
-          </View>
+          {!isKeyboardVisible && (
+            <View style={styles.shareRow}>
+              <Text style={styles.shareText}>{t("tourComplete.shareAsRouteQuestion")}</Text>
+              <Switch
+                value={shareAsRoute}
+                onValueChange={setShareAsRoute}
+                trackColor={{ false: colors.border, true: colors.accent }}
+                accessibilityLabel={t("tourComplete.publishToggleA11y")}
+              />
+            </View>
+          )}
 
           {saving ? (
             <ActivityIndicator size="large" color={colors.accent} style={{ margin: 10 }} />
@@ -347,6 +372,11 @@ export default function TourCompleteScreen({
                 <Text style={styles.doneBtnText}>{t("tourComplete.save")}</Text>
               </TouchableOpacity>
 
+              {isKeyboardVisible && (
+                <Text style={styles.compactHint}>{t("tourComplete.detailsHint")}</Text>
+              )}
+
+              {!isKeyboardVisible && (
               <TouchableOpacity
                 onPress={handleDiscard}
                 disabled={discarding}
@@ -358,6 +388,7 @@ export default function TourCompleteScreen({
                   {discarding ? t("tourComplete.discarding") : t("tourComplete.discardThisWalk")}
                 </Text>
               </TouchableOpacity>
+              )}
             </>
           )}
         </View>
@@ -422,6 +453,30 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     padding: 18,
     paddingBottom: spacing.lg,
+  },
+  // While the keyboard is open, the photo/polaroid are hidden (see
+  // keyboardOverlay below) and this card is the only thing left in the
+  // hero -- center it instead of pinning it to the bottom, so it doesn't
+  // read as glued to the keyboard's top edge.
+  heroContentCompact: {
+    justifyContent: "center",
+  },
+  heroCardCompact: {
+    paddingVertical: spacing.lg,
+  },
+  // Solid cover over Bosco's photo while the keyboard is up -- painted as
+  // a sibling here (not baked into BoscoHero) so it sits above the image/
+  // scrim layers but below heroContent, matching colors.text so it reads
+  // as an intentional dark backdrop rather than a missing image.
+  keyboardOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.text,
+  },
+  compactHint: {
+    fontSize: type.caption,
+    color: "rgba(255,255,255,0.6)",
+    textAlign: "center",
+    marginTop: spacing.sm,
   },
   polaroid: {
     position: "absolute",

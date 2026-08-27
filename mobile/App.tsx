@@ -8,6 +8,8 @@
 import React, { useState, useEffect } from "react";
 import { StatusBar, View, ActivityIndicator, Linking } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { NavigationContainer } from "@react-navigation/native";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import * as Updates from "expo-updates";
 import * as SecureStore from "expo-secure-store";
 import { restoreSession, signIn, getCurrentUserId, establishRecoverySession } from "./src/services/auth";
@@ -42,6 +44,12 @@ import ToastHost from "./src/components/Toast";
 import ErrorBoundary from "./src/components/ErrorBoundary";
 
 const ONBOARDING_KEY = "onboarding_complete";
+
+// Scoped to just the Home/Tours/Profile tab area -- see the "main" screen
+// render below. Created once at module scope per React Navigation's own
+// guidance, not inside the component (would recreate the navigator type
+// on every render).
+const Tab = createBottomTabNavigator();
 
 initSentry();
 initAnalytics();
@@ -306,43 +314,77 @@ export default function App() {
       {screen === "onboarding" && <OnboardingScreen onDone={finishOnboarding} />}
 
       {screen === "main" && (
-        <View style={{ flex: 1, backgroundColor: colors.bg }}>
-          <View style={{ flex: 1 }}>
-            {activeTab === "home" && (
-              <HomeScreen
-                onStartTour={() => setScreen("mood")}
-                onQuickStart={startTourWithMood}
-                onSelectRoute={(id) => {
-                  setSelectedRouteId(id);
-                  setScreen("routeDetail");
-                }}
-                isPremium={isPremium}
-                onRequirePremium={requirePremium}
-              />
-            )}
-            {activeTab === "tours" && (
-              <ToursScreen
-                onSelectRoute={(id) => {
-                  setSelectedRouteId(id);
-                  setScreen("routeDetail");
-                }}
-              />
-            )}
-            {activeTab === "profile" && (
-              <ProfileScreen
-                onSignedOut={() => {
-                  resetAnalytics();
-                  setScreen("login");
-                }}
-                isPremium={isPremium}
-                onOpenVoicePicker={() => setScreen("voicePicker")}
-                onOpenPaywall={requirePremium}
-                onOpenBadges={() => setScreen("badgeGallery")}
-              />
-            )}
-          </View>
-          <TabBar active={activeTab} onChange={setActiveTab} />
-        </View>
+        // A real navigator (React Navigation), not the hand-rolled
+        // conditional rendering used everywhere else in this file --
+        // Home/Tours/Profile used to fully unmount and remount on every
+        // tab switch, re-running GPS + network fetches from scratch each
+        // time (their fetch effects are mount-only, [] deps). Mounting
+        // once here and switching via the navigator's own focus/blur
+        // instead of unmount/remount fixes that for free. Everything
+        // OUTSIDE these 3 tabs stays the existing screen state machine —
+        // this is deliberately scoped to just the tab area, not a full
+        // rewrite of the app's navigation.
+        <NavigationContainer>
+          <Tab.Navigator
+            initialRouteName={activeTab}
+            screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
+            tabBar={(props) => {
+              const active = props.state.routeNames[props.state.index] as MainTab;
+              return (
+                <TabBar
+                  active={active}
+                  onChange={(tab) => {
+                    // Keep this mirrored so the NEXT time "main" mounts
+                    // fresh (e.g. after backToTours()/TourComplete's
+                    // onDone set it directly) initialRouteName above
+                    // still lands on the right tab.
+                    setActiveTab(tab);
+                    props.navigation.navigate(tab);
+                  }}
+                />
+              );
+            }}
+          >
+            <Tab.Screen name="home">
+              {() => (
+                <HomeScreen
+                  onStartTour={() => setScreen("mood")}
+                  onQuickStart={startTourWithMood}
+                  onSelectRoute={(id) => {
+                    setSelectedRouteId(id);
+                    setScreen("routeDetail");
+                  }}
+                  isPremium={isPremium}
+                  onRequirePremium={requirePremium}
+                />
+              )}
+            </Tab.Screen>
+            <Tab.Screen name="tours">
+              {() => (
+                <ToursScreen
+                  onSelectRoute={(id) => {
+                    setSelectedRouteId(id);
+                    setScreen("routeDetail");
+                  }}
+                />
+              )}
+            </Tab.Screen>
+            <Tab.Screen name="profile">
+              {() => (
+                <ProfileScreen
+                  onSignedOut={() => {
+                    resetAnalytics();
+                    setScreen("login");
+                  }}
+                  isPremium={isPremium}
+                  onOpenVoicePicker={() => setScreen("voicePicker")}
+                  onOpenPaywall={requirePremium}
+                  onOpenBadges={() => setScreen("badgeGallery")}
+                />
+              )}
+            </Tab.Screen>
+          </Tab.Navigator>
+        </NavigationContainer>
       )}
 
       {screen === "mood" && (

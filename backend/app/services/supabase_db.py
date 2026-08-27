@@ -780,7 +780,10 @@ async def get_user_settings(user_id: str):
         client = _get_client()
         result = (
             client.table("users")
-            .select("preferred_voice, content_safety, anonymous_default, display_name, date_of_birth, is_premium")
+            .select(
+                "preferred_voice, content_safety, anonymous_default, display_name, "
+                "date_of_birth, date_of_birth_updated_at, is_premium"
+            )
             .eq("id", user_id)
             .limit(1)
             .execute()

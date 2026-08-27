@@ -10,7 +10,7 @@ User settings endpoints.
 """
 
 import logging
-from datetime import date
+from datetime import date, datetime, timezone, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
@@ -58,6 +58,13 @@ MOOD_SAMPLE_PHRASES = {
 }
 
 MoodKey = Literal["time_machine", "hidden_city", "dark_side", "behind_scenes", "unfiltered"]
+
+# Security audit finding: date_of_birth previously had no cooldown at all,
+# so a user could flip it back and forth at will and instantly unlock
+# mature content. A real first-time backfill (current value NULL -- e.g.
+# Google/Apple sign-ups adding a DOB via ProfileScreen) is always allowed
+# with no cooldown; only a CHANGE to an already-set value is throttled.
+DOB_CHANGE_COOLDOWN_DAYS = 90
 
 
 @router.get(
@@ -138,7 +145,30 @@ async def update_settings(
                 status_code=400,
                 detail={"error": "Invalid date of birth.", "code": "invalid_date_of_birth", "retry": False},
             )
+
+        current = await supabase_db.get_user_settings(user_id)
+        current_dob = current.get("date_of_birth") if current else None
+        last_changed = current.get("date_of_birth_updated_at") if current else None
+        # last_changed is only absent for a genuine first-time set (or an
+        # existing user from before this column existed, whose very next
+        # change is allowed through once and then stamped for real going
+        # forward) -- either way, no cooldown applies until there's an
+        # actual prior change to measure from.
+        if current_dob and last_changed:
+            last_changed_dt = datetime.fromisoformat(last_changed.replace("Z", "+00:00"))
+            elapsed = datetime.now(timezone.utc) - last_changed_dt
+            if elapsed < timedelta(days=DOB_CHANGE_COOLDOWN_DAYS):
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "error": f"You can only update your date of birth once every {DOB_CHANGE_COOLDOWN_DAYS} days.",
+                        "code": "date_of_birth_cooldown",
+                        "retry": False,
+                    },
+                )
+
         updates["date_of_birth"] = parsed.isoformat()
+        updates["date_of_birth_updated_at"] = datetime.now(timezone.utc).isoformat()
 
     if not updates:
         # Nothing to update — just return current settings

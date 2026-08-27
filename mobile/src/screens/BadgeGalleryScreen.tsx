@@ -3,13 +3,13 @@
 
 import React, { useEffect, useState } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { getUserStats } from "../services/api";
 import { getAllBadges, BadgeStatus } from "../services/badges";
 import { colors, font, radius } from "../theme";
 import { showToast } from "../services/toast";
+import BoscoHero from "../components/BoscoHero";
 
 // Same celebrating pose as TourCompleteScreen's naming moment -- a hero
 // band up top, not a full-screen bleed, since this screen is a scrollable
@@ -47,28 +47,28 @@ export default function BadgeGalleryScreen({ onBack }: BadgeGalleryScreenProps) 
   return (
     <View style={styles.container}>
       <View style={styles.hero}>
-        <View style={styles.heroBgWrap}>
-          <Image source={MASCOT_IMAGE} style={styles.heroBg} resizeMode="cover" accessibilityLabel={t("login.mascotA11y")} />
-        </View>
-        <LinearGradient
-          colors={["rgba(10,12,18,0)", "rgba(10,12,18,0.35)", "rgba(10,12,18,0.8)"]}
-          locations={[0, 0.55, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-
-        <TouchableOpacity
-          style={[styles.backBtn, { top: Math.max(insets.top, 54) + 12 }]}
-          onPress={onBack}
-          accessibilityRole="button"
-          accessibilityLabel={t("common.back")}
+        <BoscoHero
+          image={MASCOT_IMAGE}
+          imageAccessibilityLabel={t("login.mascotA11y")}
+          imageTopOffset="-103%"
+          imageHeightPercent="268%"
+          scrimColors={["rgba(10,12,18,0)", "rgba(10,12,18,0.35)", "rgba(10,12,18,0.8)"]}
+          scrimLocations={[0, 0.55, 1]}
         >
-          <Text style={styles.backTextOnDark}>‹ {t("common.back")}</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.backBtn, { top: Math.max(insets.top, 54) + 12 }]}
+            onPress={onBack}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.back")}
+          >
+            <Text style={styles.backTextOnDark}>‹ {t("common.back")}</Text>
+          </TouchableOpacity>
 
-        <View style={styles.heroContent}>
-          <Text style={styles.title}>{t("badgeGallery.title")}</Text>
-          <Text style={styles.subtitle}>{t("badgeGallery.subtitle")}</Text>
-        </View>
+          <View style={styles.heroContent}>
+            <Text style={styles.title}>{t("badgeGallery.title")}</Text>
+            <Text style={styles.subtitle}>{t("badgeGallery.subtitle")}</Text>
+          </View>
+        </BoscoHero>
       </View>
 
       <ScrollView contentContainerStyle={styles.list}>
@@ -113,20 +113,6 @@ const styles = StyleSheet.create({
   hero: {
     height: 260,
     overflow: "hidden",
-  },
-  // Same oversized-image-with-negative-offset crop as SafetyModal/
-  // TourCompleteScreen -- this hero band is much shorter than a full
-  // screen (260px), so plain resizeMode="cover" alone crops unpredictably
-  // depending on device width, and was cutting Bosco's face out entirely.
-  heroBgWrap: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: "hidden",
-  },
-  heroBg: {
-    position: "absolute",
-    width: "100%",
-    height: "268%",
-    top: "-103%",
   },
   heroContent: {
     position: "absolute",

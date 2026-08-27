@@ -10,19 +10,18 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Image,
   StyleSheet,
   Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { useTranslation } from "react-i18next";
 import { signIn, signInWithApple, signInWithGoogle, setKeepSignedIn } from "../services/auth";
 import { track } from "../services/analytics";
 import { colors, font, radius } from "../theme";
+import BoscoHero from "../components/BoscoHero";
 
 // Bosco, the app's mascot -- distinct from the in-tour narrator personas
 // quoted below. He's the app-level host (login, onboarding, safety); they
@@ -112,27 +111,20 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={styles.bgWrap}>
-        <Image
-          source={MASCOT_IMAGE}
-          style={styles.bg}
-          resizeMode="cover"
-          accessibilityLabel={t("login.mascotA11y")}
-        />
-      </View>
-
-      <LinearGradient colors={["rgba(10,12,18,0.5)", "rgba(10,12,18,0)"]} style={styles.topScrim} />
-      <View style={styles.topContent}>
-        <Text style={styles.wordmark}>{t("login.title")}</Text>
-        <Text style={styles.quote}>"{quote.text}"</Text>
-        <Text style={styles.quoteAttr}>— {quote.guide}, one of your guides</Text>
-      </View>
-
-      <LinearGradient
-        colors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.55)", "rgba(10,12,18,0.92)"]}
-        locations={[0, 0.68, 0.82, 1]}
-        style={StyleSheet.absoluteFill}
-      />
+      <BoscoHero
+        image={MASCOT_IMAGE}
+        imageAccessibilityLabel={t("login.mascotA11y")}
+        imageTopOffset="-70%"
+        topScrim={{ opacity: 0.5, heightPercent: "34%" }}
+        scrimColors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.55)", "rgba(10,12,18,0.92)"]}
+        scrimLocations={[0, 0.68, 0.82, 1]}
+      >
+        <View style={styles.topContent}>
+          <Text style={styles.wordmark}>{t("login.title")}</Text>
+          <Text style={styles.quote}>"{quote.text}"</Text>
+          <Text style={styles.quoteAttr}>— {quote.guide}, one of your guides</Text>
+        </View>
+      </BoscoHero>
 
       <View style={styles.content}>
         <View style={styles.card}>
@@ -231,29 +223,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.text,
-  },
-  // The oversized-image-with-negative-offset crop below is the RN
-  // equivalent of a CSS `background-size: auto 200%; background-position:
-  // center 70%` -- resizeMode="cover" alone can't shift which part of a
-  // portrait image is visible, only crop symmetrically. Every generated
-  // Bosco pose has ~20% of dead space (empty road/grass) below his feet;
-  // without this his face ends up hidden behind the card below.
-  bgWrap: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: "hidden",
-  },
-  bg: {
-    position: "absolute",
-    width: "100%",
-    height: "200%",
-    top: "-70%",
-  },
-  topScrim: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: "34%",
   },
   topContent: {
     position: "absolute",

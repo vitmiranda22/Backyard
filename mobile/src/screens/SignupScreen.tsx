@@ -15,7 +15,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Image,
   StyleSheet,
   Alert,
   ActivityIndicator,
@@ -24,12 +23,12 @@ import {
   ScrollView,
   Platform,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { useTranslation } from "react-i18next";
 import { signUp, signInWithApple, signInWithGoogle } from "../services/auth";
 import { track } from "../services/analytics";
 import { colors, font, radius } from "../theme";
+import BoscoHero from "../components/BoscoHero";
 
 // Same send-off pose as LoginScreen, for auth-flow continuity. Only the
 // method step gets the full-bleed hero treatment -- the email/DOB details
@@ -183,63 +182,62 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
   if (step === "method") {
     return (
       <View style={styles.methodContainer}>
-        <View style={styles.bgWrap}>
-          <Image source={MASCOT_IMAGE} style={styles.bg} resizeMode="cover" accessibilityLabel={t("login.mascotA11y")} />
-        </View>
-        <LinearGradient
-          colors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.6)", "rgba(10,12,18,0.94)"]}
-          locations={[0, 0.55, 0.75, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-
-        <TouchableOpacity
-          style={styles.methodBackArrow}
-          onPress={onBack}
-          accessibilityRole="button"
-          accessibilityLabel={t("signup.backA11y")}
+        <BoscoHero
+          image={MASCOT_IMAGE}
+          imageAccessibilityLabel={t("login.mascotA11y")}
+          imageTopOffset="-70%"
+          scrimColors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.6)", "rgba(10,12,18,0.94)"]}
+          scrimLocations={[0, 0.55, 0.75, 1]}
         >
-          <Text style={styles.backArrowOnDark}>←</Text>
-        </TouchableOpacity>
-
-        <View style={styles.methodContent}>
-          <Text style={styles.wordmarkOnDark}>{t("login.title")}</Text>
-          <Text style={styles.subheadingOnDark}>{t("signup.methodSubtitle")}</Text>
-
-          {socialLoading ? (
-            <ActivityIndicator size="large" color="#fff" style={{ marginBottom: 16 }} />
-          ) : (
-            <>
-              {appleAvailable && (
-                <AppleAuthentication.AppleAuthenticationButton
-                  testID="apple-auth-button"
-                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                  cornerRadius={radius.md}
-                  style={styles.appleBtn}
-                  onPress={() => handleSocialSignUp("apple")}
-                />
-              )}
-              <TouchableOpacity
-                style={styles.oauthBtn}
-                onPress={() => handleSocialSignUp("google")}
-                accessibilityRole="button"
-                accessibilityLabel={t("signup.continueWithGoogle")}
-              >
-                <Text style={styles.oauthText}>{t("signup.continueWithGoogle")}</Text>
-              </TouchableOpacity>
-            </>
-          )}
-
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLineOnDark} />
-            <Text style={styles.dividerTextOnDark}>{t("signup.or")}</Text>
-            <View style={styles.dividerLineOnDark} />
-          </View>
-
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => setStep("email")}>
-            <Text style={styles.primaryBtnText}>{t("signup.continueWithEmail")}</Text>
+          <TouchableOpacity
+            style={styles.methodBackArrow}
+            onPress={onBack}
+            accessibilityRole="button"
+            accessibilityLabel={t("signup.backA11y")}
+          >
+            <Text style={styles.backArrowOnDark}>←</Text>
           </TouchableOpacity>
-        </View>
+
+          <View style={styles.methodContent}>
+            <Text style={styles.wordmarkOnDark}>{t("login.title")}</Text>
+            <Text style={styles.subheadingOnDark}>{t("signup.methodSubtitle")}</Text>
+
+            {socialLoading ? (
+              <ActivityIndicator size="large" color="#fff" style={{ marginBottom: 16 }} />
+            ) : (
+              <>
+                {appleAvailable && (
+                  <AppleAuthentication.AppleAuthenticationButton
+                    testID="apple-auth-button"
+                    buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                    buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                    cornerRadius={radius.md}
+                    style={styles.appleBtn}
+                    onPress={() => handleSocialSignUp("apple")}
+                  />
+                )}
+                <TouchableOpacity
+                  style={styles.oauthBtn}
+                  onPress={() => handleSocialSignUp("google")}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("signup.continueWithGoogle")}
+                >
+                  <Text style={styles.oauthText}>{t("signup.continueWithGoogle")}</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLineOnDark} />
+              <Text style={styles.dividerTextOnDark}>{t("signup.or")}</Text>
+              <View style={styles.dividerLineOnDark} />
+            </View>
+
+            <TouchableOpacity style={styles.primaryBtn} onPress={() => setStep("email")}>
+              <Text style={styles.primaryBtnText}>{t("signup.continueWithEmail")}</Text>
+            </TouchableOpacity>
+          </View>
+        </BoscoHero>
       </View>
     );
   }
@@ -389,19 +387,6 @@ const styles = StyleSheet.create({
   methodContainer: {
     flex: 1,
     backgroundColor: colors.text,
-  },
-  // Same oversized-image-with-negative-offset crop as LoginScreen (same
-  // source image, bosco-sendoff.jpg) -- plain resizeMode="cover" alone
-  // was cutting Bosco's face out of frame here.
-  bgWrap: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: "hidden",
-  },
-  bg: {
-    position: "absolute",
-    width: "100%",
-    height: "200%",
-    top: "-70%",
   },
   methodBackArrow: {
     position: "absolute",

@@ -4,12 +4,12 @@
 // component; React has no hook equivalent of componentDidCatch.
 
 import React from "react";
-import { StyleSheet, Text, View, Image, Pressable } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { StyleSheet, Text, View, Pressable } from "react-native";
 import * as Sentry from "@sentry/react-native";
 import * as Updates from "expo-updates";
 import { withTranslation, WithTranslation } from "react-i18next";
 import { colors, font, radius } from "../theme";
+import BoscoHero from "./BoscoHero";
 
 // Bosco, apologetic and scratching his head -- full-bleed, same
 // gradient-scrim template as the other host-layer screens.
@@ -52,25 +52,23 @@ class ErrorBoundary extends React.Component<Props, State> {
     const { t } = this.props;
     return (
       <View style={styles.container}>
-        <View style={styles.bgWrap}>
-          <Image source={MASCOT_IMAGE} style={styles.bg} resizeMode="cover" accessibilityLabel={t("login.mascotA11y")} />
-        </View>
+        <BoscoHero
+          image={MASCOT_IMAGE}
+          imageAccessibilityLabel={t("login.mascotA11y")}
+          imageTopOffset="-52%"
+          topScrim={{ opacity: 0.55, heightPercent: "26%" }}
+          scrimColors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.55)", "rgba(10,12,18,0.93)"]}
+          scrimLocations={[0, 0.6, 0.76, 1]}
+        >
+          <Text style={styles.topTitle}>{t("errorBoundary.title")}</Text>
 
-        <LinearGradient colors={["rgba(10,12,18,0.55)", "rgba(10,12,18,0)"]} style={styles.topScrim} />
-        <Text style={styles.topTitle}>{t("errorBoundary.title")}</Text>
-
-        <LinearGradient
-          colors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.55)", "rgba(10,12,18,0.93)"]}
-          locations={[0, 0.6, 0.76, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-
-        <View style={styles.content}>
-          <Text style={styles.body}>{t("errorBoundary.body")}</Text>
-          <Pressable style={styles.button} onPress={this.handleRestart}>
-            <Text style={styles.buttonText}>{t("errorBoundary.restart")}</Text>
-          </Pressable>
-        </View>
+          <View style={styles.content}>
+            <Text style={styles.body}>{t("errorBoundary.body")}</Text>
+            <Pressable style={styles.button} onPress={this.handleRestart}>
+              <Text style={styles.buttonText}>{t("errorBoundary.restart")}</Text>
+            </Pressable>
+          </View>
+        </BoscoHero>
       </View>
     );
   }
@@ -82,25 +80,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.text,
-  },
-  // Same oversized-image-with-negative-offset crop as LoginScreen -- plain
-  // resizeMode="cover" alone was cutting Bosco's face out of frame here.
-  bgWrap: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: "hidden",
-  },
-  bg: {
-    position: "absolute",
-    width: "100%",
-    height: "200%",
-    top: "-52%",
-  },
-  topScrim: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: "26%",
   },
   topTitle: {
     position: "absolute",

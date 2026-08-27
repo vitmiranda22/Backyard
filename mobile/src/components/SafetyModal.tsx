@@ -5,10 +5,10 @@
 // regardless of whether this is still open.
 
 import React from "react";
-import { View, Text, Image, StyleSheet, Modal, TouchableOpacity } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { View, Text, StyleSheet, Modal, TouchableOpacity } from "react-native";
 import { useTranslation } from "react-i18next";
 import { colors, font, radius } from "../theme";
+import BoscoHero from "./BoscoHero";
 
 // Bosco, the app's mascot, checking both ways before crossing -- matches
 // the "before you walk" safety framing. Full-bleed hero, same gradient-
@@ -35,36 +35,33 @@ export default function SafetyModal({ visible, onDismiss }: SafetyModalProps) {
       onRequestClose={() => {}}
     >
       <View style={styles.container}>
-        <View style={styles.bgWrap}>
-          <Image source={MASCOT_IMAGE} style={styles.bg} resizeMode="cover" />
-        </View>
+        <BoscoHero
+          image={MASCOT_IMAGE}
+          imageTopOffset="-65%"
+          topScrim={{ opacity: 0.55, heightPercent: "22%" }}
+          scrimColors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.72)", "rgba(10,12,18,0.95)"]}
+          scrimLocations={[0, 0.78, 0.9, 1]}
+        >
+          <Text style={styles.topTitle}>{t("activeTour.safety.title")}</Text>
 
-        <LinearGradient colors={["rgba(10,12,18,0.55)", "rgba(10,12,18,0)"]} style={styles.topScrim} />
-        <Text style={styles.topTitle}>{t("activeTour.safety.title")}</Text>
+          <View style={styles.content}>
+            {TIP_ICONS.map((icon, i) => (
+              <View key={i} style={styles.tip}>
+                <Text style={styles.tipIcon}>{icon}</Text>
+                <Text style={styles.tipText}>{t(`activeTour.safety.tip${i + 1}`)}</Text>
+              </View>
+            ))}
 
-        <LinearGradient
-          colors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.72)", "rgba(10,12,18,0.95)"]}
-          locations={[0, 0.78, 0.9, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-
-        <View style={styles.content}>
-          {TIP_ICONS.map((icon, i) => (
-            <View key={i} style={styles.tip}>
-              <Text style={styles.tipIcon}>{icon}</Text>
-              <Text style={styles.tipText}>{t(`activeTour.safety.tip${i + 1}`)}</Text>
-            </View>
-          ))}
-
-          <TouchableOpacity
-            style={styles.cta}
-            onPress={onDismiss}
-            accessibilityRole="button"
-            accessibilityLabel={t("activeTour.safety.cta")}
-          >
-            <Text style={styles.ctaText}>{t("activeTour.safety.cta")}</Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              style={styles.cta}
+              onPress={onDismiss}
+              accessibilityRole="button"
+              accessibilityLabel={t("activeTour.safety.cta")}
+            >
+              <Text style={styles.ctaText}>{t("activeTour.safety.cta")}</Text>
+            </TouchableOpacity>
+          </View>
+        </BoscoHero>
       </View>
     </Modal>
   );
@@ -74,26 +71,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.text,
-  },
-  // Same oversized-image-with-negative-offset crop as TourCompleteScreen/
-  // LoginScreen -- plain resizeMode="cover" alone doesn't reliably keep
-  // Bosco's face in frame across different device aspect ratios.
-  bgWrap: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: "hidden",
-  },
-  bg: {
-    position: "absolute",
-    width: "100%",
-    height: "200%",
-    top: "-65%",
-  },
-  topScrim: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: "22%",
   },
   topTitle: {
     position: "absolute",

@@ -18,7 +18,6 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import * as ImagePicker from "expo-image-picker";
@@ -26,6 +25,7 @@ import * as Sharing from "expo-sharing";
 import ViewShot from "react-native-view-shot";
 import { endTour, EndTourResponse, publishTour, deleteTour } from "../services/api";
 import TourStatsGrid from "../components/TourStatsGrid";
+import BoscoHero from "../components/BoscoHero";
 import { colors, font, radius } from "../theme";
 import { showToast } from "../services/toast";
 import { tap, success } from "../services/haptics";
@@ -264,20 +264,17 @@ export default function TourCompleteScreen({
           keyboard cover the Save button entirely. flex:1 keeps it in
           normal layout flow so it responds correctly. */}
       <ViewShot ref={viewShotRef} style={{ flex: 1 }} options={{ format: "png", quality: 0.9 }}>
-      <View style={styles.bgWrap}>
-        <Image source={MASCOT_IMAGE} style={styles.heroBg} resizeMode="cover" accessibilityLabel={t("login.mascotA11y")} />
-      </View>
-
-      <LinearGradient colors={["rgba(10,12,18,0.5)", "rgba(10,12,18,0)"]} style={styles.heroTopScrim} />
+      <BoscoHero
+        image={MASCOT_IMAGE}
+        imageAccessibilityLabel={t("login.mascotA11y")}
+        imageTopOffset="-50%"
+        topScrim={{ opacity: 0.5, heightPercent: "26%" }}
+        scrimColors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.4)", "rgba(10,12,18,0.9)"]}
+        scrimLocations={[0, 0.76, 0.86, 1]}
+      >
       <Text style={[styles.heroTopTitle, { paddingTop: Math.max(insets.top, 20) }]}>
         {t("tourComplete.heroTitle")}
       </Text>
-
-      <LinearGradient
-        colors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.4)", "rgba(10,12,18,0.9)"]}
-        locations={[0, 0.76, 0.86, 1]}
-        style={StyleSheet.absoluteFill}
-      />
 
       {/* Polaroid-style keepsake photo -- tap to add one if there isn't
           one yet, tap again to retake. Included inside the ViewShot above
@@ -365,6 +362,7 @@ export default function TourCompleteScreen({
           )}
         </View>
       </View>
+      </BoscoHero>
       </ViewShot>
 
       {/* Outside the ViewShot deliberately -- this is app chrome, not
@@ -387,18 +385,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.text,
   },
-  // Same oversized-image-with-negative-offset crop as LoginScreen -- see
-  // that file's comment for why resizeMode="cover" alone isn't enough.
-  bgWrap: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: "hidden",
-  },
-  heroBg: {
-    position: "absolute",
-    width: "100%",
-    height: "200%",
-    top: "-50%",
-  },
   closeBtn: {
     position: "absolute",
     top: 16,
@@ -415,13 +401,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 15,
     fontWeight: "700",
-  },
-  heroTopScrim: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: "26%",
   },
   heroTopTitle: {
     position: "absolute",

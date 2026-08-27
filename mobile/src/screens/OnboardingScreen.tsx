@@ -3,12 +3,12 @@
 // native dependency / build).
 
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, Image, StyleSheet } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { colors, font, radius } from "../theme";
 import { tap } from "../services/haptics";
+import BoscoHero from "../components/BoscoHero";
 
 const CARD_KEYS = ["card1", "card2", "card3", "card4"];
 // Cards 1 and 4 (the welcome and send-off cards) render Bosco full-bleed
@@ -60,42 +60,36 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
     const heroOffset = isWelcomeCard ? "-74%" : "-70%";
     return (
       <View style={styles.welcomeContainer}>
-        <View style={styles.welcomeBgWrap}>
-          <Image
-            source={heroImage}
-            style={[styles.welcomeBg, { top: heroOffset }]}
-            resizeMode="cover"
-            accessibilityLabel={t("login.mascotA11y")}
-          />
-        </View>
-        <LinearGradient
-          colors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.68)", "rgba(10,12,18,0.94)"]}
-          locations={[0, 0.76, 0.88, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-
-        <TouchableOpacity
-          style={[styles.welcomeSkip, { top: Math.max(insets.top, 18) }]}
-          onPress={onDone}
-          accessibilityRole="button"
-          accessibilityLabel={t("onboarding.skipA11y")}
+        <BoscoHero
+          image={heroImage}
+          imageAccessibilityLabel={t("login.mascotA11y")}
+          imageTopOffset={heroOffset}
+          scrimColors={["rgba(10,12,18,0)", "rgba(10,12,18,0)", "rgba(10,12,18,0.68)", "rgba(10,12,18,0.94)"]}
+          scrimLocations={[0, 0.76, 0.88, 1]}
         >
-          <Text style={styles.welcomeSkipText}>{t("onboarding.skip")}</Text>
-        </TouchableOpacity>
-
-        <View style={[styles.welcomeContent, { paddingBottom: Math.max(insets.bottom, 24) }]}>
-          <Text style={styles.welcomeTitle}>{t(`onboarding.${cardKey}.title`)}</Text>
-          <Text style={styles.welcomeBody}>{t(`onboarding.${cardKey}.body`)}</Text>
-          {dots(styles.dotOnDark, styles.dotActive)}
           <TouchableOpacity
-            style={styles.nextBtn}
-            onPress={handleNext}
+            style={[styles.welcomeSkip, { top: Math.max(insets.top, 18) }]}
+            onPress={onDone}
             accessibilityRole="button"
-            accessibilityLabel={isSendoffCard ? t("onboarding.getStartedA11y") : t("onboarding.next")}
+            accessibilityLabel={t("onboarding.skipA11y")}
           >
-            <Text style={styles.nextBtnText}>{isSendoffCard ? t("onboarding.getStarted") : t("onboarding.next")}</Text>
+            <Text style={styles.welcomeSkipText}>{t("onboarding.skip")}</Text>
           </TouchableOpacity>
-        </View>
+
+          <View style={[styles.welcomeContent, { paddingBottom: Math.max(insets.bottom, 24) }]}>
+            <Text style={styles.welcomeTitle}>{t(`onboarding.${cardKey}.title`)}</Text>
+            <Text style={styles.welcomeBody}>{t(`onboarding.${cardKey}.body`)}</Text>
+            {dots(styles.dotOnDark, styles.dotActive)}
+            <TouchableOpacity
+              style={styles.nextBtn}
+              onPress={handleNext}
+              accessibilityRole="button"
+              accessibilityLabel={isSendoffCard ? t("onboarding.getStartedA11y") : t("onboarding.next")}
+            >
+              <Text style={styles.nextBtnText}>{isSendoffCard ? t("onboarding.getStarted") : t("onboarding.next")}</Text>
+            </TouchableOpacity>
+          </View>
+        </BoscoHero>
       </View>
     );
   }
@@ -130,16 +124,6 @@ const styles = StyleSheet.create({
   welcomeContainer: {
     flex: 1,
     backgroundColor: colors.bg,
-  },
-  welcomeBgWrap: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: "hidden",
-  },
-  welcomeBg: {
-    position: "absolute",
-    width: "100%",
-    height: "200%",
-    // top is set inline per-image above.
   },
   welcomeContent: {
     position: "absolute",

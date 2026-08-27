@@ -9,6 +9,9 @@ export function initSentry() {
   if (!SENTRY_DSN) return;
   Sentry.init({
     dsn: SENTRY_DSN,
-    tracesSampleRate: 1.0,
+    // 1.0 traced every single transaction from every user -- real ongoing
+    // per-session overhead for no benefit once the app has real traffic.
+    // 0.2 still gives a representative performance sample without it.
+    tracesSampleRate: 0.2,
   });
 }

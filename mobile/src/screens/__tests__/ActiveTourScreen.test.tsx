@@ -66,7 +66,7 @@ jest.mock("../../components/AudioPlayer", () => () => null);
 
 import ActiveTourScreen from "../ActiveTourScreen";
 import { startTour, narrateBlock, saveBlock, askQuestion, endTour } from "../../services/api";
-import { watchPosition, watchHeading, getCurrentLocation } from "../../services/location";
+import { watchPosition, watchHeading, getCurrentLocation, snapSegmentToRoad } from "../../services/location";
 import { startRecording, stopRecording } from "../../services/recording";
 
 const mockStartTour = startTour as jest.Mock;
@@ -75,6 +75,7 @@ const mockSaveBlock = saveBlock as jest.Mock;
 const mockAskQuestion = askQuestion as jest.Mock;
 const mockEndTour = endTour as jest.Mock;
 const mockWatchPosition = watchPosition as jest.Mock;
+const mockSnapSegmentToRoad = snapSegmentToRoad as jest.Mock;
 const mockWatchHeading = watchHeading as jest.Mock;
 const mockGetCurrentLocation = getCurrentLocation as jest.Mock;
 const mockStartRecording = startRecording as jest.Mock;
@@ -226,6 +227,34 @@ describe("ActiveTourScreen", () => {
 
     await waitFor(() => expect(mockNarrateBlock).toHaveBeenCalledTimes(2));
     expect(mockCommitZone).toHaveBeenCalledWith("zone2");
+  });
+
+  it("caps the drawn route line's point count on a long tour instead of letting it grow unbounded", async () => {
+    let positionCallback: (lat: number, lng: number) => void = () => {};
+    mockWatchPosition.mockImplementation(async (cb: any) => {
+      positionCallback = cb;
+      return { remove: removeSpy };
+    });
+    // Every GPS fix resolves a 4-point road-matched segment (not just one
+    // point) -- this is what actually made the raw path grow fast enough
+    // to matter on a real long tour (see snapSegmentToRoad in location.ts).
+    mockSnapSegmentToRoad.mockImplementation(() =>
+      Promise.resolve([{ lat: 1, lng: 1 }, { lat: 2, lng: 2 }, { lat: 3, lng: 3 }, { lat: 4, lng: 4 }])
+    );
+    const { getByTestId } = await renderStarted();
+
+    // 130 fixes x 4 points/fix + the initial point = 521 raw points --
+    // comfortably past the 500-point display cap.
+    for (let i = 0; i < 130; i++) {
+      await act(async () => {
+        positionCallback(37.78 + i * 0.0001, -122.42);
+      });
+    }
+
+    const drawnPoints = getByTestId("route-polyline").props.coordinates.length;
+    expect(drawnPoints).toBeLessThanOrEqual(500);
+    // Not just capped -- actually thinned, not coincidentally under the cap.
+    expect(drawnPoints).toBeLessThan(521);
   });
 
   it("auto-completes the tour immediately when the block cap is hit with no audio to finish, calling /end-tour and playing the outro before onEndTour fires", async () => {

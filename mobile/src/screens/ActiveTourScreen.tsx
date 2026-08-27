@@ -5,7 +5,7 @@
 // - Audio and text are always from the same narration response
 // - Debounce on zone changes prevents rapid re-fires
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { View, Text, TouchableOpacity, Pressable, StyleSheet, Alert, Animated, Easing, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -536,6 +536,29 @@ export default function ActiveTourScreen({
   const distanceToBlock =
     blockOrigin && location ? distanceMeters(location.lat, location.lng, blockOrigin.lat, blockOrigin.lng) : 0;
 
+  // `path` keeps every road-matched point for the whole tour -- that full
+  // detail is what actually gets sent to /end-tour for the saved route, and
+  // shouldn't be thinned. But rendering all of it as a live Polyline is a
+  // different concern: a long walk with a GPS fix every few seconds, each
+  // adding a multi-point road-matched segment (see snapSegmentToRoad), can
+  // grow into thousands of coordinates, and react-native-maps rendering
+  // that many points on every update is exactly the kind of unbounded
+  // growth that can push a long tour into a memory-pressure kill. Cap what
+  // actually gets drawn independently of what gets saved.
+  const MAX_DISPLAYED_PATH_POINTS = 500;
+  const displayPath = useMemo(() => {
+    if (path.length <= MAX_DISPLAYED_PATH_POINTS) return path;
+    const step = Math.ceil(path.length / MAX_DISPLAYED_PATH_POINTS);
+    const thinned = path.filter((_, i) => i % step === 0);
+    // Always end on the walker's actual current position, not whichever
+    // point the stride happened to land on -- otherwise the line can lag
+    // visibly behind the live location dot on a long tour.
+    if (thinned[thinned.length - 1] !== path[path.length - 1]) {
+      thinned.push(path[path.length - 1]);
+    }
+    return thinned;
+  }, [path]);
+
   const askCaption =
     qaState === "recording"
       ? t("activeTour.listening")
@@ -562,7 +585,7 @@ export default function ActiveTourScreen({
             }}
             showsUserLocation
           >
-            {path.length > 1 && <RoutePolyline coordinates={path} />}
+            {displayPath.length > 1 && <RoutePolyline coordinates={displayPath} />}
           </MapView>
         ) : (
           <View style={styles.mapPlaceholder}>

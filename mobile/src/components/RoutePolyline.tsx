@@ -15,6 +15,7 @@ export default function RoutePolyline({ coordinates }: RoutePolylineProps) {
   return (
     <>
       <Polyline
+        testID="route-polyline"
         coordinates={coordinates}
         strokeColor="#B8451F"
         strokeWidth={20}

@@ -384,29 +384,36 @@ export default function ActiveTourScreen({
         });
       }
 
-      // Save block to tour
+      // Save block to tour -- fire-and-forget like cacheAudio above, not
+      // awaited. This is a background persistence write the walker isn't
+      // staring at a spinner for; awaiting it here only delayed how soon
+      // the NEXT zone crossing was allowed to trigger (gated by
+      // isLoadingRef below). One narrow tradeoff: if this is the tour's
+      // very last block and it auto-completes on the same tick (the
+      // MAX_BLOCKS check just below), /end-tour's title generation could
+      // in rare cases run before this save lands and miss that last
+      // block's neighborhood in the generated title -- cosmetic only, the
+      // block itself still gets saved once the request resolves.
       const currentTourId = tourIdRef.current;
       if (currentTourId) {
-        try {
-          await saveBlock({
-            tour_id: currentTourId,
-            sequence: sequenceRef.current,
-            lat,
-            lng,
-            street_name: result.street_name,
-            neighborhood: result.neighborhood,
-            city: result.city,
-            narration_text: result.narration_text,
-            audio_r2_key: result.audio_r2_key || undefined,
-            image_r2_key: result.image_r2_key || undefined,
-            voice,
-            mood,
-            trigger_type: triggerType,
-          });
-        } catch (e) {
+        saveBlock({
+          tour_id: currentTourId,
+          sequence: sequenceRef.current,
+          lat,
+          lng,
+          street_name: result.street_name,
+          neighborhood: result.neighborhood,
+          city: result.city,
+          narration_text: result.narration_text,
+          audio_r2_key: result.audio_r2_key || undefined,
+          image_r2_key: result.image_r2_key || undefined,
+          voice,
+          mood,
+          trigger_type: triggerType,
+        }).catch((e) => {
           console.warn("Failed to save block (tour continues):", e);
           showToast(t("activeTour.blockSaveError"));
-        }
+        });
       }
 
       // Reached the tour's block cap. If there's no audio to let the

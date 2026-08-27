@@ -7,7 +7,7 @@
 
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { colors } from "../theme";
+import { colors, type } from "../theme";
 
 interface WaypointCompassProps {
   bearingDeg: number; // relative to current device heading, 0 = straight ahead/up
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   },
   label: {
     marginTop: 6,
-    fontSize: 12,
+    fontSize: type.caption,
     fontWeight: "700",
     color: colors.text,
   },

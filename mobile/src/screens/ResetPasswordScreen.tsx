@@ -8,7 +8,7 @@ import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { updatePassword, signOut } from "../services/auth";
-import { colors, font, radius } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 
 interface ResetPasswordScreenProps {
   onDone: () => void;
@@ -87,16 +87,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
     justifyContent: "center",
-    padding: 24,
+    padding: spacing.lg,
   },
   heading: {
     fontFamily: font.display,
-    fontSize: 24,
+    fontSize: type.headline,
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   subheading: {
-    fontSize: 14,
+    fontSize: type.label,
     color: colors.muted,
     marginBottom: 22,
     lineHeight: 20,
@@ -109,23 +109,23 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: radius.md,
     marginBottom: 6,
-    fontSize: 16,
+    fontSize: type.body,
   },
   helperText: {
     fontSize: 11.5,
     color: colors.muted,
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   primaryBtn: {
     backgroundColor: colors.accent,
-    padding: 16,
+    padding: spacing.md,
     borderRadius: radius.md,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   primaryBtnText: {
     color: colors.accentText,
     textAlign: "center",
-    fontSize: 18,
+    fontSize: type.title,
     fontWeight: "700",
   },
 });

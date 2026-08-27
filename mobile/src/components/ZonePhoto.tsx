@@ -18,7 +18,7 @@ import {
 // more efficiently, so revisiting a route doesn't re-fetch the same photo.
 import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
-import { colors } from "../theme";
+import { colors, type } from "../theme";
 
 interface ZonePhotoProps {
   uri: string;
@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
   },
   closeText: {
     color: "#FFFFFF",
-    fontSize: 18,
+    fontSize: type.title,
     fontWeight: "700",
   },
 });

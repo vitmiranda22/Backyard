@@ -6,7 +6,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Audio } from "expo-av";
 import { useTranslation } from "react-i18next";
-import { colors } from "../theme";
+import { colors, type, spacing } from "../theme";
 
 interface AudioPlayerProps {
   audioUrl: string | null;
@@ -160,14 +160,14 @@ export default function AudioPlayer({
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
   controls: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 20,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   playBtn: {
     width: 48,
@@ -191,15 +191,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   skipBtnText: {
-    fontSize: 16,
+    fontSize: type.body,
   },
   progressContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: spacing.sm,
   },
   timeText: {
-    fontSize: 12,
+    fontSize: type.caption,
     color: colors.muted,
     width: 40,
     textAlign: "center",
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   fallbackText: {
     textAlign: "center",
     color: colors.muted,
-    fontSize: 14,
+    fontSize: type.label,
     padding: 12,
   },
 });

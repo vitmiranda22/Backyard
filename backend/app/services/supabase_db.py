@@ -1024,13 +1024,17 @@ async def get_user_stats(user_id: str) -> dict:
 # =============================================================================
 
 async def get_comments(tour_id: str):
-    """Get all comments on a tour, oldest first, with commenter display name."""
+    """Get all comments on a tour, oldest first, with commenter display
+    name. Excludes comments auto-hidden after enough reports -- the
+    reporting flow doesn't distinguish "my own comment" the way tours do,
+    so unlike get_tour_with_creator this has no own-content exception."""
     try:
         client = _get_client()
         result = (
             client.table("comments")
             .select("*, users(display_name)")
             .eq("tour_id", tour_id)
+            .eq("is_hidden", False)
             .order("created_at")
             .execute()
         )
@@ -1146,6 +1150,37 @@ async def toggle_like(tour_id: str, user_id: str):
 # Content moderation reports
 # =============================================================================
 
+# Once distinct reporters on one tour/comment reach this count, it's
+# auto-hidden pending manual review (see _auto_hide_if_reported_enough
+# below) -- content_reports has a UNIQUE(reporter_id, target_type,
+# target_id) constraint, so this is genuinely a distinct-reporter count,
+# not spammable by one user re-reporting the same thing.
+_AUTO_HIDE_REPORT_THRESHOLD = 3
+
+
+async def _auto_hide_if_reported_enough(target_type: str, target_id: str):
+    """Hides a tour/comment once it crosses _AUTO_HIDE_REPORT_THRESHOLD
+    distinct reports. Best-effort -- a failure here shouldn't fail the
+    report submission itself, just logs and moves on."""
+    try:
+        client = _get_client()
+        count_result = (
+            client.table("content_reports")
+            .select("id", count="exact")
+            .eq("target_type", target_type)
+            .eq("target_id", target_id)
+            .execute()
+        )
+        if (count_result.count or 0) < _AUTO_HIDE_REPORT_THRESHOLD:
+            return
+
+        table = "tours" if target_type == "tour" else "comments"
+        client.table(table).update({"is_hidden": True}).eq("id", target_id).execute()
+        logger.info(f"Auto-hid {target_type}={target_id[:8]}... after {count_result.count} reports")
+    except Exception as e:
+        logger.error(f"Failed to check/apply auto-hide for {target_type}={target_id}: {e}")
+
+
 async def create_content_report(
     reporter_id: str, target_type: str, target_id: str, reason: str, detail: str = None
 ):
@@ -1182,6 +1217,8 @@ async def create_content_report(
                 })
                 .execute()
             )
+            if result.data:
+                await _auto_hide_if_reported_enough(target_type, target_id)
             return result.data[0] if result.data else None
         except Exception as insert_error:
             # Same race as toggle_like above: a concurrent duplicate report

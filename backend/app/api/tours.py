@@ -40,7 +40,7 @@ from app.models.schemas import (
     ErrorResponse,
 )
 from app.config import PREMIUM_MOODS, PREMIUM_VOICES, settings, UNLIMITED_TEST_ACCOUNT_IDS
-from app.services import supabase_db, r2, richness, zone_data, tts, osrm_service
+from app.services import supabase_db, r2, richness, zone_data, tts, osrm_service, moderation
 from app.services.geocode import reverse_geocode
 
 logger = logging.getLogger(__name__)
@@ -615,6 +615,7 @@ async def end_tour(
     "/publish-tour",
     response_model=PublishTourResponse,
     responses={
+        400: {"model": ErrorResponse},
         403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
@@ -641,6 +642,16 @@ async def publish_tour(
         raise HTTPException(
             status_code=403,
             detail={"error": "This tour doesn't belong to you.", "code": "forbidden", "retry": False},
+        )
+
+    if request.title and moderation.contains_denylisted_content(request.title):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "That title isn't allowed. Please revise it.",
+                "code": "title_not_allowed",
+                "retry": False,
+            },
         )
 
     updated = await supabase_db.publish_tour(
@@ -757,6 +768,13 @@ async def get_tour_detail(tour_id: str, user_id: AuthenticatedUser):
         raise HTTPException(
             status_code=403,
             detail={"error": "This tour isn't public.", "code": "forbidden", "retry": False},
+        )
+    # Hidden pending moderation review (auto-hidden after enough reports) --
+    # the creator still sees it (e.g. via "My Tours"/replay), nobody else does.
+    if tour.get("is_hidden") and not is_own_tour:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "This tour isn't available.", "code": "forbidden", "retry": False},
         )
 
     blocks = await supabase_db.get_tour_blocks(tour_id)
@@ -941,6 +959,7 @@ async def list_comments(tour_id: str, user_id: AuthenticatedUser):
     "/tours/{tour_id}/comments",
     response_model=CommentResponse,
     responses={
+        400: {"model": ErrorResponse},
         403: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
         429: {"model": ErrorResponse},
@@ -961,6 +980,16 @@ async def post_comment(tour_id: str, request: CreateCommentRequest, user_id: Aut
         raise HTTPException(
             status_code=403,
             detail={"error": "This tour isn't public.", "code": "forbidden", "retry": False},
+        )
+
+    if moderation.contains_denylisted_content(request.body):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "That comment isn't allowed. Please revise it.",
+                "code": "comment_not_allowed",
+                "retry": False,
+            },
         )
 
     comment = await supabase_db.create_comment(tour_id, user_id, request.body, request.is_anonymous)

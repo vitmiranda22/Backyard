@@ -23,6 +23,23 @@ jest.mock("expo-apple-authentication", () => {
     AppleAuthenticationButtonStyle: { BLACK: 0 },
   };
 });
+// Stand-in for the real native spinner/dialog -- a single press fires
+// onChange with whatever date the test queued up via setNextPickedDate,
+// same shape (event, date) as the real component.
+let mockNextPickedDate: Date | null = null;
+jest.mock("@react-native-community/datetimepicker", () => {
+  const { TouchableOpacity, Text } = require("react-native");
+  return function MockDateTimePicker(props: any) {
+    return require("react").createElement(
+      TouchableOpacity,
+      {
+        testID: "date-time-picker",
+        onPress: () => props.onChange({ type: "set" }, mockNextPickedDate ?? props.value),
+      },
+      require("react").createElement(Text, null, "mock-date-picker")
+    );
+  };
+});
 
 import SignupScreen from "../SignupScreen";
 import { signUp, signInWithApple, signInWithGoogle } from "../../services/auth";
@@ -41,6 +58,17 @@ function baseProps(overrides = {}) {
 
 async function goToEmailStep(getByText: any) {
   await fireEvent.press(getByText("signup.continueWithEmail"));
+}
+
+// Drives the iOS sheet flow: open the field, "scroll" the mock picker to
+// the queued date, then tap Done to commit it -- mirrors how a real walker
+// can only ever land on a structurally valid calendar date, never a
+// malformed one like month 13.
+async function setDob(rtl: any, year: number, month: number, day: number) {
+  mockNextPickedDate = new Date(year, month - 1, day);
+  await fireEvent.press(rtl.getByLabelText("signup.dobLabel"));
+  await fireEvent.press(rtl.getByTestId("date-time-picker"));
+  await fireEvent.press(rtl.getByText("signup.dobDone"));
 }
 
 describe("SignupScreen", () => {
@@ -124,7 +152,8 @@ describe("SignupScreen", () => {
   });
 
   it("email step: Create Account stays disabled until name/email/DOB/password/privacy are all valid", async () => {
-    const { getByText, getByLabelText, getByPlaceholderText } = await render(<SignupScreen {...baseProps()} />);
+    const rtl = await render(<SignupScreen {...baseProps()} />);
+    const { getByText, getByLabelText, getByPlaceholderText } = rtl;
     await goToEmailStep(getByText);
 
     const submitBtn = getByLabelText("signup.createAccount");
@@ -132,9 +161,7 @@ describe("SignupScreen", () => {
 
     await fireEvent.changeText(getByPlaceholderText("signup.fullNamePlaceholder"), "Ada Lovelace");
     await fireEvent.changeText(getByPlaceholderText("signup.emailPlaceholder"), "ada@example.com");
-    await fireEvent.changeText(getByPlaceholderText("signup.dobMonthPlaceholder"), "12");
-    await fireEvent.changeText(getByPlaceholderText("signup.dobDayPlaceholder"), "10");
-    await fireEvent.changeText(getByPlaceholderText("signup.dobYearPlaceholder"), "1990");
+    await setDob(rtl, 1990, 12, 10);
     await fireEvent.changeText(getByPlaceholderText("signup.passwordPlaceholder"), "password123");
 
     // Everything but the privacy checkbox is filled in -- still disabled.
@@ -142,18 +169,18 @@ describe("SignupScreen", () => {
     expect(mockSignUp).not.toHaveBeenCalled();
   });
 
-  it("email step: an invalid date of birth keeps Create Account disabled", async () => {
-    const { getByText, getByPlaceholderText, getByLabelText } = await render(<SignupScreen {...baseProps()} />);
+  it("email step: Create Account stays disabled while no date of birth has been picked yet", async () => {
+    const rtl = await render(<SignupScreen {...baseProps()} />);
+    const { getByText, getByPlaceholderText, getByLabelText } = rtl;
     await goToEmailStep(getByText);
 
     await fireEvent.changeText(getByPlaceholderText("signup.fullNamePlaceholder"), "Ada Lovelace");
     await fireEvent.changeText(getByPlaceholderText("signup.emailPlaceholder"), "ada@example.com");
-    await fireEvent.changeText(getByPlaceholderText("signup.dobMonthPlaceholder"), "13"); // invalid month
-    await fireEvent.changeText(getByPlaceholderText("signup.dobDayPlaceholder"), "10");
-    await fireEvent.changeText(getByPlaceholderText("signup.dobYearPlaceholder"), "1990");
     await fireEvent.changeText(getByPlaceholderText("signup.passwordPlaceholder"), "password123");
+    await fireEvent.changeText(getByPlaceholderText("signup.confirmPasswordPlaceholder"), "password123");
     await fireEvent.press(getByLabelText("signup.privacyCheckboxA11y"));
 
+    expect(getByText("signup.dobPlaceholder")).toBeTruthy();
     expect(getByLabelText("signup.createAccount").props.accessibilityState?.disabled).toBe(true);
   });
 
@@ -163,18 +190,17 @@ describe("SignupScreen", () => {
     const fiveYearsAgo = new Date();
     fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
 
-    const { getByText, getByPlaceholderText, getByLabelText } = await render(<SignupScreen {...baseProps()} />);
+    const rtl = await render(<SignupScreen {...baseProps()} />);
+    const { getByText, getByPlaceholderText, getByLabelText } = rtl;
     await goToEmailStep(getByText);
 
     await fireEvent.changeText(getByPlaceholderText("signup.fullNamePlaceholder"), "Too Young");
     await fireEvent.changeText(getByPlaceholderText("signup.emailPlaceholder"), "young@example.com");
-    await fireEvent.changeText(getByPlaceholderText("signup.dobMonthPlaceholder"), String(fiveYearsAgo.getMonth() + 1));
-    await fireEvent.changeText(getByPlaceholderText("signup.dobDayPlaceholder"), String(fiveYearsAgo.getDate()));
-    await fireEvent.changeText(getByPlaceholderText("signup.dobYearPlaceholder"), String(fiveYearsAgo.getFullYear()));
+    await setDob(rtl, fiveYearsAgo.getFullYear(), fiveYearsAgo.getMonth() + 1, fiveYearsAgo.getDate());
     await fireEvent.changeText(getByPlaceholderText("signup.passwordPlaceholder"), "password123");
     await fireEvent.press(getByLabelText("signup.privacyCheckboxA11y"));
 
-    // The structural date is valid (real month/day/year), but too young --
+    // The structural date is valid (a real calendar date), but too young --
     // must stay disabled the same as any other invalid-DOB case, not just
     // silently accepted with an alert as the only guard.
     expect(getByLabelText("signup.createAccount").props.accessibilityState?.disabled).toBe(true);
@@ -182,14 +208,13 @@ describe("SignupScreen", () => {
   });
 
   it("email step: a mismatched confirm-password keeps Create Account disabled", async () => {
-    const { getByText, getByLabelText, getByPlaceholderText } = await render(<SignupScreen {...baseProps()} />);
+    const rtl = await render(<SignupScreen {...baseProps()} />);
+    const { getByText, getByLabelText, getByPlaceholderText } = rtl;
     await goToEmailStep(getByText);
 
     await fireEvent.changeText(getByPlaceholderText("signup.fullNamePlaceholder"), "Ada Lovelace");
     await fireEvent.changeText(getByPlaceholderText("signup.emailPlaceholder"), "ada@example.com");
-    await fireEvent.changeText(getByPlaceholderText("signup.dobMonthPlaceholder"), "3");
-    await fireEvent.changeText(getByPlaceholderText("signup.dobDayPlaceholder"), "5");
-    await fireEvent.changeText(getByPlaceholderText("signup.dobYearPlaceholder"), "1990");
+    await setDob(rtl, 1990, 3, 5);
     await fireEvent.changeText(getByPlaceholderText("signup.passwordPlaceholder"), "password123");
     await fireEvent.changeText(getByPlaceholderText("signup.confirmPasswordPlaceholder"), "password456");
     await fireEvent.press(getByLabelText("signup.privacyCheckboxA11y"));
@@ -203,16 +228,13 @@ describe("SignupScreen", () => {
     mockSignUp.mockResolvedValue({ session: { access_token: "new-session-token" }, user: { id: "u1" } });
     const onSignedUp = jest.fn();
     const onBack = jest.fn();
-    const { getByText, getByPlaceholderText, getByLabelText } = await render(
-      <SignupScreen {...baseProps({ onSignedUp, onBack })} />
-    );
+    const rtl = await render(<SignupScreen {...baseProps({ onSignedUp, onBack })} />);
+    const { getByText, getByPlaceholderText, getByLabelText } = rtl;
     await goToEmailStep(getByText);
 
     await fireEvent.changeText(getByPlaceholderText("signup.fullNamePlaceholder"), "Ada Lovelace");
     await fireEvent.changeText(getByPlaceholderText("signup.emailPlaceholder"), "ada@example.com");
-    await fireEvent.changeText(getByPlaceholderText("signup.dobMonthPlaceholder"), "3");
-    await fireEvent.changeText(getByPlaceholderText("signup.dobDayPlaceholder"), "5");
-    await fireEvent.changeText(getByPlaceholderText("signup.dobYearPlaceholder"), "1990");
+    await setDob(rtl, 1990, 3, 5);
     await fireEvent.changeText(getByPlaceholderText("signup.passwordPlaceholder"), "password123");
     await fireEvent.changeText(getByPlaceholderText("signup.confirmPasswordPlaceholder"), "password123");
     await fireEvent.press(getByLabelText("signup.privacyCheckboxA11y"));
@@ -232,16 +254,13 @@ describe("SignupScreen", () => {
     mockSignUp.mockResolvedValue({ session: null, user: { id: "u1" } });
     const onSignedUp = jest.fn();
     const onBack = jest.fn();
-    const { getByText, getByPlaceholderText, getByLabelText } = await render(
-      <SignupScreen {...baseProps({ onSignedUp, onBack })} />
-    );
+    const rtl = await render(<SignupScreen {...baseProps({ onSignedUp, onBack })} />);
+    const { getByText, getByPlaceholderText, getByLabelText } = rtl;
     await goToEmailStep(getByText);
 
     await fireEvent.changeText(getByPlaceholderText("signup.fullNamePlaceholder"), "Ada Lovelace");
     await fireEvent.changeText(getByPlaceholderText("signup.emailPlaceholder"), "ada@example.com");
-    await fireEvent.changeText(getByPlaceholderText("signup.dobMonthPlaceholder"), "3");
-    await fireEvent.changeText(getByPlaceholderText("signup.dobDayPlaceholder"), "5");
-    await fireEvent.changeText(getByPlaceholderText("signup.dobYearPlaceholder"), "1990");
+    await setDob(rtl, 1990, 3, 5);
     await fireEvent.changeText(getByPlaceholderText("signup.passwordPlaceholder"), "password123");
     await fireEvent.changeText(getByPlaceholderText("signup.confirmPasswordPlaceholder"), "password123");
     await fireEvent.press(getByLabelText("signup.privacyCheckboxA11y"));

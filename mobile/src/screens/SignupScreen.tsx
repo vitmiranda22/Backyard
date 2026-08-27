@@ -3,8 +3,7 @@
 // details form collecting name/DOB/password plus a required Privacy
 // Policy/Terms acceptance checkbox. DOB is read server-side to age-gate
 // the app's mature content mode (see backend is_user_underage) -- entered
-// as three plain text fields rather than a native date picker, which
-// would also need a new build to add. Google/Apple skip the details form
+// via the OS's native date picker. Google/Apple skip the details form
 // entirely -- Supabase creates the account on first authorization, DOB
 // gets backfilled later via ProfileScreen's existing "Add" flow for
 // accounts with none on file (see handle_new_user()'s nullable column).
@@ -21,8 +20,10 @@ import {
   Linking,
   KeyboardAvoidingView,
   ScrollView,
+  Modal,
   Platform,
 } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { useTranslation } from "react-i18next";
 import { signUp, signInWithApple, signInWithGoogle } from "../services/auth";
@@ -45,6 +46,16 @@ const TERMS_URL = "https://backyard-api.onrender.com/terms";
 // child entering their real birthday doesn't get a raw DB error.
 const MIN_SIGNUP_AGE = 13;
 
+// Opens the picker roughly a generation back from today, not on today's
+// date -- today's date always fails the 13+ check, so nobody should have
+// to scroll years back from a default that starts them out invalid.
+const DEFAULT_DOB_YEARS_AGO = 25;
+function defaultPickerDate(): Date {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - DEFAULT_DOB_YEARS_AGO);
+  return d;
+}
+
 type Step = "method" | "email";
 
 interface SignupScreenProps {
@@ -53,14 +64,19 @@ interface SignupScreenProps {
 }
 
 export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [step, setStep] = useState<Step>("method");
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [month, setMonth] = useState("");
-  const [day, setDay] = useState("");
-  const [year, setYear] = useState("");
+  const [dobDate, setDobDate] = useState<Date | null>(null);
+  // iOS only -- Android's DateTimePicker is its own native dialog with its
+  // own Cancel/OK, so it commits or discards on its own. iOS instead
+  // renders inline (see the Modal below), which needs an explicit
+  // Cancel/Done pair -- pendingDob is the in-progress scroll value, only
+  // copied into dobDate on Done, so Cancel can discard it.
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pendingDob, setPendingDob] = useState<Date>(defaultPickerDate());
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
@@ -94,13 +110,30 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
   }
 
   function parsedDob(): string | null {
-    const m = parseInt(month, 10);
-    const d = parseInt(day, 10);
-    const y = parseInt(year, 10);
-    if (!m || !d || !y || m < 1 || m > 12 || d < 1 || d > 31 || y < 1900 || y > new Date().getFullYear()) {
-      return null;
-    }
+    if (!dobDate) return null;
+    const y = dobDate.getFullYear();
+    const m = dobDate.getMonth() + 1;
+    const d = dobDate.getDate();
     return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  }
+
+  function openDatePicker() {
+    setPendingDob(dobDate || defaultPickerDate());
+    setShowDatePicker(true);
+  }
+
+  function confirmDatePicker() {
+    setDobDate(pendingDob);
+    setShowDatePicker(false);
+  }
+
+  function cancelDatePicker() {
+    setShowDatePicker(false);
+  }
+
+  function handleAndroidDateChange(event: { type: string }, selectedDate?: Date) {
+    setShowDatePicker(false);
+    if (event.type === "set" && selectedDate) setDobDate(selectedDate);
   }
 
   // Mirrors is_user_underage's age math (backend/app/services/supabase_db.py)
@@ -280,36 +313,61 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
       />
 
       <Text style={styles.fieldLabel}>{t("signup.dobLabel")}</Text>
-      <View style={styles.dobRow}>
-        <TextInput
-          style={[styles.input, styles.dobInput]}
-          placeholder={t("signup.dobMonthPlaceholder")}
-          placeholderTextColor={colors.muted}
-          value={month}
-          onChangeText={setMonth}
-          keyboardType="number-pad"
-          maxLength={2}
-        />
-        <TextInput
-          style={[styles.input, styles.dobInput]}
-          placeholder={t("signup.dobDayPlaceholder")}
-          placeholderTextColor={colors.muted}
-          value={day}
-          onChangeText={setDay}
-          keyboardType="number-pad"
-          maxLength={2}
-        />
-        <TextInput
-          style={[styles.input, styles.dobInput, styles.dobYearInput]}
-          placeholder={t("signup.dobYearPlaceholder")}
-          placeholderTextColor={colors.muted}
-          value={year}
-          onChangeText={setYear}
-          keyboardType="number-pad"
-          maxLength={4}
-        />
-      </View>
+      <TouchableOpacity
+        style={[styles.input, styles.dobField]}
+        onPress={openDatePicker}
+        accessibilityRole="button"
+        accessibilityLabel={t("signup.dobLabel")}
+      >
+        <Text style={dobDate ? styles.dobFieldValue : styles.dobFieldPlaceholder}>
+          {dobDate
+            ? dobDate.toLocaleDateString(i18n.language, { month: "long", day: "numeric", year: "numeric" })
+            : t("signup.dobPlaceholder")}
+        </Text>
+        <Text style={styles.dobFieldIcon}>📅</Text>
+      </TouchableOpacity>
       <Text style={styles.helperText}>{t("signup.dobHelper")}</Text>
+
+      {/* Android's DateTimePicker is a native dialog with its own Cancel/OK
+          -- mounting it is enough to show it, and it unmounts itself via
+          handleAndroidDateChange once the walker picks or dismisses. */}
+      {Platform.OS === "android" && showDatePicker && (
+        <DateTimePicker
+          value={dobDate || defaultPickerDate()}
+          mode="date"
+          display="default"
+          maximumDate={new Date()}
+          onChange={handleAndroidDateChange}
+        />
+      )}
+
+      {/* iOS renders inline rather than as a dialog, so it needs its own
+          sheet chrome (Cancel/Done) -- matches the bottom-sheet treatment
+          already used for Tour Complete's discard confirm. */}
+      {Platform.OS === "ios" && (
+        <Modal transparent visible={showDatePicker} animationType="slide" onRequestClose={cancelDatePicker}>
+          <View style={styles.dobSheetScrim}>
+            <View style={styles.dobSheet}>
+              <View style={styles.dobSheetBar}>
+                <TouchableOpacity onPress={cancelDatePicker} accessibilityRole="button" accessibilityLabel={t("common.cancel")}>
+                  <Text style={styles.dobSheetCancel}>{t("common.cancel")}</Text>
+                </TouchableOpacity>
+                <Text style={styles.dobSheetTitle}>{t("signup.dobLabel")}</Text>
+                <TouchableOpacity onPress={confirmDatePicker} accessibilityRole="button" accessibilityLabel={t("signup.dobDone")}>
+                  <Text style={styles.dobSheetDone}>{t("signup.dobDone")}</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={pendingDob}
+                mode="date"
+                display="spinner"
+                maximumDate={new Date()}
+                onChange={(_, selectedDate) => selectedDate && setPendingDob(selectedDate)}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
 
       <TextInput
         style={styles.input}
@@ -503,17 +561,57 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     fontSize: 16,
   },
-  dobRow: {
+  dobField: {
     flexDirection: "row",
-    gap: 10,
+    alignItems: "center",
+    justifyContent: "space-between",
   },
-  dobInput: {
+  dobFieldValue: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: "600",
+  },
+  dobFieldPlaceholder: {
+    fontSize: 16,
+    color: colors.muted,
+  },
+  dobFieldIcon: {
+    fontSize: 16,
+    opacity: 0.6,
+  },
+  dobSheetScrim: {
     flex: 1,
-    textAlign: "center",
-    marginBottom: 0,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(10,12,18,0.4)",
   },
-  dobYearInput: {
-    flex: 1.4,
+  dobSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    paddingBottom: 20,
+  },
+  dobSheetBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  dobSheetCancel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.muted,
+  },
+  dobSheetTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  dobSheetDone: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.accent,
   },
   helperText: {
     fontSize: 11.5,

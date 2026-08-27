@@ -26,6 +26,12 @@ export const colors = {
   // "Low info" zone flag on the Home map — deliberately warm/amber, not
   // danger's red, since this isn't an error state, just a heads-up.
   lowInfo: "#C9922B",
+  // WaypointCompass's "video-game HUD" look, deliberately its own dark/
+  // neon palette rather than the rest of the light theme — tokenized
+  // here so it's an intentional, named choice instead of a hardcoded
+  // one-off, not because the look itself needed to change.
+  hudBackground: "#181A24",
+  hudAccent: "#FF9666",
 };
 
 export const font = {

@@ -28,8 +28,6 @@ export default function WaypointCompass({ bearingDeg, distanceLabel }: WaypointC
   );
 }
 
-const NEON = "#FF9666";
-
 const styles = StyleSheet.create({
   wrap: {
     alignItems: "center",
@@ -38,7 +36,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: "#181A24",
+    backgroundColor: colors.hudBackground,
     borderWidth: 1.4,
     borderColor: "rgba(255, 107, 74, 0.45)",
     alignItems: "center",
@@ -56,8 +54,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 12,
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
-    borderBottomColor: NEON,
-    shadowColor: NEON,
+    borderBottomColor: colors.hudAccent,
+    shadowColor: colors.hudAccent,
     shadowOpacity: 0.9,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 0 },
@@ -70,8 +68,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 8,
     borderLeftColor: "transparent",
     borderRightColor: "transparent",
-    borderBottomColor: NEON,
-    shadowColor: NEON,
+    borderBottomColor: colors.hudAccent,
+    shadowColor: colors.hudAccent,
     shadowOpacity: 0.9,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 0 },

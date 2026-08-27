@@ -137,7 +137,11 @@ export default function AudioPlayer({
         <TouchableOpacity onPress={togglePlayPause} style={styles.playBtn}>
           <Text style={styles.playBtnText}>{isPlaying ? "⏸" : "▶️"}</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleSkip} style={styles.skipBtn}>
+        <TouchableOpacity
+          onPress={handleSkip}
+          style={styles.skipBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
           <Text style={styles.skipBtnText}>⏭</Text>
         </TouchableOpacity>
       </View>

@@ -7,7 +7,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Modal, TouchableOpacity } from "react-native";
 import { useTranslation } from "react-i18next";
-import { colors, font, radius } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 import BoscoHero from "./BoscoHero";
 
 // Bosco, the app's mascot, checking both ways before crossing -- matches
@@ -78,9 +78,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingTop: 56,
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.lg,
     fontFamily: font.display,
-    fontSize: 32,
+    fontSize: type.display,
     lineHeight: 36,
     fontWeight: "700",
     color: "#fff",
@@ -99,12 +99,12 @@ const styles = StyleSheet.create({
   },
   tip: {
     flexDirection: "row",
-    gap: 8,
+    gap: spacing.sm,
     alignItems: "flex-start",
     marginBottom: 6,
   },
   tipIcon: {
-    fontSize: 14,
+    fontSize: type.label,
     width: 20,
     textAlign: "center",
   },

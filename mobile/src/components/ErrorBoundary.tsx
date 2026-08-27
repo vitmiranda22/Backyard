@@ -8,7 +8,7 @@ import { StyleSheet, Text, View, Pressable } from "react-native";
 import * as Sentry from "@sentry/react-native";
 import * as Updates from "expo-updates";
 import { withTranslation, WithTranslation } from "react-i18next";
-import { colors, font, radius } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 import BoscoHero from "./BoscoHero";
 
 // Bosco, apologetic and scratching his head -- full-bleed, same
@@ -87,9 +87,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingTop: 56,
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.lg,
     fontFamily: font.display,
-    fontSize: 24,
+    fontSize: type.headline,
     color: "#fff",
     textAlign: "center",
     textShadowColor: "rgba(0,0,0,0.5)",
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    padding: 32,
+    padding: spacing.xl,
     paddingBottom: 44,
     alignItems: "center",
   },
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     color: "#fff",
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: spacing.lg,
     lineHeight: 21,
     textShadowColor: "rgba(0,0,0,0.55)",
     textShadowOffset: { width: 0, height: 1 },
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     borderRadius: radius.pill,
     paddingVertical: 14,
-    paddingHorizontal: 32,
+    paddingHorizontal: spacing.xl,
   },
   buttonText: {
     color: colors.accentText,

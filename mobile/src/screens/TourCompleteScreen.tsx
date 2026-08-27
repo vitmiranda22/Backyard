@@ -26,7 +26,7 @@ import ViewShot from "react-native-view-shot";
 import { endTour, EndTourResponse, publishTour, deleteTour } from "../services/api";
 import TourStatsGrid from "../components/TourStatsGrid";
 import BoscoHero from "../components/BoscoHero";
-import { colors, font, radius } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 import { showToast } from "../services/toast";
 import { tap, success } from "../services/haptics";
 import { track } from "../services/analytics";
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-end",
     padding: 18,
-    paddingBottom: 24,
+    paddingBottom: spacing.lg,
   },
   polaroid: {
     position: "absolute",
@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
     width: 118,
     backgroundColor: "#fff",
     borderRadius: 8,
-    padding: 8,
+    padding: spacing.sm,
     paddingBottom: 14,
     transform: [{ rotate: "6deg" }],
     shadowColor: "#000",
@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.14)",
-    padding: 16,
+    padding: spacing.md,
   },
   heroCardLabel: {
     fontSize: 11,
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     color: "rgba(255,255,255,0.75)",
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   container: {
     flex: 1,
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
     fontFamily: font.display,
     fontSize: 26,
     color: colors.text,
-    marginBottom: 16,
+    marginBottom: spacing.md,
     textAlign: "center",
   },
   titleInput: {
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
   },
   doneBtnText: {
     color: colors.accentText,
-    fontSize: 16,
+    fontSize: type.body,
     fontWeight: "bold",
     textAlign: "center",
   },
@@ -557,13 +557,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   shareDesc: {
-    fontSize: 12,
+    fontSize: type.caption,
     color: colors.muted,
     marginTop: 2,
   },
   loadingText: {
     color: colors.muted,
-    marginTop: 16,
-    fontSize: 16,
+    marginTop: spacing.md,
+    fontSize: type.body,
   },
 });

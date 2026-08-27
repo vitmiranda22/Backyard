@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { getUserStats } from "../services/api";
 import { getAllBadges, BadgeStatus } from "../services/badges";
-import { colors, font, radius } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 import { showToast } from "../services/toast";
 import BoscoHero from "../components/BoscoHero";
 
@@ -137,10 +137,10 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: font.display,
-    fontSize: 24,
+    fontSize: type.headline,
     color: "#fff",
     textAlign: "center",
-    marginBottom: 4,
+    marginBottom: spacing.xs,
     textShadowColor: "rgba(0,0,0,0.5)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 8,
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
+    padding: spacing.md,
     borderRadius: radius.md,
     marginBottom: 10,
   },
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   label: {
-    fontSize: 16,
+    fontSize: type.body,
     fontWeight: "700",
     color: colors.text,
   },
@@ -205,12 +205,12 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
   requirement: {
-    fontSize: 12,
+    fontSize: type.caption,
     color: colors.muted,
     marginTop: 2,
   },
   lock: {
-    fontSize: 16,
-    marginLeft: 8,
+    fontSize: type.body,
+    marginLeft: spacing.sm,
   },
 });

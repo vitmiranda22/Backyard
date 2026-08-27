@@ -40,9 +40,25 @@ jest.mock("@supabase/supabase-js", () => {
     getSession: jest.fn(),
     onAuthStateChange: jest.fn(),
   };
+  // Captures the `storage` adapter auth.ts hands to createClient() (its
+  // LargeSecureStore-backed conditionalStorage) so the encryption/migration
+  // tests below can exercise the exact same instance the real client would
+  // read/write through. A plain outer `let` reassigned from inside this
+  // factory doesn't work here -- babel-plugin-jest-hoist hoists this whole
+  // jest.mock call (and the imports that trigger it) above such a `let`'s
+  // own initializer in the compiled output, so the initializer would run
+  // AFTER capture and stomp the real value back to null. Mutating a
+  // property on an object living inside this factory's own closure (then
+  // exporting that same object) sidesteps the issue since there's no
+  // separate outer binding to reset.
+  const capturedStorage: { current: any } = { current: null };
   return {
-    createClient: jest.fn(() => ({ auth })),
+    createClient: jest.fn((_url: string, _key: string, options: any) => {
+      capturedStorage.current = options?.auth?.storage ?? null;
+      return { auth };
+    }),
     __mockAuth: auth,
+    __capturedStorage: capturedStorage,
   };
 });
 
@@ -54,6 +70,32 @@ jest.mock("expo-apple-authentication", () => ({
   signInAsync: jest.fn(),
   isAvailableAsync: jest.fn(),
   AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
+}));
+// Real in-memory implementations (not stubs) -- these back LargeSecureStore's
+// key storage and random-byte generation, so the encryption tests below
+// exercise the actual aes-js encrypt/decrypt round trip rather than a faked
+// no-op, which is the only way to meaningfully test this security-critical
+// code path.
+jest.mock("expo-secure-store", () => {
+  const store = new Map<string, string>();
+  return {
+    getItemAsync: jest.fn((key: string) => Promise.resolve(store.get(key) ?? null)),
+    setItemAsync: jest.fn((key: string, value: string) => {
+      store.set(key, value);
+      return Promise.resolve();
+    }),
+    deleteItemAsync: jest.fn((key: string) => {
+      store.delete(key);
+      return Promise.resolve();
+    }),
+  };
+});
+jest.mock("expo-crypto", () => ({
+  getRandomBytesAsync: jest.fn((byteCount: number) => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const nodeCrypto = require("crypto");
+    return Promise.resolve(new Uint8Array(nodeCrypto.randomBytes(byteCount)));
+  }),
 }));
 jest.mock("@react-native-google-signin/google-signin", () => ({
   GoogleSignin: {
@@ -69,8 +111,10 @@ import * as auth from "../auth";
 import * as supabaseJs from "@supabase/supabase-js";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const mockAuth = (supabaseJs as any).__mockAuth;
+const mockCapturedStorage = (supabaseJs as any).__capturedStorage;
 
 describe("auth service", () => {
   beforeEach(() => {
@@ -269,6 +313,68 @@ describe("auth service", () => {
 
       expect(await auth.getCurrentUserId()).toBe("u1");
       expect(await auth.getCurrentUserEmail()).toBe("a@b.com");
+    });
+  });
+
+  // Exercises LargeSecureStore (the encrypted-session wrapper) through the
+  // exact conditionalStorage instance auth.ts wired up as Supabase's storage
+  // adapter -- routes through the persisted path (not the "keep me signed
+  // in" OFF in-memory fallback), same as a real signed-in session on disk.
+  describe("session storage encryption (LargeSecureStore)", () => {
+    beforeEach(async () => {
+      await auth.setKeepSignedIn(true);
+    });
+
+    it("never persists the session as plaintext on disk", async () => {
+      const key = "sb-test-plaintext-check";
+      const sessionJson = JSON.stringify({ access_token: "super-secret-token" });
+
+      await mockCapturedStorage.current.setItem(key, sessionJson);
+
+      const raw = await AsyncStorage.getItem(key);
+      expect(raw).not.toBe(sessionJson);
+      expect(raw).not.toContain("super-secret-token");
+    });
+
+    it("round-trips a stored value back to its original plaintext", async () => {
+      const key = "sb-test-roundtrip";
+      const sessionJson = JSON.stringify({ access_token: "a", refresh_token: "b" });
+
+      await mockCapturedStorage.current.setItem(key, sessionJson);
+
+      expect(await mockCapturedStorage.current.getItem(key)).toBe(sessionJson);
+    });
+
+    it("migrates a legacy plaintext value in place instead of discarding it", async () => {
+      const key = "sb-test-legacy-migration";
+      // Simulate a session saved by the pre-encryption code: raw JSON
+      // already sitting in AsyncStorage, with no corresponding SecureStore
+      // key (since that key never existed before this feature shipped).
+      const legacyJson = JSON.stringify({ access_token: "legacy-token" });
+      await AsyncStorage.setItem(key, legacyJson);
+
+      const firstRead = await mockCapturedStorage.current.getItem(key);
+      expect(firstRead).toBe(legacyJson);
+
+      // That first read should have silently re-encrypted it in place.
+      const rawAfterMigration = await AsyncStorage.getItem(key);
+      expect(rawAfterMigration).not.toBe(legacyJson);
+
+      expect(await mockCapturedStorage.current.getItem(key)).toBe(legacyJson);
+    });
+
+    it("removeItem clears both the ciphertext and its encryption key", async () => {
+      const key = "sb-test-remove";
+      await mockCapturedStorage.current.setItem(key, "some-session-value");
+
+      await mockCapturedStorage.current.removeItem(key);
+
+      expect(await AsyncStorage.getItem(key)).toBeNull();
+      expect(await mockCapturedStorage.current.getItem(key)).toBeNull();
+    });
+
+    it("getItem returns null (not a crash) for a key that was never written", async () => {
+      expect(await mockCapturedStorage.current.getItem("sb-test-never-written")).toBeNull();
     });
   });
 });

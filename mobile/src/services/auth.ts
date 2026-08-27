@@ -7,6 +7,9 @@
 
 import { createClient } from "@supabase/supabase-js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
+import * as Crypto from "expo-crypto";
+import * as aesjs from "aes-js";
 import { Platform } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { GoogleSignin, isSuccessResponse } from "@react-native-google-signin/google-signin";
@@ -45,6 +48,73 @@ export async function setKeepSignedIn(value: boolean) {
   await AsyncStorage.setItem(KEEP_SIGNED_IN_KEY, value ? "true" : "false");
 }
 
+// AsyncStorage is plain unencrypted disk storage -- fine for prefs, not for
+// a Supabase session (access + refresh token, long-lived). SecureStore is
+// encrypted but Android caps it at ~2KB per item, and a Supabase session
+// carrying OAuth identity data (Google/Apple) can exceed that. This splits
+// the difference the way Supabase's own React Native guide recommends: a
+// random AES key (small, safe) lives in SecureStore, the actual session
+// (arbitrarily large) is encrypted with that key and only the ciphertext
+// touches AsyncStorage -- unreadable without the OS-keychain-protected key.
+// A fresh key is generated on every write and re-saved under the same
+// SecureStore identifier; since encryption is always (fresh key, ciphertext)
+// as a pair, an old ciphertext is never readable with a newer key, which is
+// fine -- getItem only ever reads back what the most recent setItem wrote.
+class LargeSecureStore {
+  private async encrypt(key: string, value: string): Promise<string> {
+    const encryptionKey = await Crypto.getRandomBytesAsync(32);
+    const cipher = new aesjs.ModeOfOperation.ctr(encryptionKey, new aesjs.Counter(1));
+    const encryptedBytes = cipher.encrypt(aesjs.utils.utf8.toBytes(value));
+
+    await SecureStore.setItemAsync(key, aesjs.utils.hex.fromBytes(encryptionKey));
+    return aesjs.utils.hex.fromBytes(encryptedBytes);
+  }
+
+  private decrypt(encryptionKeyHex: string, value: string): string {
+    const cipher = new aesjs.ModeOfOperation.ctr(aesjs.utils.hex.toBytes(encryptionKeyHex), new aesjs.Counter(1));
+    const decryptedBytes = cipher.decrypt(aesjs.utils.hex.toBytes(value));
+    return aesjs.utils.utf8.fromBytes(decryptedBytes);
+  }
+
+  async getItem(key: string): Promise<string | null> {
+    const stored = await AsyncStorage.getItem(key);
+    if (!stored) return null;
+
+    const encryptionKeyHex = await SecureStore.getItemAsync(key);
+    if (!encryptionKeyHex) {
+      // No key on file for this identifier -- either nothing was ever
+      // written here, or (the real-world case right after this ships) it's
+      // a legacy plaintext session saved before encryption existed. Treat
+      // it as plaintext and immediately re-save it through setItem so it's
+      // encrypted from here on, migrating already-signed-in walkers in
+      // place instead of force-logging them out.
+      await this.setItem(key, stored);
+      return stored;
+    }
+
+    try {
+      return this.decrypt(encryptionKeyHex, stored);
+    } catch (e) {
+      // Corrupt/unreadable ciphertext -- fail safe (treat as signed out)
+      // rather than crash the app on launch.
+      console.warn("Failed to decrypt stored session, treating as signed out:", e);
+      return null;
+    }
+  }
+
+  async setItem(key: string, value: string): Promise<void> {
+    const encrypted = await this.encrypt(key, value);
+    await AsyncStorage.setItem(key, encrypted);
+  }
+
+  async removeItem(key: string): Promise<void> {
+    await AsyncStorage.removeItem(key);
+    await SecureStore.deleteItemAsync(key);
+  }
+}
+
+const secureStore = new LargeSecureStore();
+
 // Supabase's own storage interface (get/set/removeItem) -- swaps between
 // real disk storage and the in-memory Map above per-write, based on
 // whichever the "keep me signed in" checkbox last saved. Reads check disk
@@ -52,18 +122,18 @@ export async function setKeepSignedIn(value: boolean) {
 // this preference key itself hasn't been written yet this launch.
 const conditionalStorage = {
   async getItem(key: string) {
-    const stored = await AsyncStorage.getItem(key);
+    const stored = await secureStore.getItem(key);
     return stored ?? sessionOnlyStore.get(key) ?? null;
   },
   async setItem(key: string, value: string) {
     if (await keepSignedInIsOn()) {
-      await AsyncStorage.setItem(key, value);
+      await secureStore.setItem(key, value);
     } else {
       sessionOnlyStore.set(key, value);
     }
   },
   async removeItem(key: string) {
-    await AsyncStorage.removeItem(key);
+    await secureStore.removeItem(key);
     sessionOnlyStore.delete(key);
   },
 };

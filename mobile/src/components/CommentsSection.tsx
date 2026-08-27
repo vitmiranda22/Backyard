@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { getComments, postComment, reportComment, Comment, ReportReason } from "../services/api";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
-import { colors, font, radius } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -125,11 +125,11 @@ export default function CommentsSection({ tourId }: CommentsSectionProps) {
 const styles = StyleSheet.create({
   container: {
     width: "100%",
-    marginTop: 24,
+    marginTop: spacing.lg,
   },
   header: {
     fontFamily: font.display,
-    fontSize: 18,
+    fontSize: type.title,
     color: colors.text,
     marginBottom: 12,
     alignSelf: "flex-start",
@@ -146,12 +146,12 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.md,
     padding: 12,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   commentHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   commentAuthor: {
     fontSize: 13,
@@ -179,8 +179,8 @@ const styles = StyleSheet.create({
   },
   inputRow: {
     flexDirection: "row",
-    gap: 8,
-    marginTop: 8,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
     alignItems: "flex-end",
   },
   input: {
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   postBtn: {
     backgroundColor: colors.accent,
     borderRadius: radius.md,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingVertical: 12,
   },
   postBtnDisabled: {

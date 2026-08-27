@@ -7,7 +7,7 @@ import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import { useTranslation } from "react-i18next";
 import { requestPasswordReset } from "../services/auth";
-import { colors, font, radius } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 
 interface ForgotPasswordScreenProps {
   onBack: () => void;
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
-    padding: 24,
+    padding: spacing.lg,
     paddingTop: 60,
   },
   backArrow: {
@@ -90,12 +90,12 @@ const styles = StyleSheet.create({
   },
   heading: {
     fontFamily: font.display,
-    fontSize: 24,
+    fontSize: type.headline,
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   subheading: {
-    fontSize: 14,
+    fontSize: type.label,
     color: colors.muted,
     marginBottom: 22,
     lineHeight: 20,
@@ -107,18 +107,18 @@ const styles = StyleSheet.create({
     color: colors.text,
     padding: 14,
     borderRadius: radius.md,
-    marginBottom: 16,
-    fontSize: 16,
+    marginBottom: spacing.md,
+    fontSize: type.body,
   },
   primaryBtn: {
     backgroundColor: colors.accent,
-    padding: 16,
+    padding: spacing.md,
     borderRadius: radius.md,
   },
   primaryBtnText: {
     color: colors.accentText,
     textAlign: "center",
-    fontSize: 18,
+    fontSize: type.title,
     fontWeight: "700",
   },
 });

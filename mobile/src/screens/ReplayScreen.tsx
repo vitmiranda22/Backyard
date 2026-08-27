@@ -11,7 +11,7 @@ import { getTourDetail, TourDetail, TourBlockDetail } from "../services/api";
 import { haversineDistanceMeters } from "../utils/geo";
 import { REPLAY_PROXIMITY_M } from "../config";
 import NarrationCard from "../components/NarrationCard";
-import { colors, radius } from "../theme";
+import { colors, radius, type, spacing } from "../theme";
 import { showToast } from "../services/toast";
 
 interface ReplayScreenProps {
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingVertical: 10,
     gap: 12,
     backgroundColor: colors.surface,
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   },
   statsText: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: type.label,
     fontWeight: "700",
   },
   title: {
@@ -240,12 +240,12 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   guideCard: {
-    padding: 16,
+    padding: spacing.md,
     alignItems: "center",
   },
   guideText: {
     color: colors.muted,
-    fontSize: 14,
+    fontSize: type.label,
     textAlign: "center",
   },
 });

@@ -196,7 +196,15 @@ async def narrate_block(
     # already-cached location. Doing it once, unconditionally, here fixes
     # that and lets the branch below reuse the same row instead of a second
     # DB round trip.
-    cached_zone = await supabase_db.get_cached_zone_data(geo_hash)
+    #
+    # Run alongside the reverse-geocode call below (originally a separate
+    # sequential await further down) -- neither has any data dependency on
+    # the other, so there's no reason to pay for both round trips back to
+    # back instead of concurrently.
+    cached_zone, geo_result = await asyncio.gather(
+        supabase_db.get_cached_zone_data(geo_hash),
+        geocode.reverse_geocode(request.lat, request.lng),
+    )
 
     # Available whenever cached_zone has a row, regardless of whether
     # narration itself is a cache hit or miss below -- suggested_next
@@ -243,7 +251,7 @@ async def narrate_block(
         was_cached = True
 
     # --- Step 3: Reverse geocode ---
-    geo_result = await geocode.reverse_geocode(request.lat, request.lng)
+    # geo_result was already resolved above, gathered alongside cached_zone.
     if geo_result:
         street_name = geo_result.street
         neighborhood = geo_result.neighborhood

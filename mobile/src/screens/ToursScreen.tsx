@@ -25,7 +25,7 @@ import { tap } from "../services/haptics";
 // Bosco, shrugging/scanning the horizon -- reused for both "My Tours" and
 // "Discover" empty states, since neither is a full standalone screen (the
 // tab bar and nav stay visible underneath).
-const MASCOT_IMAGE = require("../../assets/bosco-empty-state-square.png");
+const MASCOT_IMAGE = require("../../assets/bosco-empty-state-square.jpg");
 
 const MOOD_EMOJI: Record<string, string> = {
   time_machine: "🕰️",

@@ -28,7 +28,7 @@ import { colors, font, radius } from "../theme";
 // quoted below. He's the app-level host (login, onboarding, safety); they
 // narrate mood-specific blocks once a tour is underway. Send-off pose,
 // shared with Signup's method step and Onboarding card 4.
-const MASCOT_IMAGE = require("../../assets/bosco-sendoff.png");
+const MASCOT_IMAGE = require("../../assets/bosco-sendoff.jpg");
 
 // One line per named guide persona (GUIDE_PERSONAS in backend/app/api/tours.py),
 // written in that persona's established voice — picked once per app open

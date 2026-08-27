@@ -14,7 +14,7 @@ import { showToast } from "../services/toast";
 // Same celebrating pose as TourCompleteScreen's naming moment -- a hero
 // band up top, not a full-screen bleed, since this screen is a scrollable
 // list underneath.
-const MASCOT_IMAGE = require("../../assets/bosco-celebrating.png");
+const MASCOT_IMAGE = require("../../assets/bosco-celebrating.jpg");
 
 interface BadgeGalleryScreenProps {
   onBack: () => void;

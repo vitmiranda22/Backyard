@@ -34,7 +34,7 @@ import { colors, font, radius } from "../theme";
 // Same send-off pose as LoginScreen, for auth-flow continuity. Only the
 // method step gets the full-bleed hero treatment -- the email/DOB details
 // step is a dense form that needs to stay a plain, focused card.
-const MASCOT_IMAGE = require("../../assets/bosco-sendoff.png");
+const MASCOT_IMAGE = require("../../assets/bosco-sendoff.jpg");
 
 const PRIVACY_URL = "https://backyard-api.onrender.com/privacy";
 const TERMS_URL = "https://backyard-api.onrender.com/terms";
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.text,
   },
   // Same oversized-image-with-negative-offset crop as LoginScreen (same
-  // source image, bosco-sendoff.png) -- plain resizeMode="cover" alone
+  // source image, bosco-sendoff.jpg) -- plain resizeMode="cover" alone
   // was cutting Bosco's face out of frame here.
   bgWrap: {
     ...StyleSheet.absoluteFillObject,

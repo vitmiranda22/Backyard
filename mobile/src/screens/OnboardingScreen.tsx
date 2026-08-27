@@ -17,9 +17,9 @@ const CARD_KEYS = ["card1", "card2", "card3", "card4"];
 const CARD_EMOJI = ["🚶", "🎭", "🗺️", "✨"];
 
 // Holding a "Welcome Backyard" sign -- card 1 only.
-const WELCOME_IMAGE = require("../../assets/bosco-onboarding-welcome.png");
+const WELCOME_IMAGE = require("../../assets/bosco-onboarding-welcome.jpg");
 // Send-off pose, shared with Login/Signup for continuity -- card 4 only.
-const SENDOFF_IMAGE = require("../../assets/bosco-sendoff.png");
+const SENDOFF_IMAGE = require("../../assets/bosco-sendoff.jpg");
 
 interface OnboardingScreenProps {
   onDone: () => void;

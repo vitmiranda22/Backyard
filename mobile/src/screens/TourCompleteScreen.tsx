@@ -33,7 +33,7 @@ import { track } from "../services/analytics";
 import { maybePromptForReview } from "../services/reviewPrompt";
 
 // Celebrating pose -- shared with BadgeGalleryScreen's header.
-const MASCOT_IMAGE = require("../../assets/bosco-celebrating.png");
+const MASCOT_IMAGE = require("../../assets/bosco-celebrating.jpg");
 
 interface TourCompleteProps {
   tourId: string;

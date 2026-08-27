@@ -13,7 +13,7 @@ import { colors, font, radius } from "../theme";
 // Bosco, the app's mascot, checking both ways before crossing -- matches
 // the "before you walk" safety framing. Full-bleed hero, same gradient-
 // scrim template used across the other host-layer screens.
-const MASCOT_IMAGE = require("../../assets/bosco-safety.png");
+const MASCOT_IMAGE = require("../../assets/bosco-safety.jpg");
 
 interface SafetyModalProps {
   visible: boolean;

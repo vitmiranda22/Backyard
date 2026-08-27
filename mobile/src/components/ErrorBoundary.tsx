@@ -13,7 +13,7 @@ import { colors, font, radius } from "../theme";
 
 // Bosco, apologetic and scratching his head -- full-bleed, same
 // gradient-scrim template as the other host-layer screens.
-const MASCOT_IMAGE = require("../../assets/bosco-error.png");
+const MASCOT_IMAGE = require("../../assets/bosco-error.jpg");
 
 interface Props extends WithTranslation {
   children: React.ReactNode;

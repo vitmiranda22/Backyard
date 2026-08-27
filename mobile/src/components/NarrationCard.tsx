@@ -74,17 +74,22 @@ export default function NarrationCard({
     <View style={styles.wrapper}>
       <View style={styles.card}>
         <View style={styles.content}>
-          {/* Street name header */}
+          {/* Street name — a location label, not the content itself, so it
+              reads as secondary (small-caps eyebrow) rather than competing
+              with the actual story below it for the same glance. */}
           <Text style={styles.streetName}>📍 {streetName}</Text>
 
-          {/* Peek drawer — a few lines, tap to read the full story */}
+          {/* The narration text IS the product -- this is what someone
+              opened the app to hear, so it carries the primary reading
+              weight on this card, not the label above it. Peek drawer: a
+              few lines, tap to read the full story in the modal below. */}
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => setFullTextOpen(true)}
             accessibilityRole="button"
             accessibilityLabel={t("narrationCard.readFullStoryA11y")}
           >
-            <Text style={styles.narrationText} numberOfLines={3} ellipsizeMode="tail">
+            <Text style={styles.narrationText} numberOfLines={5} ellipsizeMode="tail">
               {narrationText}
             </Text>
             <Text style={styles.expandHint}>{t("narrationCard.swipeUpHint")}</Text>
@@ -175,22 +180,26 @@ const styles = StyleSheet.create({
     paddingTop: 26,
   },
   streetName: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: "700",
-    color: colors.text,
-    marginBottom: 8,
-    maxWidth: "70%",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+    color: colors.muted,
+    marginBottom: 10,
+    maxWidth: "85%",
   },
   narrationText: {
-    fontSize: 14,
-    color: colors.muted,
-    lineHeight: 20,
+    fontSize: 16,
+    fontWeight: "500",
+    color: colors.text,
+    lineHeight: 24,
   },
   expandHint: {
-    fontSize: 11,
-    color: colors.muted,
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.accent,
     textAlign: "center",
-    marginTop: 6,
+    marginTop: 8,
     marginBottom: 4,
   },
   loadingText: {

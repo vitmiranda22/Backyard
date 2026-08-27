@@ -34,6 +34,29 @@ export const font = {
   display: Platform.select({ ios: "Georgia", android: "serif", default: "Georgia" }),
 };
 
+// Named by role, not size — before this existed, every screen picked its
+// own "this is the headline" number by hand (9 different values across
+// the app for what was conceptually the same role). New screens should
+// reach for one of these; existing screens are being migrated over
+// incrementally, not all at once.
+export const type = {
+  display: 32, // full-bleed hero moments (Login, Safety modal)
+  headline: 24, // standard screen headline — matches the existing majority value
+  title: 18, // section/card titles
+  body: 16, // primary reading text
+  label: 14, // secondary/meta text, form labels
+  caption: 12, // fine print, hints
+};
+
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
+};
+
 export const radius = {
   sm: 10,
   md: 16,

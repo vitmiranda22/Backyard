@@ -9,7 +9,7 @@
 import React from "react";
 import { View, Text, Image, ImageSourcePropType, TouchableOpacity, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
-import { colors, radius, type } from "../theme";
+import { colors, radius, type, spacing } from "../theme";
 
 interface EmptyStateProps {
   image?: ImageSourcePropType;
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: 26,
     paddingVertical: 13,
-    marginTop: 16,
+    marginTop: spacing.md,
   },
   retryBtnText: {
     color: colors.accentText,
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   },
   secondaryBtn: {
     marginTop: 10,
-    padding: 4,
+    padding: spacing.xs,
   },
   secondaryBtnText: {
     color: colors.muted,

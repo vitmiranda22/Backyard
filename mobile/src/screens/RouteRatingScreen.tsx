@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import { rateTour, TourDetail } from "../services/api";
 import StarRating from "../components/StarRating";
 import TourStatsGrid from "../components/TourStatsGrid";
-import { colors, font, radius } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 import { showToast } from "../services/toast";
 import { success } from "../services/haptics";
 
@@ -88,19 +88,19 @@ const styles = StyleSheet.create({
   },
   emoji: {
     fontSize: 56,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   title: {
     fontFamily: font.display,
-    fontSize: 24,
+    fontSize: type.headline,
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   tourTitle: {
-    fontSize: 16,
+    fontSize: type.body,
     color: colors.accent,
     fontWeight: "600",
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   creator: {
     fontSize: 13,
@@ -116,9 +116,9 @@ const styles = StyleSheet.create({
   submitBtn: {
     backgroundColor: colors.accent,
     paddingHorizontal: 40,
-    paddingVertical: 16,
+    paddingVertical: spacing.md,
     borderRadius: radius.md,
-    marginTop: 24,
+    marginTop: spacing.lg,
     width: "100%",
   },
   submitBtnDisabled: {
@@ -126,13 +126,13 @@ const styles = StyleSheet.create({
   },
   submitBtnText: {
     color: colors.accentText,
-    fontSize: 16,
+    fontSize: type.body,
     fontWeight: "bold",
     textAlign: "center",
   },
   skipLink: {
     color: colors.muted,
-    fontSize: 14,
-    marginTop: 16,
+    fontSize: type.label,
+    marginTop: spacing.md,
   },
 });

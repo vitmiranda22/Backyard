@@ -5,7 +5,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet, Text } from "react-native";
 import { _setToastListener } from "../services/toast";
-import { colors, radius } from "../theme";
+import { colors, radius, spacing } from "../theme";
 
 const DISMISS_AFTER_MS = 2800;
 
@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     right: 20,
     borderRadius: radius.md,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     zIndex: 999,
     shadowColor: "#000",
     shadowOpacity: 0.15,

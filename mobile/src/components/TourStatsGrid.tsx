@@ -4,7 +4,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
-import { colors, radius } from "../theme";
+import { colors, radius, type, spacing } from "../theme";
 
 interface TourStatsGridProps {
   blocksVisited: number;
@@ -45,25 +45,25 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "center",
     gap: 12,
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
   statCard: {
     backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
+    padding: spacing.md,
     borderRadius: radius.md,
     minWidth: 140,
     alignItems: "center",
   },
   statValue: {
-    fontSize: 18,
+    fontSize: type.title,
     fontWeight: "bold",
     color: colors.text,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: type.caption,
     color: colors.muted,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
 });

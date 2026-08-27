@@ -54,9 +54,11 @@ jest.mock("../../components/NarrationCard", () => {
     return (
       <View>
         {props.isLoading && <Text>narration-loading</Text>}
+        {props.error && <Text>{props.error}</Text>}
         {props.streetName && <Text>{props.streetName}</Text>}
         <TouchableOpacity onPress={props.onAudioFinished}><Text>finish-audio</Text></TouchableOpacity>
         <TouchableOpacity onPress={props.onSkip}><Text>skip-narration</Text></TouchableOpacity>
+        <TouchableOpacity onPress={props.onRetry}><Text>retry-narration</Text></TouchableOpacity>
       </View>
     );
   };
@@ -149,6 +151,25 @@ describe("ActiveTourScreen", () => {
 
     expect(mockStartTour).toHaveBeenCalledWith("time_machine", "neutral", false);
     expect(mockNarrateBlock).toHaveBeenCalledWith(37.77, -122.41, "time_machine", "neutral", false, "auto", "tour-1");
+  });
+
+  it("retries narration at the current location when Retry is pressed after a failure", async () => {
+    mockStartTour.mockResolvedValue({
+      tour_id: "tour-1", mood: "time_machine", voice: "neutral", tour_type: "walking",
+      started_at: "2026-07-15T00:00:00Z", intro_audio_url: null, guide_name: null,
+    });
+    mockGetCurrentLocation.mockResolvedValue({ lat: 37.77, lng: -122.41 });
+    mockNarrateBlock.mockRejectedValueOnce(new Error("network error"));
+
+    const { findByText } = await render(<ActiveTourScreen {...baseProps()} />);
+    await findByText("activeTour.narrationError");
+    expect(mockNarrateBlock).toHaveBeenCalledTimes(1);
+
+    await fireEvent.press(await findByText("retry-narration"));
+
+    await findByText("24th St");
+    expect(mockNarrateBlock).toHaveBeenCalledTimes(2);
+    expect(mockNarrateBlock).toHaveBeenLastCalledWith(37.77, -122.41, "time_machine", "neutral", false, "manual", "tour-1");
   });
 
   it("shows the safety modal immediately, and it doesn't block the tour from starting and narrating block 1 underneath it", async () => {

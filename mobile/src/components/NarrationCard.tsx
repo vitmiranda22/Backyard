@@ -9,6 +9,7 @@ import { View, Text, StyleSheet, ActivityIndicator, Modal, TouchableOpacity, Scr
 import { useTranslation } from "react-i18next";
 import AudioPlayer from "./AudioPlayer";
 import ZonePhoto from "./ZonePhoto";
+import EmptyState from "./EmptyState";
 import { colors, radius } from "../theme";
 
 interface NarrationCardProps {
@@ -21,6 +22,7 @@ interface NarrationCardProps {
   onAudioFinished?: () => void;
   onSkip?: () => void;
   onAudioError?: () => void;
+  onRetry?: () => void;
 }
 
 export default function NarrationCard({
@@ -33,6 +35,7 @@ export default function NarrationCard({
   onAudioFinished,
   onSkip,
   onAudioError,
+  onRetry,
 }: NarrationCardProps) {
   const { t } = useTranslation();
   const [fullTextOpen, setFullTextOpen] = useState(false);
@@ -52,7 +55,7 @@ export default function NarrationCard({
     return (
       <View style={styles.card}>
         <View style={styles.content}>
-          <Text style={styles.errorText}>{error}</Text>
+          <EmptyState message={error} isError onRetry={onRetry} fill={false} />
         </View>
       </View>
     );
@@ -207,12 +210,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 8,
     fontSize: 14,
-  },
-  errorText: {
-    color: colors.danger,
-    textAlign: "center",
-    fontSize: 14,
-    padding: 12,
   },
   emptyText: {
     color: colors.muted,

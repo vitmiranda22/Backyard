@@ -78,8 +78,21 @@ describe("RouteDetailScreen", () => {
 
     await fireEvent.press(await findByText("Tour not found."));
     // The error text itself isn't pressable — press the actual back button.
-    await fireEvent.press(await findByText("common.back"));
+    await fireEvent.press(await findByText("‹ common.back"));
     expect(onBack).toHaveBeenCalled();
+  });
+
+  it("retries the load when Try Again is pressed after a failure", async () => {
+    mockGetTourDetail.mockRejectedValueOnce(new Error("Tour not found."));
+    mockGetTourDetail.mockResolvedValueOnce(baseTour());
+
+    const { findByText } = await render(
+      <RouteDetailScreen tourId="tour-1" onStartReplay={jest.fn()} onBack={jest.fn()} />
+    );
+
+    await fireEvent.press(await findByText("common.retry"));
+    expect(await findByText("Mission Murals")).toBeTruthy();
+    expect(mockGetTourDetail).toHaveBeenCalledTimes(2);
   });
 
   it("toggles the like state and count on success", async () => {

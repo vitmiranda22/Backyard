@@ -633,6 +633,9 @@ export default function ActiveTourScreen({
         narrationText={narrationText}
         audioUrl={audioUrl}
         imageUrl={imageUrl}
+        onRetry={() => {
+          if (location) triggerNarration(location.lat, location.lng, "manual");
+        }}
         onAudioFinished={() => {
           hasActiveAudioRef.current = false;
           if (sequenceRef.current >= MAX_BLOCKS) {

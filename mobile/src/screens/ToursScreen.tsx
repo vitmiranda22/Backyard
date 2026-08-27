@@ -4,7 +4,6 @@ import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
-  Image,
   FlatList,
   TouchableOpacity,
   StyleSheet,
@@ -18,6 +17,7 @@ import type { TFunction } from "i18next";
 import { getTours, TourSummary, getNearbyRoutes, NearbyRoute } from "../services/api";
 import { requestLocationPermission, getCurrentLocation } from "../services/location";
 import StarRating from "../components/StarRating";
+import EmptyState from "../components/EmptyState";
 import { colors, font, radius } from "../theme";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
@@ -62,18 +62,22 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
 
   const [tours, setTours] = useState<TourSummary[] | null>(null);
   const [refreshingMine, setRefreshingMine] = useState(false);
+  const [mineFailed, setMineFailed] = useState(false);
 
   const [routes, setRoutes] = useState<NearbyRoute[] | null>(null);
   const [refreshingDiscover, setRefreshingDiscover] = useState(false);
+  const [discoverFailed, setDiscoverFailed] = useState(false);
 
   const loadMine = useCallback(async () => {
     try {
       const result = await getTours();
       setTours(result);
+      setMineFailed(false);
     } catch (e: any) {
       console.warn("Failed to load tours:", e.message);
       showToast(t("tours.couldntLoadTours"));
       setTours([]);
+      setMineFailed(true);
     }
   }, []);
 
@@ -88,10 +92,12 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
       const loc = await getCurrentLocation();
       const result = await getNearbyRoutes(loc.lat, loc.lng);
       setRoutes(result);
+      setDiscoverFailed(false);
     } catch (e: any) {
       console.warn("Failed to load nearby routes:", e.message);
       showToast(t("home.couldntLoadRoutes"));
       setRoutes([]);
+      setDiscoverFailed(true);
     }
   }, []);
 
@@ -158,10 +164,14 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
             contentContainerStyle={styles.listContent}
             refreshControl={<RefreshControl refreshing={refreshingMine} onRefresh={onRefreshMine} />}
             ListEmptyComponent={
-              <View style={styles.centered}>
-                <Image source={MASCOT_IMAGE} style={styles.emptyImage} accessibilityLabel={t("login.mascotA11y")} />
-                <Text style={styles.emptyText}>{t("tours.noToursYet")}</Text>
-              </View>
+              <EmptyState
+                image={MASCOT_IMAGE}
+                imageAccessibilityLabel={t("login.mascotA11y")}
+                imageSize={110}
+                message={mineFailed ? t("tours.couldntLoadTours") : t("tours.noToursYet")}
+                isError={mineFailed}
+                onRetry={mineFailed ? loadMine : undefined}
+              />
             }
             renderItem={({ item }) => (
               <TouchableOpacity style={styles.card} onPress={() => onSelectRoute(item.tour_id)}>
@@ -190,10 +200,14 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshingDiscover} onRefresh={onRefreshDiscover} />}
           ListEmptyComponent={
-            <View style={styles.centered}>
-              <Image source={MASCOT_IMAGE} style={styles.emptyImage} accessibilityLabel={t("login.mascotA11y")} />
-              <Text style={styles.emptyText}>{t("tours.noRoutesNearby")}</Text>
-            </View>
+            <EmptyState
+              image={MASCOT_IMAGE}
+              imageAccessibilityLabel={t("login.mascotA11y")}
+              imageSize={110}
+              message={discoverFailed ? t("home.couldntLoadRoutes") : t("tours.noRoutesNearby")}
+              isError={discoverFailed}
+              onRetry={discoverFailed ? loadDiscover : undefined}
+            />
           }
           renderItem={({ item }) => (
             <TouchableOpacity style={styles.card} onPress={() => onSelectRoute(item.tour_id)}>
@@ -270,18 +284,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingTop: 60,
-  },
-  emptyImage: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    marginBottom: 14,
-  },
-  emptyText: {
-    color: colors.muted,
-    fontSize: 14,
-    textAlign: "center",
-    paddingHorizontal: 30,
   },
   card: {
     flexDirection: "row",

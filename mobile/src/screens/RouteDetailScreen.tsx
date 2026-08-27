@@ -1,6 +1,6 @@
 // Route Detail screen — shown after tapping a Discover card, before replay.
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Share, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -10,6 +10,7 @@ import { getTourDetail, TourDetail, toggleLike, reportTour, ReportReason } from 
 import StarRating from "../components/StarRating";
 import ZonePhoto from "../components/ZonePhoto";
 import CommentsSection from "../components/CommentsSection";
+import EmptyState from "../components/EmptyState";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
 import { colors, font, radius } from "../theme";
@@ -53,15 +54,20 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
 
-  useEffect(() => {
+  const loadTour = useCallback(() => {
+    setError(null);
     getTourDetail(tourId)
-      .then((t) => {
-        setTour(t);
-        setLiked(t.liked_by_me);
-        setLikeCount(t.like_count);
+      .then((result) => {
+        setTour(result);
+        setLiked(result.liked_by_me);
+        setLikeCount(result.like_count);
       })
       .catch((e: any) => setError(e.message || t("routeDetail.failedToLoad")));
   }, [tourId]);
+
+  useEffect(() => {
+    loadTour();
+  }, [loadTour]);
 
   async function handleToggleLike() {
     tap();
@@ -77,11 +83,15 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
 
   if (error) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.backBtn} onPress={onBack}>
-          <Text style={styles.backBtnText}>{t("common.back")}</Text>
-        </TouchableOpacity>
+      <View style={styles.container}>
+        <EmptyState
+          emoji="🗺️"
+          message={error}
+          isError
+          onRetry={loadTour}
+          onSecondaryAction={onBack}
+          secondaryLabel={`‹ ${t("common.back")}`}
+        />
       </View>
     );
   }
@@ -398,24 +408,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.muted,
     lineHeight: 19,
-  },
-  errorText: {
-    color: colors.danger,
-    fontSize: 15,
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  backBtn: {
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: radius.md,
-  },
-  backBtnText: {
-    color: colors.text,
-    fontWeight: "600",
   },
   startBtn: {
     backgroundColor: colors.accent,

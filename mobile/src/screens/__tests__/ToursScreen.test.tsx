@@ -85,13 +85,25 @@ describe("ToursScreen", () => {
     expect(await findByText("tours.noToursYet")).toBeTruthy();
   });
 
-  it("shows a toast and an empty list (not a crash) when loading tours fails", async () => {
+  it("shows a toast and a retry affordance (not a crash) when loading tours fails", async () => {
     mockGetTours.mockRejectedValue(new Error("network error"));
 
     const { findByText } = await render(<ToursScreen onSelectRoute={jest.fn()} />);
 
-    await findByText("tours.noToursYet");
+    await findByText("tours.couldntLoadTours");
     expect(mockShowToast).toHaveBeenCalledWith("tours.couldntLoadTours");
+  });
+
+  it("retries loading tours when Try Again is pressed after a failure", async () => {
+    mockGetTours.mockRejectedValueOnce(new Error("network error"));
+    mockGetTours.mockResolvedValueOnce([myTour()]);
+
+    const { findByText } = await render(<ToursScreen onSelectRoute={jest.fn()} />);
+
+    await fireEvent.press(await findByText("common.retry"));
+
+    expect(await findByText(myTour().title)).toBeTruthy();
+    expect(mockGetTours).toHaveBeenCalledTimes(2);
   });
 
   it("calls onSelectRoute with the tour_id when a tour card is pressed", async () => {

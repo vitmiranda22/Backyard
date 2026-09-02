@@ -176,6 +176,11 @@ async def terms_of_service():
     return FileResponse(os.path.join(STATIC_DIR, "terms.html"))
 
 
+@app.get("/support", include_in_schema=False)
+async def support():
+    return FileResponse(os.path.join(STATIC_DIR, "support.html"))
+
+
 # =============================================================================
 # Root redirect
 # =============================================================================

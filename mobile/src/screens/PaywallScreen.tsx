@@ -130,7 +130,9 @@ export default function PaywallScreen({ onClose, onPurchased }: PaywallScreenPro
             <Text style={styles.planBtnOutlineText}>
               {annual?.product.priceString ?? "$39.99"} {t("paywall.perYear")}
             </Text>
-            <Text style={styles.planBtnSub}>{t("paywall.save33")}</Text>
+            <Text style={styles.planBtnSub}>
+              {t("paywall.save33", { price: annual?.product.pricePerMonthString ?? "$3.33" })}
+            </Text>
           </TouchableOpacity>
 
           <Text style={styles.autoRenews}>{t("paywall.autoRenews")}</Text>

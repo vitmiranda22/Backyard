@@ -209,7 +209,7 @@
     "planAnnual": "Backyard Explorador Anual",
     "perMonth": "/ mes",
     "perYear": "/ año",
-    "save33": "Ahorra 33%",
+    "save33": "{{price}} / mes, facturado anualmente. Ahorra 33%",
     "autoRenews": "Se renueva automáticamente a menos que se cancele al menos 24 horas antes de que termine el período actual. Administra o cancela cuando quieras en la configuración de tu cuenta de App Store.",
     "termsOfUse": "Términos de Uso",
     "privacyPolicy": "Política de Privacidad",

@@ -56,23 +56,19 @@ specific you say out loud must come from the REAL DATA block below (if
 provided) or your own web search for this exact spot — never from an example
 in these instructions.
 
-NARRATIVE ARC — this is not a trivia dump. It is ONE story with a shape:
-- HOOK: the opening fact or image (see GOOD OPENINGS above).
-- BUILD: 1-2 more details that deepen the SAME thread — not new, disconnected
-  facts, but the next thing that happens, or the next layer of the same story.
-- TURN: a twist, contradiction, or "and here's the part nobody tells you" —
-  the reason this is worth {duration_label} of someone's walk.
-- BUTTON: a short close that resolves or leaves one specific image behind,
-  then hands them to the next block.
-Every fact you use must be a LINK in this chain, not a bullet point. If you
-can't connect a fact to the thread with a "which meant," "because of that,"
-"and that's why," or "but," cut the fact — a shorter connected story beats a
-longer list of trivia. Never write two consecutive sentences that could be
-reordered without changing the meaning; that's the sign you're listing, not
-telling.
+NARRATIVE ARC — this is not a trivia dump. It is ONE story. Every fact you
+use must be a LINK in that story, not a bullet point. If you can't connect a
+fact to the thread with a "which meant," "because of that," "and that's
+why," or "but," cut the fact — a shorter connected story beats a longer list
+of trivia. Never write two consecutive sentences that could be reordered
+without changing the meaning; that's the sign you're listing, not telling.
+The specific shape this story takes (how it opens, how it turns, how it
+closes) is assigned separately below, under THIS BLOCK'S STRUCTURE — follow
+that, not a generic hook/build/turn/button template.
 
-ONE CONTINUOUS PIECE — HOOK/BUILD/TURN/BUTTON happen INSIDE one flowing
-piece of prose, not as four separate mini-scenes. Only the very FIRST
+ONE CONTINUOUS PIECE — the OPEN/THEN/CLOSE moves assigned to you below
+happen INSIDE one flowing piece of prose, not as four separate mini-scenes.
+Only the very FIRST
 sentence of the entire narration gets a hook-style opener (a year-drop, a
 direct command, "See that..."/"Look at..."). If you use a paragraph break,
 it's for pacing only — the sentence right after it must continue the same
@@ -117,6 +113,22 @@ HOW TO WRITE:
   history; "walk in and you'll see the ballroom" is not).
 - Use short sentences for impact. "Gone. Overnight. Nobody talked about it."
 - End by pulling them toward the next block with something specific and irresistible.
+
+SOUND LIKE A PERSON, NOT A MODEL:
+- Vary sentence length on purpose. Don't settle into a rhythm of same-length
+  medium sentences — mix a 3-word fragment with a longer run-on sentence in
+  the same paragraph. Uniform sentence length is the single biggest tell of
+  AI-generated writing.
+- BANNED PHRASES — never write any of these, in any form: "not just X, but
+  Y" (or "not only... but also"), "it's worth noting that," "in many ways,"
+  "arguably," any three-item list shaped like "the X, the Y, and the Z" used
+  as a rhetorical flourish, "at the end of the day," "when it comes to."
+- A sentence is allowed to start mid-thought — a trailed-off correction, a
+  fragment that leans on the sentence before it — rather than always being
+  a complete, fully-formed clause. Real speech doesn't restart clean every
+  time.
+- Lean on contractions. "It's," "that's," "didn't," "you'll" — not "it is,"
+  "that is," "did not," "you will."
 
 FORMAT:
 - {format_line}
@@ -175,16 +187,9 @@ Then snap them back to the present. The contrast between then and now
 IS the story. "That building used to be..." is boring. "Close your eyes.
 It's 1923. This entire block is on fire." — that's a time machine.
 
-STRUCTURE (one flowing scene, not four separate ones):
-- First sentence only: a year and a vivid image — this is the one hook. The
-  year always has a verb attached to it ("It's 1923...") so it reads as a
-  real sentence out loud; never a bare year alone ("1923.") as its own
-  sentence with nothing attached — that's a dead stop when read aloud
-  through earbuds, not a hook.
-- Continuing that same scene: build it — make them feel it, not just know it
-- Still the same piece, now bridging to now — what changed, what survived,
-  what's hidden in plain sight
-- Close by pointing at something they can see RIGHT NOW that connects to the past
+One flowing scene, not four separate ones — follow THIS BLOCK'S STRUCTURE
+below for how it opens, turns, and closes; don't default to a generic
+hook/build/turn/button shape.
 
 VOICE: Cinematic. Vivid. Present-tense even when describing the past.
 Like the opening voiceover of a great film. Not a lecture — a flashback.
@@ -232,6 +237,9 @@ the observation ("Not every block has a secret. This one's just doing
 its job — and that's worth noticing too."). A quiet, specific truth beats
 a manufactured mystery.
 
+Follow THIS BLOCK'S STRUCTURE below for how it opens, turns, and closes —
+don't default to a generic hook/build/turn/button shape.
+
 VOICE: Gleefully curious. Like a friend who notices everything and grabs
 your arm going "wait wait wait — look at THIS." Playful. Delighted.
 The joy of discovering secrets.
@@ -249,16 +257,11 @@ REAL dark. The thing that actually happened here that most people don't
 know about. Unsolved cases. Mysterious disappearances. The fire that
 changed everything. The crime that nobody talks about.
 
-Structure this like a true crime podcast episode — ONE unbroken telling,
-not four separate segments:
-- First sentence only (the cold open): drop them into the scene. A date,
-  a time, a detail that creates immediate tension.
-- Continuing straight out of that scene: layer in details. What the police
-  found. What the neighbors heard. What doesn't add up.
-- Still the same telling, now the turn: the twist, the unanswered question,
-  the thing that makes it eerie
-- Leave them unsettled: end with what was never resolved, or what you can
-  still see if you look closely
+Structure this like a true crime podcast episode — ONE unbroken telling, not
+four separate segments. Follow THIS BLOCK'S STRUCTURE below for how it
+opens, turns, and closes; don't default to a generic hook/build/turn/button
+shape. Whatever the assigned structure, never end on a resolved note — leave
+them unsettled. That's this mode's whole appeal.
 
 If there's no crime or mystery at this exact spot, use: fires, earthquakes,
 tragic accidents, buildings with dark pasts, ghost stories (labeled as
@@ -316,6 +319,9 @@ through here), or pivot to the "insider" voice on something else worth
 gossiping about — a legendary local business, a scene that used to be
 here, a rumor about the building itself. The VOICE (insider, in-the-know)
 matters more than forcing a celebrity name into a spot that never had one.
+
+Follow THIS BLOCK'S STRUCTURE below for how it opens, turns, and closes —
+don't default to a generic hook/build/turn/button shape.
 
 VOICE: Insider. Conspiratorial. Like someone who was there and is finally
 telling you what really happened. A mix of glamour and gossip.
@@ -388,8 +394,197 @@ not need to contain a fact — its ONLY job is to be a reaction. If you
 can delete a sentence and the narration still reads like a straight
 history lecture, you have NOT met this requirement yet.
 
+Follow THIS BLOCK'S STRUCTURE below for how it opens, turns, and closes —
+don't default to a generic hook/build/turn/button shape.
+
 VOICE: Anthony Bourdain meets your funniest friend. Raw, quick, surprising.
 Says what everyone thinks but nobody says on a tour.
+"""
+
+# =============================================================================
+# Structure move pools — one per mood, three slots each (OPENER/PIVOT/CLOSER)
+# =============================================================================
+#
+# Every mood used to share one fixed HOOK/BUILD/TURN/BUTTON arc, and even a
+# single fixed shape per mood (tried and rejected) becomes just as
+# repetitive across a 12-block tour, only relabeled. Instead, each mood
+# owns its own small pool of moves per slot. One request to
+# app/services/openai_service.py's generate_narration() picks ONE move
+# from each slot at random and bakes that combination into the prompt —
+# see build_prompt()'s opener_move/pivot_move/closer_move params below.
+#
+# This picking happens only when a narration is actually generated (a
+# narration_cache miss) — see supabase_db.py's variant-aware caching.
+# There is deliberately no cross-request tracking of which moves a given
+# tour has already heard: the cached narration itself is shared across
+# every user by (geo_hash, mood, content_safety), so a live per-tour
+# "don't repeat" tracker would only ever influence the minority of blocks
+# that are brand new to the whole app — see the narration_cache_variants
+# migration for how variety is actually delivered (multiple independently
+# -generated variants served at random) instead.
+#
+# Pool content differs per mood on purpose — that's what keeps switching
+# moods feel like switching modes, not just switching vocabulary. Dark
+# Side's CLOSER pool has no resolving move at all; that's this mode's
+# whole appeal, not an oversight.
+MOVE_POOLS = {
+    "time_machine": {
+        "opener": [
+            "Open with a year-drop cold open: a specific year folded into a real "
+            "sentence, then straight into a vivid image of that moment. "
+            'Example shape: "It\'s 1923. The whole block is on fire, and nobody '
+            'has called it in yet."',
+            "Open anchored in the PRESENT first, one physical detail right in "
+            "front of the listener, then snap back into the past from there. "
+            'Example shape: "Right where you\'re standing, in 1923, none of '
+            'this existed yet."',
+            "Open on a sense, not a sight — a sound or a smell from the past, "
+            "before you even name the year. Example shape: \"The smell of "
+            'burning wood used to hang over this exact corner for a week straight."',
+        ],
+        "pivot": [
+            "Contrast-snap: cut hard from the past scene straight to what's "
+            'here now. Jarring, not gentle. Example shape: "Now look at it. '
+            'Not a trace."',
+            "Layer-deeper: stay inside the same past moment and go one layer "
+            "further into it — what happened right after, who was there, what "
+            "it cost.",
+            "Survivor-detail: identify the ONE physical thing that bridges "
+            "both eras — still standing, barely changed, easy to miss.",
+        ],
+        "closer": [
+            "Point-and-leave: close on one specific visible detail that "
+            "connects to the past, and stop there. No extra commentary after it.",
+            'Echo-question: leave them with an open question about what else '
+            'survived. Example shape: "What else is still standing that you\'re '
+            'walking straight past?"',
+            "Time-fold: state both eras explicitly overlaid in one image — "
+            'two versions of this block, on top of each other, and they\'re '
+            "standing in both.",
+        ],
+    },
+    "hidden_city": {
+        "opener": [
+            'Direct-point: "See that ___?" — point at the specific detail '
+            "immediately, before explaining anything about it.",
+            'Comparison: state the assumption, then flatly deny it. Example '
+            'shape: "You\'d assume that\'s just another window. It\'s not."',
+            "Question-bait: name the oddity out loud but withhold the reason "
+            "for a beat — make them wait one sentence for the payoff.",
+        ],
+        "pivot": [
+            "Reveal-the-catch: explain the real reason behind the detail you "
+            "pointed at — the thing that makes it not-ordinary.",
+            "Zoom-in: find an even smaller detail nested inside the one you "
+            "already pointed at, and point at THAT.",
+            'Compare-to-elsewhere: connect this detail to a citywide pattern. '
+            'Example shape: "One of only six left in the entire city."',
+        ],
+        "closer": [
+            "Payoff-statement: land the reason plainly and stop — no further "
+            "hedging or softening.",
+            "Dare-to-look: challenge the listener to spot this same kind of "
+            "detail themselves on the next block, without telling them what to "
+            "look for.",
+            "Bridge-forward: set up something specific about to come on the "
+            "next block, tied to what you just noticed here.",
+        ],
+    },
+    "dark_side": {
+        "opener": [
+            "Cold-open scene: a date, a time, a detail that creates immediate "
+            "tension — no framing sentence before it, straight into the scene.",
+            'Object-first: open on a physical object or detail and imply '
+            'something is wrong with it before explaining what. Example shape: '
+            '"There\'s a reason nobody\'s ever replaced that door."',
+            "Statistic-cold: state a stark, flat data point with no editorializing "
+            'around it yet. Example shape: "Three unsolved calls came from this '
+            'address in six years."',
+        ],
+        "pivot": [
+            "Witness-fragment: what someone reported seeing or hearing, told "
+            "in short, clipped fragments, not a full clean account.",
+            "Procedural-detail: what investigators found or did, stated "
+            "matter-of-factly, no drama added on top of the facts themselves.",
+            "What-doesn't-add-up: focus on the one specific inconsistency or "
+            "contradiction in the story.",
+        ],
+        "closer": [
+            "Dangling-question: end on the exact thing that was never "
+            "explained. Do not answer it.",
+            "Still-there: end on the detail that's still physically visible "
+            "today, tying the unease directly to the present moment.",
+            'Rumor-shrug: end by admitting nobody actually knows, and letting '
+            'the listener sit with that. Example shape: "Make of that what '
+            'you want."',
+        ],
+    },
+    "behind_scenes": {
+        "opener": [
+            "Tease-without-naming: reference someone or something specific "
+            "without identifying who or what yet — make them wait for the name.",
+            'Correction: state the commonly-known version, then flatly correct '
+            'it. Example shape: "You\'ve heard it was X. That\'s not actually '
+            'what happened."',
+            "Scene-drop: open mid-anecdote, like you're already three "
+            "sentences into telling someone this story at a bar.",
+        ],
+        "pivot": [
+            "Name-reveal: drop the actual name or identity right at this "
+            "point, timed for effect, not upfront.",
+            "Behind-curtain: shift from the public version of the story to "
+            "what actually happened privately.",
+            "Escalate-detail: add one more, juicier detail that raises the "
+            "stakes of the story you're already telling.",
+        ],
+        "closer": [
+            "Punchline: land the anecdote's actual payoff line and stop right "
+            "there.",
+            "Wink-out: close implying there's more to this story without "
+            "telling it — leave them wanting the sequel.",
+            "Legacy-tag: close on what remains today, physically, because of "
+            "that story.",
+        ],
+    },
+    "unfiltered": {
+        "opener": [
+            'Reaction-first: open with the gut reaction/opinion before any '
+            'fact at all. Example shape: "Okay, I need to talk about this '
+            'building."',
+            "Fact-then-scoff: state one plain fact, then immediately undercut "
+            "it with attitude in the very next clause.",
+            'Direct-challenge: address the listener directly and provoke '
+            'disagreement up front. Example shape: "You\'re gonna want to '
+            'fight me on this one."',
+        ],
+        "pivot": [
+            "Receipts: back up the opinion you already stated with the actual "
+            "fact or evidence for it.",
+            "Escalate-rant: keep building the same complaint or praise "
+            "further — get more worked up, not less.",
+            "Tangent-and-snap-back: veer off onto a half-related tangent for a "
+            "sentence, then snap back to the point.",
+        ],
+        "closer": [
+            "Mic-drop: end on a short, quotable, opinionated line. No "
+            "softening after it.",
+            "Self-aware-close: acknowledge your own bias or passion about "
+            "this and own it rather than hiding it.",
+            "Invite-argument: close by daring the listener to disagree with "
+            "you.",
+        ],
+    },
+}
+
+_STRUCTURE_BLOCK = """
+THIS BLOCK'S STRUCTURE — this is how THIS narration opens, turns, and
+closes. Use it instead of a generic hook/build/turn/button shape:
+- OPEN: {opener_move}
+- THEN: {pivot_move}
+- CLOSE: {closer_move}
+These are instructions about SHAPE, not content — the actual facts and
+images still have to come from the REAL DATA below (if provided) or your
+own knowledge/web search, never invented.
 """
 
 # =============================================================================
@@ -552,6 +747,9 @@ def build_prompt(
     country: str,
     mood: str,
     content_safety: bool,
+    opener_move: str,
+    pivot_move: str,
+    closer_move: str,
     zone_data: str = None,
     is_premium: bool = True,
 ) -> str:
@@ -566,13 +764,19 @@ def build_prompt(
         mood: one of "time_machine", "hidden_city", "dark_side",
               "behind_scenes", "unfiltered"
         content_safety: True = mature allowed, False = PG
+        opener_move: instruction text for how this block opens — one entry
+            from MOVE_POOLS[mood]["opener"], chosen by the caller (see
+            openai_service.py's random per-generation pick).
+        pivot_move: instruction text for how this block turns — one entry
+            from MOVE_POOLS[mood]["pivot"].
+        closer_move: instruction text for how this block closes — one entry
+            from MOVE_POOLS[mood]["closer"].
         zone_data: JSON string of zone data (films, landmarks, etc.)
         is_premium: True = 120-150 words/45-60s. False = a shorter
-            90-115 word/35-45s target — the HOOK/BUILD/TURN/BUTTON
-            structure below still applies to both, just compressed;
-            defaults to True so any caller that doesn't pass this
-            explicitly keeps the (now-shorter-than-original) premium
-            length.
+            90-115 word/35-45s target — the assigned structure below
+            still applies to both, just compressed; defaults to True so
+            any caller that doesn't pass this explicitly keeps the
+            (now-shorter-than-original) premium length.
 
     Returns:
         Complete system prompt string.
@@ -603,6 +807,11 @@ def build_prompt(
         ),
         _SAFETY_ON if content_safety else _SAFETY_OFF,
         mode_prompts.get(mood, _MODE_TIME_MACHINE),
+        _STRUCTURE_BLOCK.format(
+            opener_move=opener_move,
+            pivot_move=pivot_move,
+            closer_move=closer_move,
+        ),
     ]
 
     if zone_data:

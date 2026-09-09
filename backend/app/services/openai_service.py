@@ -14,7 +14,7 @@ import re
 from openai import AsyncOpenAI
 
 from app.config import settings
-from app.core.prompts import build_prompt, build_connector_prompt, CONNECTOR_OPENER_CATEGORIES
+from app.core.prompts import build_prompt, build_connector_prompt, CONNECTOR_OPENER_CATEGORIES, MOVE_POOLS
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +48,31 @@ MODEL = "gpt-4.1-mini"
 # cuts gpt-4.1 usage from 3-of-5 moods to 1-of-5.
 PREMIUM_VOICE_MODEL = "gpt-4.1"
 PREMIUM_VOICE_MOODS = {"unfiltered"}
+
+
+def _pick_structure_moves(mood: str) -> tuple:
+    """
+    Pick one random move from each of this mood's OPENER/PIVOT/CLOSER
+    pools (see prompts.MOVE_POOLS). Deliberately no cross-request
+    tracking — the narration this feeds into is cached and shared across
+    every user (see supabase_db.py's variant-aware narration cache), so a
+    live per-tour "don't repeat" tracker would only affect the minority
+    of blocks nobody has ever requested before. Variety instead comes
+    from each of the (up to 4) cached variants per block having been
+    generated with its own independent random pick.
+
+    Falls back to time_machine's pool if mood is unrecognized, matching
+    build_prompt()'s existing fallback behavior for the mode prompt itself.
+
+    Returns (opener_move, pivot_move, closer_move) — resolved instruction
+    text, ready to pass into build_prompt().
+    """
+    pools = MOVE_POOLS.get(mood, MOVE_POOLS["time_machine"])
+    return (
+        random.choice(pools["opener"]),
+        random.choice(pools["pivot"]),
+        random.choice(pools["closer"]),
+    )
 
 
 def _strip_citations(text: str) -> str:
@@ -103,6 +128,7 @@ async def generate_narration(
         The narration text (120-150 words for premium, 90-115 for free,
         ready for TTS), or None if generation failed.
     """
+    opener_move, pivot_move, closer_move = _pick_structure_moves(mood)
     system_prompt = build_prompt(
         street=street,
         neighborhood=neighborhood,
@@ -110,6 +136,9 @@ async def generate_narration(
         country=country,
         mood=mood,
         content_safety=content_safety,
+        opener_move=opener_move,
+        pivot_move=pivot_move,
+        closer_move=closer_move,
         zone_data=zone_data,
         is_premium=is_premium,
     )

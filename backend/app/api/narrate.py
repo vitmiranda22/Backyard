@@ -230,7 +230,7 @@ async def narrate_block(
 
     # --- Step 2: Check narration cache ---
     cache_mood = _cache_mood_key(request.mood.value, is_premium)
-    cached_narration = await supabase_db.get_cached_narration(
+    cached_narration, existing_variant_count = await supabase_db.get_cached_narration(
         geo_hash=geo_hash,
         mood=cache_mood,
         content_safety=request.content_safety,
@@ -359,12 +359,13 @@ async def narrate_block(
                 },
             )
 
-        # Cache the narration
+        # Cache the narration as the next free variant slot
         stored = await supabase_db.store_narration(
             geo_hash=geo_hash,
             mood=cache_mood,
             content_safety=request.content_safety,
             narration_text=narration_text,
+            variant_index=existing_variant_count,
         )
         if stored:
             narration_cache_id = stored["id"]

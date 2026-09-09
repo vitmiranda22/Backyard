@@ -40,7 +40,7 @@ def _baseline_mocks(monkeypatch):
     monkeypatch.setattr(supabase_db, "is_user_underage", _async(False))
     monkeypatch.setattr(supabase_db, "check_rate_limit", _async((True, "")))
     monkeypatch.setattr(supabase_db, "get_cached_zone_data", _async(None))
-    monkeypatch.setattr(supabase_db, "get_cached_narration", _async(None))
+    monkeypatch.setattr(supabase_db, "get_cached_narration", _async((None, 0)))
     monkeypatch.setattr(supabase_db, "store_zone_data", _async(True))
     monkeypatch.setattr(supabase_db, "store_narration", _async({"id": "narration-1"}))
     monkeypatch.setattr(supabase_db, "get_cached_audio", _async(None))
@@ -112,7 +112,7 @@ def test_premium_user_can_use_premium_mood(app, client, auth_as, monkeypatch):
 
 
 def test_narration_cache_hit_skips_generation_entirely(app, client, auth_as, monkeypatch):
-    monkeypatch.setattr(supabase_db, "get_cached_narration", _async({"id": "cached-1", "narration_text": "Cached text."}))
+    monkeypatch.setattr(supabase_db, "get_cached_narration", _async(({"id": "cached-1", "narration_text": "Cached text."}, 4)))
 
     generation_called = []
     async def _track(**kwargs):

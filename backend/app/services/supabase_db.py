@@ -10,6 +10,7 @@ calling any of these functions.
 """
 
 import logging
+import random
 from datetime import date, datetime, timedelta, timezone
 from supabase import create_client, Client
 
@@ -115,8 +116,23 @@ async def check_question_rate_limit(user_id: str, daily_limit: int) -> tuple:
 # Narration cache operations (Week 1)
 # =============================================================================
 
+MAX_NARRATION_VARIANTS = 4
+
+
 async def get_cached_narration(geo_hash: str, mood: str, content_safety: bool):
-    """Check if we already have a narration for this zone + mood + safety combo."""
+    """
+    Check if we already have a narration for this zone + mood + safety
+    combo. Up to MAX_NARRATION_VARIANTS independently-generated variants
+    can exist per combo (see migration 023) — once that many exist, one
+    is served at random on every hit so a popular block doesn't stay
+    frozen to a single narration forever.
+
+    Returns (row_or_None, existing_variant_count):
+    - Fewer than MAX_NARRATION_VARIANTS variants exist: (None, count) —
+      a miss. The caller should generate a fresh one and store it via
+      store_narration(..., variant_index=count).
+    - MAX_NARRATION_VARIANTS or more exist: (random row, count) — a hit.
+    """
     try:
         client = _get_client()
         result = (
@@ -126,17 +142,17 @@ async def get_cached_narration(geo_hash: str, mood: str, content_safety: bool):
             .eq("mood", mood)
             .eq("content_safety", content_safety)
             .gt("expires_at", datetime.now(timezone.utc).isoformat())
-            .limit(1)
             .execute()
         )
-        if result.data and len(result.data) > 0:
-            logger.info(f"Cache HIT for narration: {geo_hash}/{mood}")
-            return result.data[0]
-        logger.info(f"Cache MISS for narration: {geo_hash}/{mood}")
-        return None
+        rows = result.data or []
+        if len(rows) >= MAX_NARRATION_VARIANTS:
+            logger.info(f"Cache HIT for narration: {geo_hash}/{mood} ({len(rows)} variants)")
+            return random.choice(rows), len(rows)
+        logger.info(f"Cache MISS for narration: {geo_hash}/{mood} ({len(rows)}/{MAX_NARRATION_VARIANTS} variants so far)")
+        return None, len(rows)
     except Exception as e:
         logger.error(f"Narration cache lookup failed: {e}")
-        return None
+        return None, 0
 
 
 async def store_narration(
@@ -144,17 +160,21 @@ async def store_narration(
     mood: str,
     content_safety: bool,
     narration_text: str,
+    variant_index: int = 0,
 ):
     """
-    Store a freshly generated narration in the cache (expires in 30 days).
+    Store a freshly generated narration variant in the cache (expires in
+    30 days). variant_index should be the existing_variant_count returned
+    by get_cached_narration's miss path, so it lands in the next free slot.
 
     on_conflict is required here: the table's PRIMARY KEY is a separate
-    `id` UUID, not (geo_hash, mood, content_safety) — without an explicit
-    on_conflict, PostgREST's upsert targets the primary key by default,
-    which a freshly-generated row never collides with, so it silently
-    falls through to a plain INSERT and hits the table's real UNIQUE
-    constraint instead (a real, Sentry-confirmed bug on zone_data_cache's
-    equivalent upsert calls — see store_zone_data/store_zone_image below).
+    `id` UUID, not (geo_hash, mood, content_safety, variant_index) —
+    without an explicit on_conflict, PostgREST's upsert targets the
+    primary key by default, which a freshly-generated row never collides
+    with, so it silently falls through to a plain INSERT and hits the
+    table's real UNIQUE constraint instead (a real, Sentry-confirmed bug
+    on zone_data_cache's equivalent upsert calls — see
+    store_zone_data/store_zone_image below).
     """
     expires_at = datetime.now(timezone.utc) + timedelta(days=30)
     try:
@@ -166,12 +186,13 @@ async def store_narration(
                 "mood": mood,
                 "content_safety": content_safety,
                 "narration_text": narration_text,
+                "variant_index": variant_index,
                 "expires_at": expires_at.isoformat(),
-            }, on_conflict="geo_hash,mood,content_safety")
+            }, on_conflict="geo_hash,mood,content_safety,variant_index")
             .execute()
         )
         if result.data:
-            logger.info(f"Stored narration in cache: {geo_hash}/{mood}")
+            logger.info(f"Stored narration variant in cache: {geo_hash}/{mood} (variant {variant_index})")
             return result.data[0]
         return None
     except Exception as e:

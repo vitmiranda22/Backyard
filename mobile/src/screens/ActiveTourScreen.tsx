@@ -22,7 +22,7 @@ import {
   compassLabel,
   snapSegmentToRoad,
 } from "../services/location";
-import { narrateBlock, saveBlock, startTour, askQuestion, endTour, EndTourResponse } from "../services/api";
+import { narrateBlock, saveBlock, startTour, askQuestion, endTour, EndTourResponse, NarrationHighlight } from "../services/api";
 import { startRecording, stopRecording, cancelRecording } from "../services/recording";
 import NarrationCard from "../components/NarrationCard";
 import WaypointCompass from "../components/WaypointCompass";
@@ -109,6 +109,7 @@ export default function ActiveTourScreen({
   const [error, setError] = useState<string | null>(null);
   const [streetName, setStreetName] = useState<string | null>(null);
   const [narrationText, setNarrationText] = useState<string | null>(null);
+  const [highlights, setHighlights] = useState<NarrationHighlight[]>([]);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [blocksVisited, setBlocksVisited] = useState(0);
@@ -359,6 +360,7 @@ export default function ActiveTourScreen({
       // Set text and audio together — they always come from the same response
       setStreetName(result.street_name);
       setNarrationText(result.narration_text);
+      setHighlights(result.highlights || []);
       setAudioUrl(result.audio_url);
       setImageUrl(result.image_url);
       setBlockOrigin({ lat, lng });
@@ -631,6 +633,7 @@ export default function ActiveTourScreen({
         error={error}
         streetName={streetName}
         narrationText={narrationText}
+        highlights={highlights}
         audioUrl={audioUrl}
         imageUrl={imageUrl}
         onRetry={() => {
@@ -647,6 +650,7 @@ export default function ActiveTourScreen({
         onSkip={() => {
           hasActiveAudioRef.current = false;
           setNarrationText(null);
+          setHighlights([]);
           setAudioUrl(null);
           setImageUrl(null);
           setStreetName(null);

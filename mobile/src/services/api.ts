@@ -68,6 +68,11 @@ async function authFetch(path: string, options: RequestInit = {}, isRetry = fals
 // Narration
 // =============================================================================
 
+export interface NarrationHighlight {
+  text: string;
+  url: string;
+}
+
 export interface NarrationResponse {
   street_name: string;
   neighborhood: string;
@@ -81,6 +86,10 @@ export interface NarrationResponse {
   mood: string;
   content_safety_applied: boolean;
   cached: boolean;
+  // Premium-only real-Wikipedia links matched against this narration's
+  // actual wording — empty for free users. See backend's
+  // zone_data.find_wikipedia_highlights.
+  highlights: NarrationHighlight[];
 }
 
 export async function narrateBlock(

@@ -5,12 +5,17 @@
 // controls. Has loading and error states.
 
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Modal, TouchableOpacity, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, Modal, TouchableOpacity, ScrollView, Linking } from "react-native";
 import { useTranslation } from "react-i18next";
 import AudioPlayer from "./AudioPlayer";
 import ZonePhoto from "./ZonePhoto";
 import EmptyState from "./EmptyState";
 import { colors, radius, type, spacing } from "../theme";
+
+export interface NarrationHighlight {
+  text: string;
+  url: string;
+}
 
 interface NarrationCardProps {
   isLoading: boolean;
@@ -19,11 +24,61 @@ interface NarrationCardProps {
   narrationText: string | null;
   audioUrl: string | null;
   imageUrl?: string | null;
+  // Premium-only, real-Wikipedia-article links matched against this exact
+  // narration's wording (see backend/app/services/zone_data.py's
+  // find_wikipedia_highlights) — empty/undefined for free users, so this
+  // renders as plain text with no extra logic needed on this end for tier
+  // gating.
+  highlights?: NarrationHighlight[] | null;
   onAudioFinished?: () => void;
   onSkip?: () => void;
   onAudioError?: () => void;
   onRetry?: () => void;
 }
+
+// Splits narration text around each highlight's exact substring (already
+// matched server-side, same casing as it appears in the text) into plain
+// and tappable spans. Highlights are pre-sorted by position, so a single
+// left-to-right pass with a running cursor is enough — each match only
+// ever looks for the FIRST occurrence at or after the cursor, matching
+// the backend's own re.search behavior.
+function renderWithHighlights(text: string, highlights: NarrationHighlight[] | null | undefined) {
+  if (!highlights || highlights.length === 0) {
+    return text;
+  }
+
+  const nodes: React.ReactNode[] = [];
+  let cursor = 0;
+
+  highlights.forEach((h, i) => {
+    const idx = text.indexOf(h.text, cursor);
+    if (idx === -1) return; // shouldn't happen (server matched this exact text), but never crash over it
+    if (idx > cursor) {
+      nodes.push(text.slice(cursor, idx));
+    }
+    nodes.push(
+      <Text
+        key={`hl-${i}`}
+        style={narrationLinkStyle}
+        onPress={() => Linking.openURL(h.url)}
+        accessibilityRole="link"
+      >
+        {h.text}
+      </Text>
+    );
+    cursor = idx + h.text.length;
+  });
+
+  if (cursor < text.length) {
+    nodes.push(text.slice(cursor));
+  }
+  return nodes;
+}
+
+const narrationLinkStyle = {
+  color: colors.pro,
+  textDecorationLine: "underline" as const,
+};
 
 export default function NarrationCard({
   isLoading,
@@ -32,6 +87,7 @@ export default function NarrationCard({
   narrationText,
   audioUrl,
   imageUrl,
+  highlights,
   onAudioFinished,
   onSkip,
   onAudioError,
@@ -127,7 +183,7 @@ export default function NarrationCard({
             <View style={styles.modalHandle} />
             <Text style={styles.modalStreetName}>📍 {streetName}</Text>
             <ScrollView style={styles.modalScroll}>
-              <Text style={styles.modalText}>{narrationText}</Text>
+              <Text style={styles.modalText}>{renderWithHighlights(narrationText, highlights)}</Text>
             </ScrollView>
             <TouchableOpacity
               style={styles.modalCloseBtn}

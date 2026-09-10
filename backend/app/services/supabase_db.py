@@ -161,11 +161,19 @@ async def store_narration(
     content_safety: bool,
     narration_text: str,
     variant_index: int = 0,
+    highlights: list = None,
 ):
     """
     Store a freshly generated narration variant in the cache (expires in
     30 days). variant_index should be the existing_variant_count returned
     by get_cached_narration's miss path, so it lands in the next free slot.
+
+    highlights: the matched-Wikipedia-links list from
+    zone_data.find_wikipedia_highlights (each {"text", "url"}). Premium-
+    only feature — narrate.py only computes this for a premium caller;
+    pass None (stored as []) otherwise. Free and premium tiers already
+    land in separate cache rows (see _cache_mood_key's "-short" suffix
+    in narrate.py), so this never mixes across tiers.
 
     on_conflict is required here: the table's PRIMARY KEY is a separate
     `id` UUID, not (geo_hash, mood, content_safety, variant_index) —
@@ -187,6 +195,7 @@ async def store_narration(
                 "content_safety": content_safety,
                 "narration_text": narration_text,
                 "variant_index": variant_index,
+                "highlights": highlights or [],
                 "expires_at": expires_at.isoformat(),
             }, on_conflict="geo_hash,mood,content_safety,variant_index")
             .execute()

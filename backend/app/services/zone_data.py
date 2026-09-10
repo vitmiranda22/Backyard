@@ -21,7 +21,9 @@ different moods from the same underlying data.
 import logging
 import asyncio
 import math
+import re
 import httpx
+from urllib.parse import quote
 
 from app.config import settings
 from app.services import datasf, global_sources, city_data
@@ -479,6 +481,65 @@ def _format_wikipedia(data: list) -> str:
         line = f"- \"{title}\" ({dist}m away): {extract[:200]}"
         lines.append(line)
     return "\n".join(lines)
+
+
+MAX_WIKIPEDIA_HIGHLIGHTS_PER_BLOCK = 2
+
+
+def find_wikipedia_highlights(narration_text: str, zone_data: dict) -> list[dict]:
+    """
+    Match real Wikipedia article titles (already fetched for this block —
+    see global_sources.fetch_wikipedia) against substrings that actually
+    appear in the generated narration text. Never invents or guesses a
+    link — a highlight only exists when the model's own wording contains
+    a real article's title (or that title with a trailing parenthetical
+    disambiguator like " (San Francisco)" stripped, since the model
+    almost never repeats that suffix verbatim in spoken narration).
+
+    Deliberately capped at MAX_WIKIPEDIA_HIGHLIGHTS_PER_BLOCK — this is a
+    light touch, not every notable phrase in the data needs to become a
+    link, and most blocks will have zero matches at all (no Wikipedia hit
+    nearby, or the model just didn't happen to use that exact title).
+
+    Returns a list of {"text": <exact substring as it appears in
+    narration_text, original casing kept>, "url": <real wikipedia.org
+    URL built from the real title>}, in the order they appear in the text.
+    """
+    entries = zone_data.get("wikipedia") or []
+    if not entries or not narration_text:
+        return []
+
+    found = []
+    seen_titles = set()
+    for entry in entries:
+        title = (entry.get("title") or "").strip()
+        if not title or title in seen_titles:
+            continue
+
+        # Strip a trailing " (...)" disambiguator — narration almost
+        # never repeats it verbatim (e.g. "Palace of Fine Arts (San
+        # Francisco)" becomes just "Palace of Fine Arts" in the text).
+        search_term = re.sub(r"\s*\([^)]*\)\s*$", "", title).strip()
+        if len(search_term) < 4:
+            continue  # too short to match safely without false positives
+
+        match = re.search(re.escape(search_term), narration_text, re.IGNORECASE)
+        if not match:
+            continue
+
+        seen_titles.add(title)
+        found.append({
+            "text": narration_text[match.start():match.end()],
+            "url": f"https://en.wikipedia.org/wiki/{quote(title.replace(' ', '_'))}",
+            "_pos": match.start(),
+        })
+        if len(found) >= MAX_WIKIPEDIA_HIGHLIGHTS_PER_BLOCK:
+            break
+
+    found.sort(key=lambda h: h["_pos"])
+    for h in found:
+        del h["_pos"]
+    return found
 
 
 def _format_osm(data: list) -> str:

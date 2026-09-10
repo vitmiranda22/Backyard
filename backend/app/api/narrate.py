@@ -53,6 +53,7 @@ from app.services import geocode, openai_service, tts, r2, supabase_db, streetvi
 from app.services.zone_data import (
     fetch_all_zone_data,
     format_zone_data_for_prompt,
+    find_wikipedia_highlights,
     DATASF_SOURCE_NAMES,
     is_san_francisco,
     should_skip_web_search,
@@ -244,10 +245,12 @@ async def narrate_block(
     country = ""
     was_cached = False
     zone_data_used = None
+    highlights = []
 
     if cached_narration:
         narration_text = cached_narration["narration_text"]
         narration_cache_id = cached_narration["id"]
+        highlights = cached_narration.get("highlights") or []
         was_cached = True
 
     # --- Step 3: Reverse geocode ---
@@ -359,12 +362,20 @@ async def narrate_block(
                 },
             )
 
+        # Premium-only: match real Wikipedia titles already fetched in
+        # raw_data against this narration's actual wording. Computed here
+        # (generation time) rather than per-request, since raw_data is
+        # only ever fetched on this cache-miss path — see migration 024.
+        if is_premium:
+            highlights = find_wikipedia_highlights(narration_text, raw_data)
+
         # Cache the narration as the next free variant slot
         stored = await supabase_db.store_narration(
             geo_hash=geo_hash,
             mood=cache_mood,
             content_safety=request.content_safety,
             narration_text=narration_text,
+            highlights=highlights,
             variant_index=existing_variant_count,
         )
         if stored:
@@ -529,6 +540,7 @@ async def narrate_block(
         content_safety_applied=request.content_safety,
         cached=was_cached,
         zone_data_used=zone_data_used,
+        highlights=highlights,
     )
 
 

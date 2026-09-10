@@ -71,6 +71,19 @@ class ZoneDataUsed(BaseModel):
     sources_skipped: List[str] = Field(default_factory=list)
 
 
+class WikipediaHighlight(BaseModel):
+    """
+    A substring of narration_text that exactly matches a real Wikipedia
+    article title already fetched for this block (see
+    zone_data.find_wikipedia_highlights) — text is the literal substring
+    as it appears in narration_text (whatever casing the model used), so
+    the client can find it with a plain substring match. url always
+    points at a real, confirmed Wikipedia article; never model-generated.
+    """
+    text: str
+    url: str
+
+
 class NarrateBlockResponse(BaseModel):
     """Response from /api/narrate-block"""
     street_name: str
@@ -86,6 +99,8 @@ class NarrateBlockResponse(BaseModel):
     content_safety_applied: bool
     cached: bool
     zone_data_used: Optional[ZoneDataUsed] = None
+    # Premium-only (see narrate.py) — always [] for free users, never null.
+    highlights: List[WikipediaHighlight] = Field(default_factory=list)
 
 
 class AskQuestionResponse(BaseModel):

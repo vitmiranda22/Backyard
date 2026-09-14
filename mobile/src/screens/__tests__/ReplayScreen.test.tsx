@@ -111,7 +111,11 @@ describe("ReplayScreen", () => {
 
     expect(await findByText("Mission Walk")).toBeTruthy();
     expect(await findByText('replay.towardStreet {"street":"24th St"}')).toBeTruthy();
-    expect(await findByText("replay.keepWalkingSubtitle")).toBeTruthy();
+    // The fake t() mock always returns the same fixed string for a given
+    // key+options pair (no real i18next resources loaded in tests), so
+    // this stays deterministic even though the real component picks a
+    // random variant from the array.
+    expect(await findByText('replay.keepWalkingSubtitles {"returnObjects":true}')).toBeTruthy();
     // Some non-zero distance, in meters, should be showing.
     expect(await findByText(/^\d+m$/)).toBeTruthy();
 

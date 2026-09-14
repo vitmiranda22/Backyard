@@ -16,7 +16,7 @@
   },
   "errorBoundary": {
     "title": "Something went wrong",
-    "body": "Backyard hit an unexpected error. Restarting should fix it — nothing you were doing caused this.",
+    "body": "Backyard hit an unexpected error. Restarting should fix it, nothing you were doing caused this.",
     "restart": "Restart"
   },
   "login": {
@@ -58,7 +58,7 @@
     "passwordTooShort": "Password must be at least 6 characters",
     "passwordsDontMatch": "Passwords don't match",
     "failed": "Couldn't update your password",
-    "success": "Password updated — sign in with your new password"
+    "success": "Password updated. Sign in with your new password"
   },
   "signup": {
     "backA11y": "Back",
@@ -102,7 +102,7 @@
     "locationRequiredBody": "Backyard needs your location to tell stories about where you are. Please enable it in Settings.",
     "pickYourStory": "Pick your story",
     "startWalkingTour": "Start Walking Tour",
-    "notYetRated": "Not yet rated — tap the marker to see the path, tap the card for details",
+    "notYetRated": "Not yet rated. Tap the marker to see the path, tap the card for details",
     "end": "End",
     "couldntLoadRoutes": "Couldn't load nearby routes.",
     "explore": "Explore",
@@ -149,10 +149,10 @@
     "deleteAccountBodyPremium": "This permanently deletes your account, tours, ratings, and comments. This can't be undone. It does NOT cancel your Backyard Explorer subscription, cancel it separately in your App Store or Play Store account settings, or you'll keep being charged.",
     "delete": "Delete",
     "deleteConfirmTitle": "Are you sure?",
-    "deleteConfirmBody": "Last chance — this really can't be undone.",
+    "deleteConfirmBody": "Last chance, this really can't be undone.",
     "deleteMyAccount": "Delete my account",
     "couldntSaveSetting": "Couldn't save that setting.",
-    "couldntDeleteAccount": "Couldn't delete your account — try again in a moment.",
+    "couldntDeleteAccount": "Couldn't delete your account. Try again in a moment.",
     "matureContentToggleA11y": "Mature content toggle",
     "viewAllBadgesA11y": "View all badges",
     "dateOfBirth": "Date of birth",
@@ -161,12 +161,12 @@
     "edit": "Edit",
     "saveDateOfBirth": "Save",
     "dateOfBirthSaved": "Date of birth saved.",
-    "couldntSaveDateOfBirth": "Couldn't save that — check the date and try again.",
+    "couldntSaveDateOfBirth": "Couldn't save that. Check the date and try again.",
     "editDateOfBirthA11y": "Edit date of birth",
     "displayName": "Display name",
     "saveDisplayName": "Save",
     "displayNameSaved": "Display name saved.",
-    "couldntSaveDisplayName": "Couldn't save that — try again in a moment.",
+    "couldntSaveDisplayName": "Couldn't save that. Try again in a moment.",
     "editDisplayNameA11y": "Edit display name",
     "nameCannotBeEmpty": "Display name can't be empty"
   },
@@ -189,7 +189,7 @@
     },
     "unfiltered": {
       "label": "Unfiltered",
-      "desc": "Raw, funny, opinionated — like walking with a local friend"
+      "desc": "Raw, funny, opinionated, like walking with a local friend"
     }
   },
   "moodPicker": {
@@ -211,7 +211,7 @@
     },
     "signature": {
       "label": "Signature",
-      "desc": "Our most lifelike voice — full tours coming soon"
+      "desc": "Our most lifelike voice, full tours coming soon"
     }
   },
   "paywall": {
@@ -302,14 +302,14 @@
   },
   "activeTour": {
     "startFailed": "Failed to start tour: {{error}}",
-    "blockSaveError": "Couldn't save that block — your walk continues.",
+    "blockSaveError": "Couldn't save that block. Your walk continues.",
     "narrationError": "Having trouble finding stories. Keep walking!",
     "narrationDailyLimitError": "You've used up today's stories. Come back tomorrow, or upgrade for more.",
-    "narrationMinuteLimitError": "Slow down a bit — more stories in just a moment.",
+    "narrationMinuteLimitError": "Slow down a bit, more stories in just a moment.",
     "narrationNetworkError": "Couldn't reach the server. Check your connection and try again.",
     "premiumFeatureTitle": "Explorer Feature",
     "premiumFeatureBody": "Asking questions on a walk is an Explorer Perk, upgrade your badge in order to unlock it.",
-    "answerError": "Couldn't get an answer to that — try again.",
+    "answerError": "Couldn't get an answer to that. Try again.",
     "listening": "Listening to your question…",
     "thinking": "Thinking…",
     "holdToAsk": "Hold to ask a question",
@@ -325,7 +325,7 @@
     "safety": {
       "title": "Before you walk",
       "tip1": "Cross only at marked crosswalks, and wait for the signal.",
-      "tip2": "Look both ways before stepping into any street — even one-ways.",
+      "tip2": "Look both ways before stepping into any street, even one-ways.",
       "tip3": "Keep one ear free or your volume low, so you can hear traffic and sirens.",
       "tip4": "Stop walking before checking your screen or the map.",
       "tip5": "Extra caution after dark or somewhere unfamiliar.",
@@ -355,10 +355,10 @@
     "discarding": "Discarding...",
     "discardThisWalk": "Discard this walk",
     "discardConfirmTitle": "Discard this walk?",
-    "discardConfirmBody": "This deletes it permanently — it won't be saved to your history or published.",
+    "discardConfirmBody": "This deletes it permanently. It won't be saved to your history or published.",
     "discard": "Discard",
     "couldntSaveDetails": "Couldn't save your tour details, but your walk is recorded.",
-    "couldntDiscard": "Couldn't discard this walk — try again in a moment.",
+    "couldntDiscard": "Couldn't discard this walk. Try again in a moment.",
     "shareMessage": "I just walked \"{{title}}\" on Backyard! Check it out: backyard://route/{{tourId}}",
     "detailsHint": "Stats and sharing options return once you're done typing.",
     "emptyTourTitle": "Nothing to Save",
@@ -377,7 +377,7 @@
     "stopsCount_one": "{{count}} stop",
     "stopsCount_other": "{{count}} stops",
     "minAbbr": "min",
-    "audioUnavailable": "This route's audio isn't available right now — you can still walk it and read the narration text.",
+    "audioUnavailable": "This route's audio isn't available right now, but you can still walk it and read the narration text.",
     "yourWalkLog": "Your walk log",
     "shareMessage": "Check out \"{{title}}\" on Backyard: backyard://route/{{tourId}}",
     "shareA11y": "Share this route",
@@ -385,7 +385,7 @@
   },
   "replay": {
     "failedToGetLocation": "Failed to get your location: {{error}}",
-    "couldntRefreshAudio": "Couldn't refresh the audio — try again in a moment.",
+    "couldntRefreshAudio": "Couldn't refresh the audio. Try again in a moment.",
     "gettingLocation": "Getting your location...",
     "exitReplayA11y": "Exit replay",
     "exit": "Exit",
@@ -393,7 +393,14 @@
     "refreshingAudio": "Refreshing audio...",
     "walkToward": "Walk toward {{street}} to continue",
     "towardStreet": "toward {{street}}",
-    "keepWalkingSubtitle": "Keep walking — this starts on its own once you're there.",
+    "keepWalkingSubtitles": [
+      "Keep walking. This starts on its own once you're there.",
+      "You'll hear it the moment you arrive.",
+      "No need to tap anything, it kicks in once you're close.",
+      "Almost there, just keep walking.",
+      "The next story starts on its own once you're close enough.",
+      "Stay on your feet, it picks up the moment you arrive."
+    ],
     "cancelA11y": "Cancel replay"
   },
   "routeRating": {
@@ -436,7 +443,7 @@
   },
   "comments": {
     "header": "Comments",
-    "noneYet": "No comments yet — be the first to say something.",
+    "noneYet": "No comments yet. Be the first to say something.",
     "couldntPost": "Couldn't post your comment.",
     "addPlaceholder": "Add a comment...",
     "inputA11y": "Comment input",
@@ -449,13 +456,13 @@
     "tourA11y": "Report this route",
     "tourLink": "Report",
     "title": "Report this content?",
-    "body": "Let us know why — it'll be sent for review.",
+    "body": "Let us know why. It'll be sent for review.",
     "reasonInaccurate": "Inaccurate information",
     "reasonOffensive": "Offensive content",
     "reasonSpam": "Spam",
     "reasonOther": "Other",
-    "submitted": "Thanks — we'll take a look.",
-    "couldntSubmit": "Couldn't submit your report — try again in a moment."
+    "submitted": "Thanks, we'll take a look.",
+    "couldntSubmit": "Couldn't submit your report. Try again in a moment."
   },
   "tourStats": {
     "blocksNarrated": "blocks narrated",
@@ -478,7 +485,7 @@
     "closeA11y": "Close photo"
   },
   "audioPlayer": {
-    "unavailableFallback": "🔇 Audio unavailable — reading mode"
+    "unavailableFallback": "🔇 Audio unavailable, reading mode"
   },
   "notifications": {
     "unfinishedTourTitle": "Still out there?",

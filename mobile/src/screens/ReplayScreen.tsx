@@ -2,7 +2,7 @@
 // regenerated: as you approach each saved waypoint, the app plays back the
 // ORIGINAL recorded audio for that block. Zero Gemini/TTS calls.
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -138,6 +138,19 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
     setIsRefreshingAudio(false);
   }
 
+  // A different encouragement line each time the walker enters this
+  // full-screen "walk this way" state, rather than always the same
+  // sentence -- re-rolled per targetIndex (once per waypoint), not per
+  // render, so it doesn't change every time the compass angle updates.
+  const subtitleVariants = t("replay.keepWalkingSubtitles", { returnObjects: true });
+  const subtitles: string[] = Array.isArray(subtitleVariants)
+    ? subtitleVariants
+    : [String(subtitleVariants)];
+  const subtitle = useMemo(
+    () => subtitles[Math.floor(Math.random() * subtitles.length)],
+    [targetIndex] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   const target = blocks[targetIndex];
   const targetBearing =
     target && location ? bearingBetween(location.lat, location.lng, target.lat, target.lng) : null;
@@ -188,7 +201,7 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
 
             <Text style={styles.guidedDistance}>{Math.round(distanceToTarget)}m</Text>
             <Text style={styles.guidedCaption}>{t("replay.towardStreet", { street: target.street_name })}</Text>
-            <Text style={styles.guidedSubtitle}>{t("replay.keepWalkingSubtitle")}</Text>
+            <Text style={styles.guidedSubtitle}>{subtitle}</Text>
           </>
         ) : (
           <Text style={styles.guidedSubtitle}>{t("replay.gettingLocation")}</Text>

@@ -16,7 +16,7 @@
   },
   "errorBoundary": {
     "title": "Algo salió mal",
-    "body": "Backyard tuvo un error inesperado. Reiniciar debería solucionarlo — no fue nada que hicieras.",
+    "body": "Backyard tuvo un error inesperado. Reiniciar debería solucionarlo, no fue nada que hicieras.",
     "restart": "Reiniciar"
   },
   "login": {
@@ -58,7 +58,7 @@
     "passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
     "passwordsDontMatch": "Las contraseñas no coinciden",
     "failed": "No se pudo actualizar tu contraseña",
-    "success": "Contraseña actualizada — inicia sesión con tu nueva contraseña"
+    "success": "Contraseña actualizada. Inicia sesión con tu nueva contraseña"
   },
   "signup": {
     "backA11y": "Atrás",
@@ -102,7 +102,7 @@
     "locationRequiredBody": "Backyard necesita tu ubicación para contarte historias sobre donde estás. Actívala en Configuración.",
     "pickYourStory": "Elige tu historia",
     "startWalkingTour": "Comenzar recorrido",
-    "notYetRated": "Aún sin calificar — toca el marcador para ver la ruta, toca la tarjeta para más detalles",
+    "notYetRated": "Aún sin calificar. Toca el marcador para ver la ruta, toca la tarjeta para más detalles",
     "end": "Finalizar",
     "couldntLoadRoutes": "No se pudieron cargar las rutas cercanas.",
     "explore": "Explorar",
@@ -149,10 +149,10 @@
     "deleteAccountBodyPremium": "Esto elimina permanentemente tu cuenta, recorridos, calificaciones y comentarios. Esto no se puede deshacer. NO cancela tu suscripción a Backyard Explorador, cancélala por separado en la configuración de tu cuenta de App Store o Play Store, o seguirás pagando.",
     "delete": "Eliminar",
     "deleteConfirmTitle": "¿Estás seguro?",
-    "deleteConfirmBody": "Última oportunidad — esto realmente no se puede deshacer.",
+    "deleteConfirmBody": "Última oportunidad, esto realmente no se puede deshacer.",
     "deleteMyAccount": "Eliminar mi cuenta",
     "couldntSaveSetting": "No se pudo guardar esa configuración.",
-    "couldntDeleteAccount": "No se pudo eliminar tu cuenta — inténtalo de nuevo en un momento.",
+    "couldntDeleteAccount": "No se pudo eliminar tu cuenta. Inténtalo de nuevo en un momento.",
     "matureContentToggleA11y": "Interruptor de contenido para adultos",
     "viewAllBadgesA11y": "Ver todas las insignias",
     "dateOfBirth": "Fecha de nacimiento",
@@ -161,12 +161,12 @@
     "edit": "Editar",
     "saveDateOfBirth": "Guardar",
     "dateOfBirthSaved": "Fecha de nacimiento guardada.",
-    "couldntSaveDateOfBirth": "No se pudo guardar — revisa la fecha e inténtalo de nuevo.",
+    "couldntSaveDateOfBirth": "No se pudo guardar. Revisa la fecha e inténtalo de nuevo.",
     "editDateOfBirthA11y": "Editar fecha de nacimiento",
     "displayName": "Nombre para mostrar",
     "saveDisplayName": "Guardar",
     "displayNameSaved": "Nombre guardado.",
-    "couldntSaveDisplayName": "No se pudo guardar — inténtalo de nuevo en un momento.",
+    "couldntSaveDisplayName": "No se pudo guardar. Inténtalo de nuevo en un momento.",
     "editDisplayNameA11y": "Editar nombre para mostrar",
     "nameCannotBeEmpty": "El nombre no puede estar vacío"
   },
@@ -189,7 +189,7 @@
     },
     "unfiltered": {
       "label": "Sin filtro",
-      "desc": "Crudo, divertido, con opiniones — como caminar con un amigo local"
+      "desc": "Crudo, divertido, con opiniones, como caminar con un amigo local"
     }
   },
   "moodPicker": {
@@ -211,7 +211,7 @@
     },
     "signature": {
       "label": "Firma",
-      "desc": "Nuestra voz más realista — recorridos completos próximamente"
+      "desc": "Nuestra voz más realista, recorridos completos próximamente"
     }
   },
   "paywall": {
@@ -302,14 +302,14 @@
   },
   "activeTour": {
     "startFailed": "No se pudo iniciar el recorrido: {{error}}",
-    "blockSaveError": "No se pudo guardar ese bloque — tu caminata continúa.",
+    "blockSaveError": "No se pudo guardar ese bloque. Tu caminata continúa.",
     "narrationError": "Problemas para encontrar historias. ¡Sigue caminando!",
     "narrationDailyLimitError": "Ya usaste las historias de hoy. Vuelve mañana o mejora tu plan para más.",
-    "narrationMinuteLimitError": "Un momento — más historias en breve.",
+    "narrationMinuteLimitError": "Un momento, más historias en breve.",
     "narrationNetworkError": "No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo.",
     "premiumFeatureTitle": "Función Explorador",
     "premiumFeatureBody": "Hacer preguntas durante una caminata es un beneficio Explorador, mejora tu insignia para desbloquearlo.",
-    "answerError": "No se pudo obtener una respuesta a eso — inténtalo de nuevo.",
+    "answerError": "No se pudo obtener una respuesta a eso. Inténtalo de nuevo.",
     "listening": "Escuchando tu pregunta…",
     "thinking": "Pensando…",
     "holdToAsk": "Mantén presionado para preguntar",
@@ -325,7 +325,7 @@
     "safety": {
       "title": "Antes de caminar",
       "tip1": "Cruza solo por los pasos de peatones marcados, y espera la señal.",
-      "tip2": "Mira en ambas direcciones antes de entrar a cualquier calle — incluso las de un solo sentido.",
+      "tip2": "Mira en ambas direcciones antes de entrar a cualquier calle, incluso las de un solo sentido.",
       "tip3": "Deja un oído libre o mantén el volumen bajo, para poder oír el tráfico y las sirenas.",
       "tip4": "Detente antes de revisar la pantalla o el mapa.",
       "tip5": "Ten cuidado extra de noche o en lugares desconocidos.",
@@ -355,10 +355,10 @@
     "discarding": "Descartando...",
     "discardThisWalk": "Descartar esta caminata",
     "discardConfirmTitle": "¿Descartar esta caminata?",
-    "discardConfirmBody": "Esto la elimina permanentemente — no se guardará en tu historial ni se publicará.",
+    "discardConfirmBody": "Esto la elimina permanentemente. No se guardará en tu historial ni se publicará.",
     "discard": "Descartar",
     "couldntSaveDetails": "No se pudieron guardar los detalles de tu recorrido, pero tu caminata quedó registrada.",
-    "couldntDiscard": "No se pudo descartar esta caminata — inténtalo de nuevo en un momento.",
+    "couldntDiscard": "No se pudo descartar esta caminata. Inténtalo de nuevo en un momento.",
     "shareMessage": "¡Acabo de caminar \"{{title}}\" en Backyard! Míralo: backyard://route/{{tourId}}",
     "detailsHint": "Las estadísticas y opciones para compartir vuelven al terminar de escribir.",
     "emptyTourTitle": "Nada que guardar",
@@ -377,7 +377,7 @@
     "stopsCount_one": "{{count}} parada",
     "stopsCount_other": "{{count}} paradas",
     "minAbbr": "min",
-    "audioUnavailable": "El audio de esta ruta no está disponible en este momento — aún puedes caminarla y leer el texto de la narración.",
+    "audioUnavailable": "El audio de esta ruta no está disponible en este momento, pero aún puedes caminarla y leer el texto de la narración.",
     "yourWalkLog": "Tu registro de caminata",
     "shareMessage": "Mira \"{{title}}\" en Backyard: backyard://route/{{tourId}}",
     "shareA11y": "Compartir esta ruta",
@@ -385,7 +385,7 @@
   },
   "replay": {
     "failedToGetLocation": "No se pudo obtener tu ubicación: {{error}}",
-    "couldntRefreshAudio": "No se pudo actualizar el audio — inténtalo de nuevo en un momento.",
+    "couldntRefreshAudio": "No se pudo actualizar el audio. Inténtalo de nuevo en un momento.",
     "gettingLocation": "Obteniendo tu ubicación...",
     "exitReplayA11y": "Salir de la repetición",
     "exit": "Salir",
@@ -393,7 +393,14 @@
     "refreshingAudio": "Actualizando audio...",
     "walkToward": "Camina hacia {{street}} para continuar",
     "towardStreet": "hacia {{street}}",
-    "keepWalkingSubtitle": "Sigue caminando: esto empieza solo cuando llegues.",
+    "keepWalkingSubtitles": [
+      "Sigue caminando. Esto empieza solo en cuanto llegues.",
+      "Lo escucharás en cuanto llegues.",
+      "No hace falta tocar nada, se activa cuando estés cerca.",
+      "Ya casi, solo sigue caminando.",
+      "La siguiente historia empieza sola en cuanto estés cerca.",
+      "Sigue caminando, se activa en cuanto llegues."
+    ],
     "cancelA11y": "Cancelar repetición"
   },
   "routeRating": {
@@ -436,7 +443,7 @@
   },
   "comments": {
     "header": "Comentarios",
-    "noneYet": "Aún no hay comentarios — sé el primero en decir algo.",
+    "noneYet": "Aún no hay comentarios. Sé el primero en decir algo.",
     "couldntPost": "No se pudo publicar tu comentario.",
     "addPlaceholder": "Agrega un comentario...",
     "inputA11y": "Campo de comentario",
@@ -449,13 +456,13 @@
     "tourA11y": "Reportar este recorrido",
     "tourLink": "Reportar",
     "title": "¿Reportar este contenido?",
-    "body": "Cuéntanos por qué — se enviará para revisión.",
+    "body": "Cuéntanos por qué. Se enviará para revisión.",
     "reasonInaccurate": "Información inexacta",
     "reasonOffensive": "Contenido ofensivo",
     "reasonSpam": "Spam",
     "reasonOther": "Otro",
-    "submitted": "Gracias — lo revisaremos.",
-    "couldntSubmit": "No se pudo enviar tu reporte — inténtalo de nuevo en un momento."
+    "submitted": "Gracias, lo revisaremos.",
+    "couldntSubmit": "No se pudo enviar tu reporte. Inténtalo de nuevo en un momento."
   },
   "tourStats": {
     "blocksNarrated": "cuadras narradas",
@@ -478,7 +485,7 @@
     "closeA11y": "Cerrar foto"
   },
   "audioPlayer": {
-    "unavailableFallback": "🔇 Audio no disponible — modo lectura"
+    "unavailableFallback": "🔇 Audio no disponible, modo lectura"
   },
   "notifications": {
     "unfinishedTourTitle": "¿Sigues por ahí?",

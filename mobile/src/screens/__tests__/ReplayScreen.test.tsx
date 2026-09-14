@@ -97,8 +97,30 @@ describe("ReplayScreen", () => {
       <ReplayScreen tour={baseTour()} onReplayComplete={jest.fn()} onExit={jest.fn()} />
     );
 
-    expect(await findByText('replay.walkToward {"street":"24th St"}')).toBeTruthy();
+    expect(await findByText('replay.towardStreet {"street":"24th St"}')).toBeTruthy();
     expect(queryByText("History A")).toBeNull();
+  });
+
+  it("shows a full-screen guided-direction takeover (tour title, distance, subtitle, Cancel) when far from the first block", async () => {
+    mockGetCurrentLocation.mockResolvedValue({ lat: 10, lng: 10 });
+    const onExit = jest.fn();
+
+    const { findByText, queryByText, getByLabelText } = await render(
+      <ReplayScreen tour={baseTour()} onReplayComplete={jest.fn()} onExit={onExit} />
+    );
+
+    expect(await findByText("Mission Walk")).toBeTruthy();
+    expect(await findByText('replay.towardStreet {"street":"24th St"}')).toBeTruthy();
+    expect(await findByText("replay.keepWalkingSubtitle")).toBeTruthy();
+    // Some non-zero distance, in meters, should be showing.
+    expect(await findByText(/^\d+m$/)).toBeTruthy();
+
+    // The normal in-range layout (progress counter, map exit link) isn't
+    // part of this takeover screen.
+    expect(queryByText('replay.progress {"current":1,"total":2}')).toBeNull();
+
+    fireEvent.press(getByLabelText("replay.cancelA11y"));
+    expect(onExit).toHaveBeenCalledTimes(1);
   });
 
   it("triggers narration once a GPS update brings the walker within range", async () => {
@@ -112,7 +134,7 @@ describe("ReplayScreen", () => {
     const { findByText } = await render(
       <ReplayScreen tour={baseTour()} onReplayComplete={jest.fn()} onExit={jest.fn()} />
     );
-    await findByText('replay.walkToward {"street":"24th St"}');
+    await findByText('replay.towardStreet {"street":"24th St"}');
 
     await require("@testing-library/react-native").act(async () => {
       positionCallback(BLOCK_A.lat, BLOCK_A.lng);
@@ -132,7 +154,7 @@ describe("ReplayScreen", () => {
     await fireEvent.press(await findByText("finish-audio"));
 
     // Not yet close to block B, so it should show the walk-toward prompt for it.
-    expect(await findByText('replay.walkToward {"street":"Valencia St"}')).toBeTruthy();
+    expect(await findByText('replay.towardStreet {"street":"Valencia St"}')).toBeTruthy();
   });
 
   it("calls onReplayComplete after finishing the last block", async () => {

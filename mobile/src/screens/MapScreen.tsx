@@ -142,7 +142,7 @@ export default function MapScreen({ onSelectRoute, onBack }: MapScreenProps) {
 
           {selectedPath.length > 1 && (
             <>
-              <RoutePolyline coordinates={selectedPath} />
+              <RoutePolyline coordinates={selectedPath} strokeWidth={5} innerStrokeWidth={2} />
               <Marker coordinate={selectedPath[0]} pinColor={colors.fieldGreen} title={t("common.start")} />
               <Marker
                 coordinate={selectedPath[selectedPath.length - 1]}

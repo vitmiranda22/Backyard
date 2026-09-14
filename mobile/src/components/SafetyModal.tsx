@@ -1,11 +1,15 @@
 // Pre-walk safety reminder — shown every time a tour starts (see
 // ActiveTourScreen's init()), on top of whatever's loading underneath.
-// Purely a visual overlay: dismissing it doesn't gate or delay the actual
-// start-tour/narration calls, which keep running in the background
-// regardless of whether this is still open.
+// Doesn't gate or delay the actual start-tour/narration calls, which keep
+// running in the background regardless of whether this is still open --
+// but it DOES double as the tour's loading screen: tapping the CTA before
+// the map/first block are ready doesn't dismiss immediately, it switches
+// to a brief "still finding your first story" state and auto-continues
+// once isReady flips true, so the walker never sees the bare map/loading
+// placeholder underneath mid-transition.
 
-import React from "react";
-import { View, Text, Image, StyleSheet, Modal, TouchableOpacity } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, Image, StyleSheet, Modal, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useTranslation } from "react-i18next";
 import { colors, font, radius, type, spacing } from "../theme";
 import BoscoHero from "./BoscoHero";
@@ -18,6 +22,10 @@ const MASCOT_IMAGE = require("../../assets/bosco-safety.jpg");
 interface SafetyModalProps {
   visible: boolean;
   onDismiss: () => void;
+  // True once the map/first block are actually ready to show. Defaults to
+  // true so any other caller (tests, a future reuse) keeps today's
+  // dismiss-immediately behavior unless it opts into the gating.
+  isReady?: boolean;
 }
 
 // "General awareness" has no real icon yet -- emoji fallback per the
@@ -31,8 +39,26 @@ const TIP_ICONS: (any | null)[] = [
 ];
 const TIP_EMOJI_FALLBACK = ["🚦", "👀", "🎧", "📱", "🌙"];
 
-export default function SafetyModal({ visible, onDismiss }: SafetyModalProps) {
+export default function SafetyModal({ visible, onDismiss, isReady = true }: SafetyModalProps) {
   const { t } = useTranslation();
+  const [waiting, setWaiting] = useState(false);
+
+  // The walker already tapped "let's walk" while it wasn't ready yet --
+  // continue the moment it is, without needing a second tap.
+  useEffect(() => {
+    if (waiting && isReady) {
+      setWaiting(false);
+      onDismiss();
+    }
+  }, [waiting, isReady, onDismiss]);
+
+  function handlePress() {
+    if (isReady) {
+      onDismiss();
+    } else {
+      setWaiting(true);
+    }
+  }
 
   return (
     <Modal
@@ -67,11 +93,19 @@ export default function SafetyModal({ visible, onDismiss }: SafetyModalProps) {
 
             <TouchableOpacity
               style={styles.cta}
-              onPress={onDismiss}
+              onPress={handlePress}
+              disabled={waiting}
               accessibilityRole="button"
               accessibilityLabel={t("activeTour.safety.cta")}
             >
-              <Text style={styles.ctaText}>{t("activeTour.safety.cta")}</Text>
+              {waiting ? (
+                <View style={styles.ctaWaitingRow}>
+                  <ActivityIndicator color={colors.parchmentSurface} />
+                  <Text style={styles.ctaText}>{t("activeTour.safety.preparingWalk")}</Text>
+                </View>
+              ) : (
+                <Text style={styles.ctaText}>{t("activeTour.safety.cta")}</Text>
+              )}
             </TouchableOpacity>
           </View>
         </BoscoHero>
@@ -147,5 +181,11 @@ const styles = StyleSheet.create({
     color: colors.parchmentSurface,
     fontSize: 21,
     lineHeight: 28,
+  },
+  ctaWaitingRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: spacing.sm,
   },
 });

@@ -1,13 +1,17 @@
-// Waypoint compass — a dark badge with glowing nested chevrons that rotate
-// as a unit to point toward wherever the current block was triggered,
-// like a video-game quest marker rather than a literal N/E/S/W compass
-// face. Built from plain Views (border-triangle trick) so it ships without
-// a new native dependency (no react-native-svg) — a true smooth-arc
-// version would need one.
+// Waypoint compass — a quiet parchment badge with a single hand-drawn ink
+// arrow icon that rotates to point toward wherever the current block was
+// triggered, like a literal N/E/S/W compass face. Matches the flat, plain
+// FAB icon language used on Home instead of standing out as its own
+// separate "gadget" look (the previous version was a deliberately dark/
+// neon "video-game HUD" badge; before the real icon existed, an even
+// earlier pass tried a CSS border-triangle arrow, which read as a blunt
+// solid wedge rather than a recognizable arrow).
 
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { colors, type } from "../theme";
+import { View, Text, Image, StyleSheet } from "react-native";
+import { colors, font } from "../theme";
+
+const ARROW_ICON = require("../../assets/icons/compass_arrow.png");
 
 interface WaypointCompassProps {
   bearingDeg: number; // relative to current device heading, 0 = straight ahead/up
@@ -18,10 +22,11 @@ export default function WaypointCompass({ bearingDeg, distanceLabel }: WaypointC
   return (
     <View style={styles.wrap}>
       <View style={styles.badge}>
-        <View style={[styles.needle, { transform: [{ rotate: `${bearingDeg}deg` }] }]}>
-          <View style={styles.chevronOuter} />
-          <View style={styles.chevronInner} />
-        </View>
+        <Image
+          source={ARROW_ICON}
+          style={[styles.arrow, { transform: [{ rotate: `${bearingDeg}deg` }] }]}
+          resizeMode="contain"
+        />
       </View>
       <Text style={styles.label}>{distanceLabel}</Text>
     </View>
@@ -35,50 +40,28 @@ const styles = StyleSheet.create({
   badge: {
     width: 69,
     height: 69,
-    borderRadius: 38,
-    backgroundColor: colors.hudBackground,
-    borderWidth: 1.4,
-    borderColor: "rgba(255, 107, 74, 0.45)",
+    borderRadius: 35,
+    backgroundColor: colors.parchmentSurface,
+    borderWidth: 1.5,
+    borderColor: colors.fieldBorder,
     alignItems: "center",
     justifyContent: "center",
   },
-  needle: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  chevronOuter: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 9,
-    borderRightWidth: 9,
-    borderBottomWidth: 12,
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    borderBottomColor: colors.hudAccent,
-    shadowColor: colors.hudAccent,
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  chevronInner: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderBottomWidth: 8,
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    borderBottomColor: colors.hudAccent,
-    shadowColor: colors.hudAccent,
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
-    marginTop: 3,
+  // The source art's real ink content is a tall, narrow sliver (146x512,
+  // padded out to a square 512x512 canvas like the rest of this icon set)
+  // -- sized to that actual aspect ratio (~0.285) rather than a square box,
+  // or `resizeMode="contain"` would shrink it down to fit the square and
+  // leave a ~10px-wide arrow, too thin to read at this size.
+  arrow: {
+    width: 15,
+    height: 54,
+    tintColor: colors.ink,
   },
   label: {
     marginTop: 6,
-    fontSize: type.caption,
-    fontWeight: "700",
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.ink,
   },
 });

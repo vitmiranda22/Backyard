@@ -329,7 +329,8 @@
       "tip3": "Deja un oído libre o mantén el volumen bajo, para poder oír el tráfico y las sirenas.",
       "tip4": "Detente antes de revisar la pantalla o el mapa.",
       "tip5": "Ten cuidado extra de noche o en lugares desconocidos.",
-      "cta": "Entendido, vamos a caminar"
+      "cta": "Entendido, vamos a caminar",
+      "preparingWalk": "Buscando tu primera historia..."
     }
   },
   "tourComplete": {
@@ -390,7 +391,10 @@
     "exit": "Salir",
     "progress": "{{current}} de {{total}}",
     "refreshingAudio": "Actualizando audio...",
-    "walkToward": "Camina hacia {{street}} para continuar"
+    "walkToward": "Camina hacia {{street}} para continuar",
+    "towardStreet": "hacia {{street}}",
+    "keepWalkingSubtitle": "Sigue caminando: esto empieza solo cuando llegues.",
+    "cancelA11y": "Cancelar repetición"
   },
   "routeRating": {
     "routeComplete": "¡Ruta completada!",

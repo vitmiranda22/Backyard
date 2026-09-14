@@ -266,6 +266,32 @@ describe("ActiveTourScreen", () => {
     expect(queryByText("activeTour.safety.title")).toBeNull();
   });
 
+  it("keeps the safety modal up as a loading screen if its CTA is pressed before block 1 is ready, then auto-continues", async () => {
+    // The safety modal doubles as the tour's loading screen -- pressing
+    // "let's walk" before the map/first block are actually ready shouldn't
+    // reveal the bare loading placeholder underneath. It should show a
+    // brief waiting state and continue on its own once narration lands.
+    let resolveNarration: (v: any) => void = () => {};
+    mockNarrateBlock.mockReturnValue(new Promise((resolve) => { resolveNarration = resolve; }));
+    mockGetCurrentLocation.mockResolvedValue({ lat: 37.77, lng: -122.41 });
+    mockStartTour.mockResolvedValue({
+      tour_id: "tour-1", mood: "time_machine", voice: "neutral", tour_type: "walking",
+      started_at: "2026-07-15T00:00:00Z", intro_audio_url: null, guide_name: null,
+    });
+
+    const { getByText, queryByText, findByText } = await render(<ActiveTourScreen {...baseProps()} />);
+
+    await fireEvent.press(getByText("activeTour.safety.cta"));
+    expect(queryByText("activeTour.safety.title")).toBeTruthy();
+    expect(await findByText("activeTour.safety.preparingWalk")).toBeTruthy();
+
+    await act(async () => {
+      resolveNarration(narration());
+    });
+
+    await waitFor(() => expect(queryByText("activeTour.safety.title")).toBeNull());
+  });
+
   it("saves the block once narration succeeds", async () => {
     await renderStarted();
 
@@ -338,10 +364,13 @@ describe("ActiveTourScreen", () => {
     const { getByTestId } = await renderStarted();
 
     // 130 fixes x 4 points/fix + the initial point = 521 raw points --
-    // comfortably past the 500-point display cap.
+    // comfortably past the 500-point display cap. Each step is ~33m
+    // (0.0003 degrees latitude), safely over MIN_SNAP_SEGMENT_METERS so
+    // every fix actually goes through snapSegmentToRoad instead of being
+    // drawn as a short straight raw segment.
     for (let i = 0; i < 130; i++) {
       await act(async () => {
-        positionCallback(37.78 + i * 0.0001, -122.42);
+        positionCallback(37.78 + i * 0.0003, -122.42);
       });
     }
 
@@ -349,6 +378,88 @@ describe("ActiveTourScreen", () => {
     expect(drawnPoints).toBeLessThanOrEqual(500);
     // Not just capped -- actually thinned, not coincidentally under the cap.
     expect(drawnPoints).toBeLessThan(521);
+  });
+
+  it("draws a short GPS fix as a straight raw segment instead of map-matching it, when it's under the minimum snap distance", async () => {
+    // Regression guard: watchPosition can fire as often as every 5m, well
+    // within normal GPS jitter -- map-matching a segment that short was
+    // occasionally snapping onto the wrong nearby pedestrian way (a
+    // parking lot walkway, a courtyard) instead of the street, drawing
+    // the live trail visibly through a building.
+    let positionCallback: (lat: number, lng: number) => void = () => {};
+    mockWatchPosition.mockImplementation(async (cb: any) => {
+      positionCallback = cb;
+      return { remove: removeSpy };
+    });
+    const { getByTestId } = await renderStarted();
+    mockSnapSegmentToRoad.mockClear();
+
+    // ~11m north of the initial (37.77, -122.41) fix -- past the noise
+    // floor (8m) but comfortably under MIN_SNAP_SEGMENT_METERS (15m).
+    await act(async () => {
+      positionCallback(37.7701, -122.41);
+    });
+
+    expect(mockSnapSegmentToRoad).not.toHaveBeenCalled();
+    const coords = getByTestId("route-polyline").props.coordinates;
+    expect(coords).toEqual([
+      { latitude: 37.77, longitude: -122.41 },
+      { latitude: 37.7701, longitude: -122.41 },
+    ]);
+  });
+
+  it("does not add a point (or advance its anchor) for a GPS fix under the noise floor", async () => {
+    // Regression guard: ordinary GPS noise while standing still (worse in
+    // "urban canyon" spots) routinely reports a few meters of "movement"
+    // that never happened. Below MIN_DRAW_SEGMENT_METERS this must be
+    // ignored entirely -- not drawn, and not advance the anchor used to
+    // measure the NEXT fix -- or repeated noise in different directions
+    // tangles into a visible scribble on the map.
+    let positionCallback: (lat: number, lng: number) => void = () => {};
+    mockWatchPosition.mockImplementation(async (cb: any) => {
+      positionCallback = cb;
+      return { remove: removeSpy };
+    });
+    const { queryByTestId } = await renderStarted();
+    mockSnapSegmentToRoad.mockClear();
+
+    // ~4.4m north of the initial (37.77, -122.41) fix -- under
+    // MIN_DRAW_SEGMENT_METERS (8m).
+    await act(async () => {
+      positionCallback(37.77004, -122.41);
+    });
+
+    expect(mockSnapSegmentToRoad).not.toHaveBeenCalled();
+    // RoutePolyline only renders once there are 2+ points -- still just
+    // the initial point, so nothing should have been added at all.
+    expect(queryByTestId("route-polyline")).toBeNull();
+  });
+
+  it("keeps measuring from the original anchor after a below-floor fix, so real sustained movement still gets drawn correctly", async () => {
+    let positionCallback: (lat: number, lng: number) => void = () => {};
+    mockWatchPosition.mockImplementation(async (cb: any) => {
+      positionCallback = cb;
+      return { remove: removeSpy };
+    });
+    const { getByTestId } = await renderStarted();
+    mockSnapSegmentToRoad.mockClear();
+
+    // First a below-floor jitter (~4.4m, ignored)...
+    await act(async () => {
+      positionCallback(37.77004, -122.41);
+    });
+    // ...then a fix that's ~8.9m from the ORIGINAL anchor (37.77), not
+    // from the ignored jitter point -- still measured against the real
+    // last-drawn point, so it correctly crosses the noise floor.
+    await act(async () => {
+      positionCallback(37.77008, -122.41);
+    });
+
+    expect(mockSnapSegmentToRoad).not.toHaveBeenCalled();
+    expect(getByTestId("route-polyline").props.coordinates).toEqual([
+      { latitude: 37.77, longitude: -122.41 },
+      { latitude: 37.77008, longitude: -122.41 },
+    ]);
   });
 
   it("auto-completes the tour immediately when the block cap is hit with no audio to finish, calling /end-tour and playing the outro before onEndTour fires", async () => {

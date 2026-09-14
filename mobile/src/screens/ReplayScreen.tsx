@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MapView, { Marker } from "react-native-maps";
 import {
   watchPosition,
@@ -12,13 +13,11 @@ import {
   getCurrentLocation,
   bearingBetween,
   distanceMeters,
-  compassLabel,
 } from "../services/location";
 import { getTourDetail, TourDetail, TourBlockDetail } from "../services/api";
 import { haversineDistanceMeters } from "../utils/geo";
 import { REPLAY_PROXIMITY_M } from "../config";
 import NarrationCard from "../components/NarrationCard";
-import WaypointCompass from "../components/WaypointCompass";
 import { colors, font, radius, type, spacing } from "../theme";
 import { showToast } from "../services/toast";
 
@@ -32,6 +31,7 @@ interface ReplayScreenProps {
 
 export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayScreenProps) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const [blocks, setBlocks] = useState<TourBlockDetail[]>(tour.blocks);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [heading, setHeading] = useState(0);
@@ -145,6 +145,58 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
   const distanceToTarget =
     target && location ? distanceMeters(location.lat, location.lng, target.lat, target.lng) : 0;
 
+  // Not close enough to the next waypoint yet (or no waypoint reached at
+  // all) -- a full-screen "here's where to walk" takeover instead of a
+  // small compass badge squeezed below the map, so it's unmistakable that
+  // nothing else is happening until the walker actually gets there.
+  if (!activeBlock && target) {
+    return (
+      <View style={styles.guidedContainer}>
+        <TouchableOpacity
+          style={[styles.guidedCancelBtn, { top: Math.max(insets.top, 20) }]}
+          onPress={onExit}
+          accessibilityRole="button"
+          accessibilityLabel={t("replay.cancelA11y")}
+        >
+          <Text style={styles.guidedCancelText}>‹ {t("common.cancel")}</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.guidedTitle} numberOfLines={2}>
+          {tour.title}
+        </Text>
+
+        {isRefreshingAudio ? (
+          <Text style={styles.guidedSubtitle}>{t("replay.refreshingAudio")}</Text>
+        ) : targetBearing !== null ? (
+          <>
+            <View style={styles.compassOuterRing}>
+              <View style={styles.compassInnerRing} />
+              <Text style={[styles.compassCardinal, styles.compassN]}>N</Text>
+              <Text style={[styles.compassCardinal, styles.compassE]}>E</Text>
+              <Text style={[styles.compassCardinal, styles.compassS]}>S</Text>
+              <Text style={[styles.compassCardinal, styles.compassW]}>W</Text>
+              <View style={[styles.compassTick, styles.tickNE]} />
+              <View style={[styles.compassTick, styles.tickSE]} />
+              <View style={[styles.compassTick, styles.tickSW]} />
+              <View style={[styles.compassTick, styles.tickNW]} />
+              <View style={[styles.needleWrap, { transform: [{ rotate: `${relativeBearing}deg` }] }]}>
+                <View style={styles.needleFront} />
+                <View style={styles.needleBack} />
+              </View>
+              <View style={styles.compassPivot} />
+            </View>
+
+            <Text style={styles.guidedDistance}>{Math.round(distanceToTarget)}m</Text>
+            <Text style={styles.guidedCaption}>{t("replay.towardStreet", { street: target.street_name })}</Text>
+            <Text style={styles.guidedSubtitle}>{t("replay.keepWalkingSubtitle")}</Text>
+          </>
+        ) : (
+          <Text style={styles.guidedSubtitle}>{t("replay.gettingLocation")}</Text>
+        )}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.mapHero}>
@@ -190,7 +242,7 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
         </Text>
       </View>
 
-      {activeBlock ? (
+      {activeBlock && (
         <NarrationCard
           isLoading={false}
           error={null}
@@ -202,24 +254,6 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
           onSkip={advanceToNext}
           onAudioError={handleAudioError}
         />
-      ) : (
-        target && (
-          <View style={styles.guideCard}>
-            {isRefreshingAudio ? (
-              <Text style={styles.guideText}>{t("replay.refreshingAudio")}</Text>
-            ) : targetBearing !== null ? (
-              <>
-                <WaypointCompass
-                  bearingDeg={relativeBearing}
-                  distanceLabel={`${Math.round(distanceToTarget)}m · ${compassLabel(targetBearing)}`}
-                />
-                <Text style={styles.guideText}>{t("replay.walkToward", { street: target.street_name })}</Text>
-              </>
-            ) : (
-              <Text style={styles.guideText}>{t("replay.walkToward", { street: target.street_name })}</Text>
-            )}
-          </View>
-        )
       )}
     </View>
   );
@@ -290,16 +324,136 @@ const styles = StyleSheet.create({
     textAlign: "right",
     marginLeft: 12,
   },
-  guideCard: {
-    padding: spacing.md,
+  // --- Full-screen "walk this way" takeover, shown whenever the walker
+  // hasn't reached the next waypoint yet -- see the early return above.
+  guidedContainer: {
+    flex: 1,
+    backgroundColor: "transparent",
     alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.lg,
   },
-  guideText: {
+  guidedCancelBtn: {
+    position: "absolute",
+    left: spacing.lg,
+  },
+  guidedCancelText: {
     fontFamily: font.cursiveBold,
     color: colors.fieldMuted,
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  guidedTitle: {
+    fontFamily: font.cursiveBold,
+    color: colors.ink,
+    fontSize: 32,
+    lineHeight: 40,
     textAlign: "center",
-    marginTop: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  compassOuterRing: {
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    // parchmentSurface (a near-white cream) read as flat and too bright --
+    // parchmentBg is the same family but noticeably deeper/warmer, closer
+    // to the reference mockup's aged, lower-contrast face.
+    backgroundColor: colors.parchmentBg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  compassInnerRing: {
+    position: "absolute",
+    width: 196,
+    height: 196,
+    borderRadius: 98,
+    borderWidth: 2,
+    borderColor: colors.fieldMuted,
+  },
+  compassCardinal: {
+    position: "absolute",
+    fontFamily: font.serif,
+    fontSize: 15,
+    color: colors.ink,
+  },
+  compassN: { top: 12, left: "50%", marginLeft: -6 },
+  compassE: { right: 14, top: "50%", marginTop: -9 },
+  compassS: { bottom: 12, left: "50%", marginLeft: -5 },
+  compassW: { left: 14, top: "50%", marginTop: -9 },
+  compassTick: {
+    position: "absolute",
+    width: 2,
+    height: 12,
+    backgroundColor: colors.fieldMuted,
+  },
+  tickNE: { top: 32, right: 46, transform: [{ rotate: "45deg" }] },
+  tickSE: { bottom: 32, right: 46, transform: [{ rotate: "-45deg" }] },
+  tickSW: { bottom: 32, left: 46, transform: [{ rotate: "45deg" }] },
+  tickNW: { top: 32, left: 46, transform: [{ rotate: "-45deg" }] },
+  needleWrap: {
+    position: "absolute",
+    width: 20,
+    height: 150,
+    alignItems: "center",
+  },
+  // Classic compass-needle silhouette: a longer, pointed front half in the
+  // route-line accent color (pointing the direction to actually walk) and
+  // a shorter, blunt ink-colored tail -- not one flat wedge.
+  // A duller, darker brick-red than a bright saturated orange -- matches
+  // the reference mockup's aged, muted needle instead of reading like a
+  // fresh coat of paint.
+  needleFront: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 70,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderBottomColor: "#8C3D22",
+  },
+  needleBack: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 50,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderTopColor: colors.ink,
+  },
+  // A plain solid dot, matching the reference mockup -- no light halo ring
+  // around it.
+  compassPivot: {
+    position: "absolute",
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.fieldGreen,
+  },
+  guidedDistance: {
+    fontFamily: font.cursiveBold,
+    color: colors.ink,
+    fontSize: 52,
+    lineHeight: 62,
+    marginTop: spacing.xl,
+  },
+  guidedCaption: {
+    fontFamily: font.cursive,
+    color: colors.fieldMuted,
+    fontSize: 17,
+    lineHeight: 23,
+    marginTop: 2,
+  },
+  guidedSubtitle: {
+    fontFamily: font.serifItalic,
+    color: colors.fieldMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.lg,
   },
 });

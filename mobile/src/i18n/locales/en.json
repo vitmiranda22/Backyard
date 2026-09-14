@@ -329,7 +329,8 @@
       "tip3": "Keep one ear free or your volume low, so you can hear traffic and sirens.",
       "tip4": "Stop walking before checking your screen or the map.",
       "tip5": "Extra caution after dark or somewhere unfamiliar.",
-      "cta": "Got it, let's walk"
+      "cta": "Got it, let's walk",
+      "preparingWalk": "Finding your first story..."
     }
   },
   "tourComplete": {
@@ -390,7 +391,10 @@
     "exit": "Exit",
     "progress": "{{current}} of {{total}}",
     "refreshingAudio": "Refreshing audio...",
-    "walkToward": "Walk toward {{street}} to continue"
+    "walkToward": "Walk toward {{street}} to continue",
+    "towardStreet": "toward {{street}}",
+    "keepWalkingSubtitle": "Keep walking — this starts on its own once you're there.",
+    "cancelA11y": "Cancel replay"
   },
   "routeRating": {
     "routeComplete": "Route Complete!",

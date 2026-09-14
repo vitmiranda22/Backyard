@@ -227,7 +227,9 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
               zoomEnabled={false}
               pointerEvents="none"
             >
-              {routeCoords.length > 1 && <RoutePolyline coordinates={routeCoords} />}
+              {routeCoords.length > 1 && (
+                <RoutePolyline coordinates={routeCoords} strokeWidth={5} innerStrokeWidth={2} />
+              )}
               <Marker coordinate={routeCoords[0]} pinColor={colors.fieldGreen} title={t("common.start")} />
               {routeCoords.length > 1 && (
                 <Marker

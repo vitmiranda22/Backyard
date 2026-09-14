@@ -43,6 +43,21 @@ import { cacheAudio } from "../services/audioCache";
 const FREE_MAX_BLOCKS = 5;
 const PREMIUM_MAX_BLOCKS = 12;
 
+// Below this, a raw GPS segment is drawn straight instead of sent to
+// OSRM's map-matcher -- see the watchPosition callback below for why.
+const MIN_SNAP_SEGMENT_METERS = 15;
+
+// Below this, a GPS fix isn't even added to the drawn path -- ordinary GPS
+// noise while standing still (worse in "urban canyon" spots between tall
+// buildings) routinely reports 5-10m of "movement" that never actually
+// happened. Without a floor, each of those noisy fixes was measured
+// against the PREVIOUS noisy fix (not a fixed anchor), so they never
+// cancelled out -- they piled up into a small tangled scribble right on
+// top of wherever the walker was actually standing, reading as "the route
+// cuts through a building" even though nothing was ever map-matched
+// wrong. See the watchPosition callback below.
+const MIN_DRAW_SEGMENT_METERS = 8;
+
 // Rejects with `label` if `promise` hasn't settled within `ms` -- used to
 // bound the guide-intro load/playback, which otherwise has no cap of its
 // own and can hang silently on a weak signal.
@@ -123,9 +138,11 @@ export default function ActiveTourScreen({
   // compass points back at this as you keep walking.
   const [blockOrigin, setBlockOrigin] = useState<{ lat: number; lng: number } | null>(null);
 
-  // Shown once at mount, every tour -- purely a visual overlay over
-  // whatever's loading underneath (see SafetyModal). Doesn't gate or
-  // delay init()'s startTour/narration calls below.
+  // Shown once at mount, every tour -- an overlay over whatever's loading
+  // underneath (see SafetyModal), which now also gates its own dismissal
+  // on isReady below so it doubles as the tour's loading screen. Doesn't
+  // gate or delay init()'s startTour/narration calls themselves, just when
+  // the walker is allowed to see past this screen.
   const [showSafetyModal, setShowSafetyModal] = useState(true);
 
   // Hold-to-ask voice question state.
@@ -293,11 +310,34 @@ export default function ActiveTourScreen({
           // follows the actual street between the two real positions
           // instead of cutting straight across a block on a turn.
           const prevRaw = lastRawRef.current;
-          lastRawRef.current = { lat, lng };
           if (prevRaw) {
-            snapSegmentToRoad(prevRaw, { lat, lng }).then((segment) => {
-              setPath((prev) => [...prev, ...segment.map((p) => ({ latitude: p.lat, longitude: p.lng }))]);
-            });
+            const rawSegmentM = distanceMeters(prevRaw.lat, prevRaw.lng, lat, lng);
+            if (rawSegmentM < MIN_DRAW_SEGMENT_METERS) {
+              // Below the noise floor -- almost certainly GPS jitter, not
+              // real movement. Deliberately does NOT advance lastRawRef:
+              // the next fix keeps measuring from this same anchor, so a
+              // real, sustained move still accumulates and eventually
+              // crosses a threshold below, while jitter that wanders back
+              // and forth around one real position never does. (Zone
+              // detection/narration below still uses this fix's true raw
+              // lat/lng regardless -- only the drawn trail skips it.)
+            } else if (rawSegmentM < MIN_SNAP_SEGMENT_METERS) {
+              // Too short to map-match reliably -- OSRM was occasionally
+              // matching a short segment to the wrong nearby pedestrian way
+              // entirely (a parking lot walkway, a courtyard) instead of
+              // the street. A segment this short is also too small to
+              // visibly cut a corner in the first place, so drawing it
+              // straight costs nothing.
+              lastRawRef.current = { lat, lng };
+              setPath((prev) => [...prev, { latitude: lat, longitude: lng }]);
+            } else {
+              lastRawRef.current = { lat, lng };
+              snapSegmentToRoad(prevRaw, { lat, lng }).then((segment) => {
+                setPath((prev) => [...prev, ...segment.map((p) => ({ latitude: p.lat, longitude: p.lng }))]);
+              });
+            }
+          } else {
+            lastRawRef.current = { lat, lng };
           }
 
           const { isNewZone, geoHash } = checkZone(lat, lng);
@@ -631,7 +671,16 @@ export default function ActiveTourScreen({
 
   return (
     <View style={styles.container}>
-      <SafetyModal visible={showSafetyModal} onDismiss={() => setShowSafetyModal(false)} />
+      <SafetyModal
+        visible={showSafetyModal}
+        onDismiss={() => setShowSafetyModal(false)}
+        // The map/first block are actually ready once we have a GPS fix
+        // and block 1 has settled one way or the other (real narration, or
+        // an error the walker can retry) -- this is what lets the safety
+        // screen double as the tour's loading screen instead of revealing
+        // a bare "Getting location..." placeholder underneath it.
+        isReady={location !== null && (narrationText !== null || error !== null)}
+      />
 
       {/* Map */}
       <View style={styles.mapWrap}>

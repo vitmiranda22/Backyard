@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
+  Image,
   FlatList,
   TouchableOpacity,
   StyleSheet,
@@ -21,19 +22,12 @@ import EmptyState from "../components/EmptyState";
 import { colors, font, radius, type, spacing } from "../theme";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
+import { MOOD_ICONS, FALLBACK_MOOD_ICON } from "../services/moods";
 
 // Bosco, shrugging/scanning the horizon -- reused for both "My Tours" and
 // "Discover" empty states, since neither is a full standalone screen (the
 // tab bar and nav stay visible underneath).
 const MASCOT_IMAGE = require("../../assets/bosco-empty-state-square.jpg");
-
-const MOOD_EMOJI: Record<string, string> = {
-  time_machine: "🕰️",
-  hidden_city: "🔮",
-  dark_side: "🕵️",
-  behind_scenes: "🎬",
-  unfiltered: "🎭",
-};
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -44,7 +38,7 @@ function formatStats(t: TFunction, tour: TourSummary) {
   const parts: string[] = [];
   if (tour.blocks_visited) parts.push(t("tours.blocksCount", { count: tour.blocks_visited }));
   if (tour.duration_sec) parts.push(`${Math.round(tour.duration_sec / 60)} ${t("routeDetail.minAbbr")}`);
-  if (tour.total_distance_m) parts.push(`${(tour.total_distance_m / 1000).toFixed(1)} km`);
+  if (tour.total_distance_m != null) parts.push(`${(tour.total_distance_m / 1000).toFixed(1)} km`);
   return parts.join(" · ");
 }
 
@@ -55,7 +49,12 @@ function formatDistance(t: TFunction, distanceM: number) {
 
 type Segment = "mine" | "discover";
 
-export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId: string) => void }) {
+interface ToursScreenProps {
+  onSelectRoute: (tourId: string) => void;
+  onBack: () => void;
+}
+
+export default function ToursScreen({ onSelectRoute, onBack }: ToursScreenProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [segment, setSegment] = useState<Segment>("mine");
@@ -125,7 +124,12 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.header, { paddingTop: Math.max(insets.top, 54) + 12 }]}>{t("tours.header")}</Text>
+      <View style={{ paddingTop: Math.max(insets.top, 54) + 12, paddingHorizontal: 20 }}>
+        <TouchableOpacity onPress={onBack} accessibilityRole="button" accessibilityLabel={t("common.back")}>
+          <Text style={styles.backArrow}>‹ {t("common.back")}</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.header}>{t("tours.header")}</Text>
 
       <View style={styles.segmentRow}>
         <TouchableOpacity
@@ -155,7 +159,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
       {segment === "mine" ? (
         tours === null ? (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color={colors.accent} />
+            <ActivityIndicator size="large" color={colors.ink} />
           </View>
         ) : (
           <FlatList
@@ -176,7 +180,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
             renderItem={({ item }) => (
               <TouchableOpacity style={styles.card} onPress={() => onSelectRoute(item.tour_id)}>
                 <View style={styles.icon}>
-                  <Text style={styles.iconText}>{MOOD_EMOJI[item.mood] ?? "🗺️"}</Text>
+                  <Image source={MOOD_ICONS[item.mood] ?? FALLBACK_MOOD_ICON} style={styles.iconText} resizeMode="contain" />
                 </View>
                 <View style={styles.info}>
                   <Text style={styles.title} numberOfLines={1}>
@@ -191,7 +195,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
         )
       ) : routes === null ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.accent} />
+          <ActivityIndicator size="large" color={colors.ink} />
         </View>
       ) : (
         <FlatList
@@ -212,7 +216,7 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
           renderItem={({ item }) => (
             <TouchableOpacity style={styles.card} onPress={() => onSelectRoute(item.tour_id)}>
               <View style={styles.icon}>
-                <Text style={styles.iconText}>{MOOD_EMOJI[item.mood] ?? "🗺️"}</Text>
+                <Image source={MOOD_ICONS[item.mood] ?? FALLBACK_MOOD_ICON} style={styles.iconText} resizeMode="contain" />
               </View>
               <View style={styles.info}>
                 <Text style={styles.title} numberOfLines={1}>
@@ -239,21 +243,31 @@ export default function ToursScreen({ onSelectRoute }: { onSelectRoute: (tourId:
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: "transparent",
+  },
+  backArrow: {
+    fontFamily: font.cursiveBold,
+    fontSize: 20,
+    lineHeight: 26,
+    color: colors.fieldMuted,
   },
   header: {
-    fontFamily: font.display,
-    fontSize: type.headline,
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 34,
+    lineHeight: 47,
+    color: colors.ink,
     textAlign: "center",
     paddingHorizontal: 20,
+    paddingTop: 8,
     paddingBottom: 12,
   },
   segmentRow: {
     flexDirection: "row",
     marginHorizontal: 20,
     marginBottom: 14,
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.parchmentBg,
+    borderWidth: 1,
+    borderColor: colors.fieldBorder,
     borderRadius: radius.pill,
     padding: 3,
   },
@@ -264,15 +278,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   segmentBtnActive: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.parchmentSurface,
   },
   segmentText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.muted,
+    fontFamily: font.cursiveBold,
+    fontSize: 17,
+    lineHeight: 23,
+    color: colors.fieldMuted,
   },
   segmentTextActive: {
-    color: colors.text,
+    color: colors.ink,
   },
   listContent: {
     paddingHorizontal: 20,
@@ -289,40 +304,52 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.parchmentSurface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.fieldBorderSoft,
     borderRadius: radius.md,
     padding: 14,
     marginBottom: 10,
   },
   icon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.surfaceAlt,
+    width: 41,
+    height: 41,
+    borderRadius: 20,
+    backgroundColor: colors.parchmentBg,
     justifyContent: "center",
     alignItems: "center",
   },
   iconText: {
-    fontSize: 17,
+    width: 22,
+    height: 22,
+    tintColor: colors.ink,
   },
+  // minWidth:0 overrides flex's default content-based minimum size -- without
+  // it, a long title's intrinsic (unwrapped) width can win the layout pass
+  // and push the fixed-size date sibling below out past the card's right
+  // edge instead of letting the title itself truncate/wrap to make room.
   info: {
     flex: 1,
+    minWidth: 0,
   },
   title: {
-    fontSize: type.label,
-    fontWeight: "700",
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 21,
+    lineHeight: 28,
+    color: colors.ink,
   },
   meta: {
+    fontFamily: font.cursive,
     fontSize: type.caption,
-    color: colors.muted,
+    color: colors.fieldMuted,
     marginTop: 2,
   },
   date: {
-    fontSize: type.caption,
-    color: colors.muted,
+    fontFamily: font.cursiveBold,
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.fieldMuted,
+    flexShrink: 0,
   },
   ratingRow: {
     flexDirection: "row",
@@ -331,7 +358,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   ratingCount: {
-    fontSize: 11,
-    color: colors.muted,
+    fontFamily: font.cursive,
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.fieldMuted,
   },
 });

@@ -189,3 +189,76 @@ def test_ignores_sources_other_than_wikipedia_and_osm_buildings():
 
 def test_returns_none_for_empty_zone_data():
     assert zone_data.pick_suggested_next({}, ORIGIN_LAT, ORIGIN_LNG) is None
+
+
+# --- New global sources: weather_history, musicbrainz_artists, open_library_books ---
+
+def test_weather_history_is_framed_as_last_year_not_current_conditions():
+    data = {
+        "weather_history": [
+            {"date": "2025-09-13", "high_c": 21.4, "low_c": 12.1, "precip_mm": 0.0},
+        ],
+    }
+
+    formatted = zone_data.format_zone_data_for_prompt(data)
+
+    assert "WEATHER HERE, ONE YEAR AGO TODAY" in formatted
+    assert "One year ago today (2025-09-13)" in formatted
+    assert "21.4" in formatted
+    assert "no rain" in formatted
+
+
+def test_weather_history_reports_rain_amount_when_nonzero():
+    data = {"weather_history": [{"date": "2025-09-13", "high_c": 18.0, "low_c": 9.0, "precip_mm": 4.2}]}
+
+    formatted = zone_data.format_zone_data_for_prompt(data)
+
+    assert "4.2mm of rain" in formatted
+
+
+def test_weather_history_empty_list_produces_no_section():
+    formatted = zone_data.format_zone_data_for_prompt({"weather_history": []})
+
+    assert "WEATHER HERE" not in formatted
+
+
+def test_musicbrainz_artists_reach_the_formatted_output():
+    data = {
+        "musicbrainz_artists": [
+            {"name": "Maze", "type": "Group", "disambiguation": "US funk/disco group", "begin": "1976"},
+        ],
+    }
+
+    formatted = zone_data.format_zone_data_for_prompt(data)
+
+    assert "MUSICIANS TIED TO THIS CITY" in formatted
+    assert "Maze" in formatted
+    assert "active since 1976" in formatted
+
+
+def test_open_library_books_reach_the_formatted_output():
+    data = {
+        "open_library_books": [
+            {"title": "The Phantom of the Opera", "author": "Gaston Leroux", "year": 1910},
+        ],
+    }
+
+    formatted = zone_data.format_zone_data_for_prompt(data)
+
+    assert "BOOKS SET IN THIS CITY" in formatted
+    assert "The Phantom of the Opera" in formatted
+    assert "Gaston Leroux" in formatted
+
+
+def test_osm_formatter_renders_shop_and_restaurant_tags():
+    data = {
+        "osm_buildings": [
+            {"type": "node", "name": "Corner Bakery", "shop": "bakery"},
+            {"type": "node", "name": "Le Petit Cafe", "amenity": "cafe", "cuisine": "french"},
+        ],
+    }
+
+    formatted = zone_data.format_zone_data_for_prompt(data)
+
+    assert "shop: bakery" in formatted
+    assert "cafe (french)" in formatted

@@ -5,7 +5,7 @@ coordinate as well as well-documented cities, since the whole point of
 this layer is raising the floor in undocumented places, not just adding
 convenience in already-rich ones.
 
-12 sources:
+15 sources:
 - Wikipedia Geosearch: articles about places within 200m
 - Wikivoyage Geosearch: travel-guide entries near these coordinates —
   local-color/"what to notice" voice, distinct from Wikipedia's tone
@@ -27,11 +27,18 @@ convenience in already-rich ones.
 - USGS Earthquake Catalog: notable historical seismic events in the
   region — genuinely global despite the name, confirmed at both Tokyo
   and rural Peru
+- Open-Meteo Historical Weather: real recorded weather for this exact
+  spot, one year ago today — global reanalysis-model coverage, works
+  even where there's no nearby weather station
+- MusicBrainz: musicians/bands tied to this city (formed/based here)
+- Open Library: real books set in or about this city
 
-All free. Wikipedia/Wikivoyage/Wikimedia/OSM/Wikidata/UNESCO/GBIF/USGS
-need no API key. Knowledge Graph reuses your Google Cloud TTS key. TMDb,
-GeoNames, and Europeana each need their own free key/username (optional —
-each source is skipped entirely if its credential is unset).
+All free. Wikipedia/Wikivoyage/Wikimedia/OSM/Wikidata/UNESCO/GBIF/USGS/
+Open-Meteo/MusicBrainz/Open Library need no API key (MusicBrainz just
+needs a real User-Agent header and respects a ~1req/sec rate limit).
+Knowledge Graph reuses your Google Cloud TTS key. TMDb, GeoNames, and
+Europeana each need their own free key/username (optional — each source
+is skipped entirely if its credential is unset).
 
 Plus two country-gated sources, `fetch_uk_police_data` and
 `fetch_uk_planning_data` — not global, but not city-specific either:
@@ -173,12 +180,18 @@ async def fetch_osm_buildings(lat: float, lng: float, client: httpx.AsyncClient)
     OpenStreetMap Overpass API — building + street-level detail nearby.
     Returns building names/ages/styles plus the "notice this" layer: war
     memorials and plaques, murals, ghost signs (disused shops still bearing
-    old signage), cemeteries, parks/gardens, and individually-mapped trees.
-    Works anywhere OSM has coverage — no per-city configuration, unlike
-    DataSF/city_data.py. The tree tag in particular gives real, current
-    tree data anywhere OSM contributors have mapped it, not just the
-    handful of cities with a municipal tree-inventory dataset (SF,
-    Austin, Paris today).
+    old signage), cemeteries, parks/gardens, individually-mapped trees, and
+    (added this pass) live shops/cafes/restaurants/bars. That last group is
+    what makes "local business texture" global instead of SF/city_data.py
+    -only: DataSF's `businesses` dataset and city_data.py's per-city
+    registries only exist for a handful of cities, but OSM has real shop/
+    amenity tags almost everywhere it has any coverage at all — so this one
+    query now gives every city on Earth roughly the same texture that used
+    to be SF-exclusive, no registry entry required. Works anywhere OSM has
+    coverage — no per-city configuration, unlike DataSF/city_data.py. The
+    tree tag in particular gives real, current tree data anywhere OSM
+    contributors have mapped it, not just the handful of cities with a
+    municipal tree-inventory dataset (SF, Austin, Paris today).
     """
     query = f"""
     [out:json][timeout:8];
@@ -197,20 +210,28 @@ async def fetch_osm_buildings(lat: float, lng: float, client: httpx.AsyncClient)
       way(around:{RADIUS_METERS},{lat},{lng})["leisure"="park"];
       way(around:{RADIUS_METERS},{lat},{lng})["leisure"="garden"];
       node(around:{RADIUS_METERS},{lat},{lng})["natural"="tree"];
+      node(around:{RADIUS_METERS},{lat},{lng})["shop"];
+      node(around:{RADIUS_METERS},{lat},{lng})["amenity"~"^(cafe|restaurant|bar|pub)$"];
     );
-    out body center 15;
+    out body center 20;
     """
+
+    # Confirmed live: Overpass returns a bare 406 Not Acceptable with no
+    # User-Agent header at all (not a rate-limit or query problem) — this
+    # was silently killing every OSM fetch before this fix, worldwide,
+    # since this source has no gating and ran on every zone.
+    headers = {"User-Agent": "BackyardApp/1.0 (tour guide app; contact@backyard.app)"}
 
     for i, endpoint in enumerate(OVERPASS_ENDPOINTS):
         try:
-            r = await client.post(endpoint, data={"data": query}, timeout=TIMEOUT + 3)
+            r = await client.post(endpoint, data={"data": query}, headers=headers, timeout=TIMEOUT + 3)
             if r.status_code != 200:
                 logger.warning(f"Overpass endpoint {endpoint} returned {r.status_code}")
                 continue
 
             elements = r.json().get("elements", [])
             results = []
-            for el in elements[:15]:
+            for el in elements[:20]:
                 tags = el.get("tags", {})
                 if tags:
                     # Nodes carry lat/lon directly; ways/relations only get
@@ -233,6 +254,8 @@ async def fetch_osm_buildings(lat: float, lng: float, client: httpx.AsyncClient)
                         "artwork_type": tags.get("artwork_type", ""),
                         "disused_shop": tags.get("disused:shop", ""),
                         "amenity": tags.get("amenity", ""),
+                        "shop": tags.get("shop", ""),
+                        "cuisine": tags.get("cuisine", ""),
                         "landuse": tags.get("landuse", ""),
                         "leisure": tags.get("leisure", ""),
                         "description": tags.get("description", ""),
@@ -771,7 +794,14 @@ async def fetch_earthquake_history(lat: float, lng: float, client: httpx.AsyncCl
                 continue
             year = None
             if time_ms:
-                year = datetime.datetime.utcfromtimestamp(time_ms / 1000).year
+                # datetime.utcfromtimestamp() throws OSError [Errno 22] on
+                # Windows for negative timestamps (pre-1970 dates) -- and
+                # USGS's catalog is full of them (the 1906 SF earthquake is
+                # -2010394053700ms). That exception used to propagate out of
+                # this whole function's try block, silently discarding every
+                # earthquake for the zone, not just the unparseable one.
+                # Pure epoch arithmetic works the same on every platform.
+                year = (datetime.datetime(1970, 1, 1) + datetime.timedelta(milliseconds=time_ms)).year
             results.append({"place": place, "mag": mag, "year": year})
         return results
 
@@ -834,4 +864,146 @@ async def fetch_uk_planning_data(lat: float, lng: float, country: str, client: h
 
     except Exception as e:
         logger.warning(f"UK Planning Data lookup failed: {e}")
+        return []
+
+
+async def fetch_weather_history(lat: float, lng: float, client: httpx.AsyncClient) -> list:
+    """
+    Open-Meteo Historical Weather Archive — real recorded weather for this
+    exact spot, one year ago today. No API key, genuinely global coverage
+    (verified against Paris; Open-Meteo's archive is reanalysis-model
+    based, so it has data everywhere, not just station-dense countries).
+
+    Deliberately a fixed past date rather than "today's weather": current
+    conditions would be stale within hours, but zone_data_cache holds
+    this for 30 days, so the fact needs to stay true for the whole cache
+    lifetime. "One year ago today" is a real, verifiable, permanently-true
+    fact the moment it's fetched — narration should frame it that way
+    ("around this time last year"), never as current conditions.
+    """
+    target = datetime.date.today() - datetime.timedelta(days=365)
+    date_str = target.isoformat()
+    try:
+        r = await client.get(
+            "https://archive-api.open-meteo.com/v1/archive",
+            params={
+                "latitude": lat,
+                "longitude": lng,
+                "start_date": date_str,
+                "end_date": date_str,
+                "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum",
+                "timezone": "auto",
+            },
+            timeout=TIMEOUT,
+        )
+        if r.status_code != 200:
+            return []
+
+        daily = r.json().get("daily", {})
+        highs = daily.get("temperature_2m_max") or []
+        if not highs or highs[0] is None:
+            return []
+        lows = daily.get("temperature_2m_min") or []
+        precip = daily.get("precipitation_sum") or []
+        return [{
+            "date": date_str,
+            "high_c": highs[0],
+            "low_c": lows[0] if lows else None,
+            "precip_mm": precip[0] if precip else None,
+        }]
+
+    except Exception as e:
+        logger.warning(f"Open-Meteo weather history failed: {e}")
+        return []
+
+
+async def fetch_musicbrainz_artists(city: str, client: httpx.AsyncClient) -> list:
+    """
+    MusicBrainz — musicians/bands tied to this city (formed here, or
+    based here). No API key, but requires a real User-Agent per their
+    usage policy, and their public server is rate-limited to roughly one
+    request per second — fine for the single call this makes per
+    zone-data fetch, but never call this in a tight loop.
+
+    City-level only, same granularity as fetch_tmdb_films below —
+    MusicBrainz's area search matches by place name text, not coordinates,
+    so this can't pin down "this exact block," only "this city."
+    """
+    if not city:
+        return []
+
+    headers = {"User-Agent": "BackyardApp/1.0 (tour guide app; contact@backyard.app)"}
+    try:
+        r = await client.get(
+            "https://musicbrainz.org/ws/2/artist/",
+            params={
+                "query": f'area:"{city}" AND type:(Group OR Person)',
+                "fmt": "json",
+                "limit": "6",
+            },
+            headers=headers,
+            timeout=TIMEOUT,
+        )
+        if r.status_code != 200:
+            return []
+
+        results = []
+        for a in r.json().get("artists", []):
+            name = a.get("name", "")
+            if not name:
+                continue
+            life_span = a.get("life-span") or {}
+            results.append({
+                "name": name,
+                "type": a.get("type", ""),
+                "disambiguation": a.get("disambiguation", ""),
+                "begin": life_span.get("begin", ""),
+            })
+        return results
+
+    except Exception as e:
+        logger.warning(f"MusicBrainz lookup failed: {e}")
+        return []
+
+
+async def fetch_open_library_books(city: str, client: httpx.AsyncClient) -> list:
+    """
+    Open Library (archive.org) — real books set in or about this place.
+    No API key, global coverage (works for any place name in their
+    catalog, not just literary capitals — verified against Paris).
+
+    City-level only, same granularity as fetch_tmdb_films/
+    fetch_musicbrainz_artists above.
+    """
+    if not city:
+        return []
+
+    try:
+        r = await client.get(
+            "https://openlibrary.org/search.json",
+            params={
+                "q": f'place:"{city}"',
+                "limit": "6",
+                "fields": "title,author_name,first_publish_year",
+            },
+            timeout=TIMEOUT,
+        )
+        if r.status_code != 200:
+            return []
+
+        results = []
+        for d in r.json().get("docs", []):
+            title = d.get("title", "")
+            if not title:
+                continue
+            authors = d.get("author_name") or []
+            results.append({
+                "title": title,
+                "author": authors[0] if authors else "",
+                "year": d.get("first_publish_year", ""),
+            })
+        return results
+
+    except Exception as e:
+        logger.warning(f"Open Library lookup failed: {e}")
         return []

@@ -1,17 +1,25 @@
 // Backyard — Main App
 //
-// Screen flow:
-//   Login → [Home / Tours / Profile tabs] → Mode Picker → Active Tour → Tour Complete → Home
-//   Tours (Discover) → Route Detail → Replay → Rate → Tours
-//   Profile → Voice Picker / Paywall
+// Screen flow: no persistent tab bar -- Home is the one landing screen,
+// and Map/Journal/Profile are all reached from it (Map + Journal via
+// Home's own FAB row, Profile via its gear icon) and return there.
+//   Login → Home → Mood Picker → Active Tour → Tour Complete → Home
+//   Home → Journal (Discover) → Route Detail → Replay → Rate → Journal
+//   Home → Profile → Paywall
 
 import React, { useState, useEffect } from "react";
 import { StatusBar, View, ActivityIndicator, Linking } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { NavigationContainer } from "@react-navigation/native";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import * as Updates from "expo-updates";
 import * as SecureStore from "expo-secure-store";
+import * as SplashScreen from "expo-splash-screen";
+import { useFonts, Caveat_500Medium, Caveat_600SemiBold, Caveat_700Bold } from "@expo-google-fonts/caveat";
+import {
+  LibreBaskerville_400Regular,
+  LibreBaskerville_700Bold,
+  LibreBaskerville_400Regular_Italic,
+} from "@expo-google-fonts/libre-baskerville";
+import { WorkSans_400Regular, WorkSans_500Medium, WorkSans_600SemiBold, WorkSans_700Bold } from "@expo-google-fonts/work-sans";
 import { restoreSession, signIn, getCurrentUserId, establishRecoverySession } from "./src/services/auth";
 import { DEV_SKIP_LOGIN, DEV_EMAIL, DEV_PASSWORD } from "./src/config";
 import { colors } from "./src/theme";
@@ -28,6 +36,7 @@ import ForgotPasswordScreen from "./src/screens/ForgotPasswordScreen";
 import ResetPasswordScreen from "./src/screens/ResetPasswordScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import HomeScreen from "./src/screens/HomeScreen";
+import MapScreen from "./src/screens/MapScreen";
 import ToursScreen from "./src/screens/ToursScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import MoodPickerScreen from "./src/screens/MoodPickerScreen";
@@ -37,22 +46,21 @@ import RouteDetailScreen from "./src/screens/RouteDetailScreen";
 import ReplayScreen from "./src/screens/ReplayScreen";
 import RouteRatingScreen from "./src/screens/RouteRatingScreen";
 import PaywallScreen from "./src/screens/PaywallScreen";
-import VoicePickerScreen from "./src/screens/VoicePickerScreen";
 import BadgeGalleryScreen from "./src/screens/BadgeGalleryScreen";
-import TabBar, { MainTab } from "./src/components/TabBar";
 import ToastHost from "./src/components/Toast";
 import ErrorBoundary from "./src/components/ErrorBoundary";
+import ParchmentBackground from "./src/components/ParchmentBackground";
 
 const ONBOARDING_KEY = "onboarding_complete";
 
-// Scoped to just the Home/Tours/Profile tab area -- see the "main" screen
-// render below. Created once at module scope per React Navigation's own
-// guidance, not inside the component (would recreate the navigator type
-// on every render).
-const Tab = createBottomTabNavigator();
-
 initSentry();
 initAnalytics();
+
+// Held open until useFonts() below resolves -- without this the native
+// splash screen hides itself automatically the moment the first frame
+// renders, which would show a flash of the system fallback font before
+// Caveat/Libre Baskerville/Work Sans finish loading.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // Parses backyard://route/<tourId> deep links (from Share) into a tourId,
 // or null if the URL doesn't match that shape.
@@ -84,6 +92,9 @@ type Screen =
   | "resetPassword"
   | "onboarding"
   | "main"
+  | "journal"
+  | "map"
+  | "profile"
   | "mood"
   | "tour"
   | "complete"
@@ -91,12 +102,29 @@ type Screen =
   | "replay"
   | "rate"
   | "paywall"
-  | "voicePicker"
   | "badgeGallery";
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    Caveat_500Medium,
+    Caveat_600SemiBold,
+    Caveat_700Bold,
+    LibreBaskerville_400Regular,
+    LibreBaskerville_700Bold,
+    LibreBaskerville_400Regular_Italic,
+    WorkSans_400Regular,
+    WorkSans_500Medium,
+    WorkSans_600SemiBold,
+    WorkSans_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [fontsLoaded]);
+
   const [screen, setScreen] = useState<Screen>("loading");
-  const [activeTab, setActiveTab] = useState<MainTab>("home");
   const [selectedMood, setSelectedMood] = useState("time_machine");
   const [tourId, setTourId] = useState("");
   const [blocksVisited, setBlocksVisited] = useState(0);
@@ -272,19 +300,23 @@ export default function App() {
   }
 
   function backToTours() {
-    setActiveTab("tours");
-    setScreen("main");
+    setScreen("journal");
+  }
+
+  if (!fontsLoaded) {
+    return null;
   }
 
   return (
     <ErrorBoundary>
     <SafeAreaProvider>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
+    <ParchmentBackground>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.parchmentBg} />
       <ToastHost />
 
       {screen === "loading" && (
-        <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: "center", alignItems: "center" }}>
-          <ActivityIndicator size="large" color={colors.accent} />
+        <View style={{ flex: 1, backgroundColor: "transparent", justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color={colors.ink} />
         </View>
       )}
 
@@ -314,77 +346,49 @@ export default function App() {
       {screen === "onboarding" && <OnboardingScreen onDone={finishOnboarding} />}
 
       {screen === "main" && (
-        // A real navigator (React Navigation), not the hand-rolled
-        // conditional rendering used everywhere else in this file --
-        // Home/Tours/Profile used to fully unmount and remount on every
-        // tab switch, re-running GPS + network fetches from scratch each
-        // time (their fetch effects are mount-only, [] deps). Mounting
-        // once here and switching via the navigator's own focus/blur
-        // instead of unmount/remount fixes that for free. Everything
-        // OUTSIDE these 3 tabs stays the existing screen state machine —
-        // this is deliberately scoped to just the tab area, not a full
-        // rewrite of the app's navigation.
-        <NavigationContainer>
-          <Tab.Navigator
-            initialRouteName={activeTab}
-            screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}
-            tabBar={(props) => {
-              const active = props.state.routeNames[props.state.index] as MainTab;
-              return (
-                <TabBar
-                  active={active}
-                  onChange={(tab) => {
-                    // Keep this mirrored so the NEXT time "main" mounts
-                    // fresh (e.g. after backToTours()/TourComplete's
-                    // onDone set it directly) initialRouteName above
-                    // still lands on the right tab.
-                    setActiveTab(tab);
-                    props.navigation.navigate(tab);
-                  }}
-                />
-              );
-            }}
-          >
-            <Tab.Screen name="home">
-              {() => (
-                <HomeScreen
-                  onStartTour={() => setScreen("mood")}
-                  onQuickStart={startTourWithMood}
-                  onSelectRoute={(id) => {
-                    setSelectedRouteId(id);
-                    setScreen("routeDetail");
-                  }}
-                  isPremium={isPremium}
-                  onRequirePremium={requirePremium}
-                />
-              )}
-            </Tab.Screen>
-            <Tab.Screen name="tours">
-              {() => (
-                <ToursScreen
-                  onSelectRoute={(id) => {
-                    setSelectedRouteId(id);
-                    setScreen("routeDetail");
-                  }}
-                />
-              )}
-            </Tab.Screen>
-            <Tab.Screen name="profile">
-              {() => (
-                <ProfileScreen
-                  onSignedOut={() => {
-                    resetAnalytics();
-                    setScreen("login");
-                  }}
-                  isPremium={isPremium}
-                  onOpenVoicePicker={() => setScreen("voicePicker")}
-                  onOpenPaywall={requirePremium}
-                  onOpenBadges={() => setScreen("badgeGallery")}
-                />
-              )}
-            </Tab.Screen>
-          </Tab.Navigator>
-        </NavigationContainer>
+        <HomeScreen
+          onStartTour={() => setScreen("mood")}
+          onSelectRoute={(id) => {
+            setSelectedRouteId(id);
+            setScreen("routeDetail");
+          }}
+          onOpenMap={() => setScreen("map")}
+          onOpenJournal={() => setScreen("journal")}
+          onOpenProfile={() => setScreen("profile")}
+          onOpenBadges={() => setScreen("badgeGallery")}
+        />
+      )}
+
+      {screen === "journal" && (
+        <ToursScreen
+          onSelectRoute={(id) => {
+            setSelectedRouteId(id);
+            setScreen("routeDetail");
+          }}
+          onBack={() => setScreen("main")}
+        />
+      )}
+
+      {screen === "map" && (
+        <MapScreen
+          onSelectRoute={(id) => {
+            setSelectedRouteId(id);
+            setScreen("routeDetail");
+          }}
+          onBack={() => setScreen("main")}
+        />
+      )}
+
+      {screen === "profile" && (
+        <ProfileScreen
+          onBack={() => setScreen("main")}
+          onSignedOut={() => {
+            resetAnalytics();
+            setScreen("login");
+          }}
+          isPremium={isPremium}
+          onOpenPaywall={requirePremium}
+        />
       )}
 
       {screen === "mood" && (
@@ -422,7 +426,6 @@ export default function App() {
           prefetchedResult={prefetchedEndResult}
           onDone={() => {
             setPrefetchedEndResult(null);
-            setActiveTab("home");
             setScreen("main");
           }}
         />
@@ -467,26 +470,10 @@ export default function App() {
         />
       )}
 
-      {screen === "voicePicker" && (
-        <VoicePickerScreen
-          isPremium={isPremium}
-          onOpenPaywall={requirePremium}
-          onBack={() => {
-            setActiveTab("profile");
-            setScreen("main");
-            refreshSettings();
-          }}
-        />
-      )}
-
       {screen === "badgeGallery" && (
-        <BadgeGalleryScreen
-          onBack={() => {
-            setActiveTab("profile");
-            setScreen("main");
-          }}
-        />
+        <BadgeGalleryScreen onBack={() => setScreen("main")} />
       )}
+    </ParchmentBackground>
     </SafeAreaProvider>
     </ErrorBoundary>
   );

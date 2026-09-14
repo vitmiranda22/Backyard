@@ -43,6 +43,8 @@ from app.config import settings, PREMIUM_MOODS, PREMIUM_VOICES, UNLIMITED_TEST_A
 from app.models.schemas import (
     NarrateBlockRequest,
     NarrateBlockResponse,
+    PrefetchZoneRequest,
+    PrefetchZoneResponse,
     AskQuestionResponse,
     ErrorResponse,
     ZoneDataUsed,
@@ -292,7 +294,7 @@ async def narrate_block(
             zone_hit_count = cached_zone.get("sources_hit_count")
             zone_eligible_count = cached_zone.get("sources_eligible_count")
         else:
-            # Step 5: Fetch ALL 26 sources in parallel
+            # Step 5: Fetch ALL 29 sources in parallel
             logger.info(f"Zone data cache MISS for {geo_hash} — fetching all sources...")
             result = await fetch_all_zone_data(
                 lat=request.lat,
@@ -542,6 +544,77 @@ async def narrate_block(
         zone_data_used=zone_data_used,
         highlights=highlights,
     )
+
+
+@router.post(
+    "/prefetch-zone",
+    response_model=PrefetchZoneResponse,
+    responses={429: {"model": ErrorResponse}},
+    summary="Speculatively warm zone_data_cache for a coordinate ahead of the walker",
+)
+async def prefetch_zone(request: PrefetchZoneRequest, user_id: AuthenticatedUser):
+    """
+    Fire-and-forget from the client: ActiveTourScreen.tsx projects a point
+    ~150m ahead of the walker along their current heading and calls this
+    once per zone entry, so that BY THE TIME they actually cross into that
+    cell, /narrate-block's own zone-data-cache lookup (see step 5 in this
+    file's docstring) is already a hit — shaving the ~2-4s parallel-fetch
+    step off the perceived wait, without ever touching OpenAI, TTS, or
+    Street View (the three billed calls), and without generating a
+    narration for a block the walker may never actually enter.
+
+    Deliberately quiet on failure: a rate limit, a reverse-geocode miss, or
+    any fetch_all_zone_data error just means the cache stays cold and
+    /narrate-block falls back to fetching it the normal way when the
+    walker actually arrives — never worth surfacing to the UI for a
+    speculative call the walker didn't ask for.
+    """
+    if user_id not in UNLIMITED_TEST_ACCOUNT_IDS:
+        # Shares the same generous per-minute abuse-guard bucket as
+        # start-tour (see 016_start_tour_rate_limit.sql) rather than the
+        # scarce daily narration budget — a free walker's 150m-per-zone
+        # walking pace realistically fires at most 1-2 of these a minute
+        # alongside 1-2 real narrations, comfortably inside this ceiling.
+        allowed, _ = await supabase_db.check_minute_rate_limit(user_id, settings.MINUTE_NARRATION_LIMIT)
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail={"error": "Slow down a bit and try again in a moment.", "code": "minute_limit_exceeded", "retry": True},
+            )
+
+    geo_hash = geohash2.encode(request.lat, request.lng, precision=GEOHASH_PRECISION)
+
+    if await supabase_db.get_cached_zone_data(geo_hash):
+        return PrefetchZoneResponse(cached=True)
+
+    geo_result = await geocode.reverse_geocode(request.lat, request.lng)
+    street_name = geo_result.street if geo_result else ""
+    neighborhood = geo_result.neighborhood if geo_result else ""
+    city = geo_result.city if geo_result else ""
+    country = geo_result.country if geo_result else ""
+
+    result = await fetch_all_zone_data(
+        lat=request.lat,
+        lng=request.lng,
+        street_name=street_name,
+        neighborhood=neighborhood,
+        city=city,
+        country=country,
+    )
+    await supabase_db.store_zone_data(
+        geo_hash=geo_hash,
+        street_name=street_name,
+        neighborhood=neighborhood,
+        city=city,
+        country=country,
+        raw_data=result["zone_data"],
+        sources_queried=result["sources_queried"],
+        sources_failed=result["sources_failed"],
+        sources_hit_count=result["hit_count"],
+        sources_eligible_count=result["total"] - len(result["sources_skipped"]),
+        sources_skipped=result["sources_skipped"],
+    )
+    return PrefetchZoneResponse(cached=True)
 
 
 MAX_QUESTION_AUDIO_BYTES = 15 * 1024 * 1024  # comfortably under Whisper's 25MB cap

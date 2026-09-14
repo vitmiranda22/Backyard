@@ -72,7 +72,7 @@ describe("ToursScreen", () => {
   it("loads and shows the user's own tours on mount", async () => {
     mockGetTours.mockResolvedValue([myTour()]);
 
-    const { findByText } = await render(<ToursScreen onSelectRoute={jest.fn()} />);
+    const { findByText } = await render(<ToursScreen onSelectRoute={jest.fn()} onBack={jest.fn()} />);
 
     expect(await findByText("Sunset Walk")).toBeTruthy();
   });
@@ -80,7 +80,7 @@ describe("ToursScreen", () => {
   it("shows an empty state when there are no tours yet", async () => {
     mockGetTours.mockResolvedValue([]);
 
-    const { findByText } = await render(<ToursScreen onSelectRoute={jest.fn()} />);
+    const { findByText } = await render(<ToursScreen onSelectRoute={jest.fn()} onBack={jest.fn()} />);
 
     expect(await findByText("tours.noToursYet")).toBeTruthy();
   });
@@ -88,7 +88,7 @@ describe("ToursScreen", () => {
   it("shows a toast and a retry affordance (not a crash) when loading tours fails", async () => {
     mockGetTours.mockRejectedValue(new Error("network error"));
 
-    const { findByText } = await render(<ToursScreen onSelectRoute={jest.fn()} />);
+    const { findByText } = await render(<ToursScreen onSelectRoute={jest.fn()} onBack={jest.fn()} />);
 
     await findByText("tours.couldntLoadTours");
     expect(mockShowToast).toHaveBeenCalledWith("tours.couldntLoadTours");
@@ -98,7 +98,7 @@ describe("ToursScreen", () => {
     mockGetTours.mockRejectedValueOnce(new Error("network error"));
     mockGetTours.mockResolvedValueOnce([myTour()]);
 
-    const { findByText } = await render(<ToursScreen onSelectRoute={jest.fn()} />);
+    const { findByText } = await render(<ToursScreen onSelectRoute={jest.fn()} onBack={jest.fn()} />);
 
     await fireEvent.press(await findByText("common.retry"));
 
@@ -109,7 +109,7 @@ describe("ToursScreen", () => {
   it("calls onSelectRoute with the tour_id when a tour card is pressed", async () => {
     mockGetTours.mockResolvedValue([myTour()]);
     const onSelectRoute = jest.fn();
-    const { findByText } = await render(<ToursScreen onSelectRoute={onSelectRoute} />);
+    const { findByText } = await render(<ToursScreen onSelectRoute={onSelectRoute} onBack={jest.fn()} />);
 
     await fireEvent.press(await findByText("Sunset Walk"));
 
@@ -122,7 +122,7 @@ describe("ToursScreen", () => {
     mockGetCurrentLocation.mockResolvedValue({ lat: 37.7749, lng: -122.4194 });
     mockGetNearbyRoutes.mockResolvedValue([nearbyRoute()]);
 
-    const { getByText, findByText } = await render(<ToursScreen onSelectRoute={jest.fn()} />);
+    const { getByText, findByText } = await render(<ToursScreen onSelectRoute={jest.fn()} onBack={jest.fn()} />);
     await findByText("tours.noToursYet");
 
     await fireEvent.press(getByText("tours.discover"));
@@ -135,7 +135,7 @@ describe("ToursScreen", () => {
     mockGetTours.mockResolvedValue([]);
     mockRequestPermission.mockResolvedValue(false);
 
-    const { getByText, findByText } = await render(<ToursScreen onSelectRoute={jest.fn()} />);
+    const { getByText, findByText } = await render(<ToursScreen onSelectRoute={jest.fn()} onBack={jest.fn()} />);
     await findByText("tours.noToursYet");
 
     await fireEvent.press(getByText("tours.discover"));

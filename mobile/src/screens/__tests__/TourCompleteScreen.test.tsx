@@ -70,6 +70,27 @@ describe("TourCompleteScreen", () => {
     expect(saveBtn.props.accessibilityState?.disabled).toBe(true);
   });
 
+  it("shows a dead-end message instead of the save form when no blocks were narrated, and discards on continue", async () => {
+    // Regression guard: a tour ended seconds after it started (0 blocks)
+    // has nothing real to name/save/share -- this screen should skip that
+    // whole form and only offer to discard the empty tour.
+    mockEndTour.mockResolvedValue({ mood: "time_machine" });
+    mockDeleteTour.mockResolvedValue(undefined);
+    const props = baseProps({ blocksVisited: 0 });
+
+    const { findByText, getByLabelText, queryByLabelText } = await render(
+      <TourCompleteScreen {...props} />
+    );
+
+    expect(await findByText("tourComplete.emptyTourTitle")).toBeTruthy();
+    expect(queryByLabelText("tourComplete.saveTourA11y")).toBeNull();
+
+    fireEvent.press(getByLabelText("tourComplete.emptyTourButtonA11y"));
+
+    await waitFor(() => expect(mockDeleteTour).toHaveBeenCalledWith("tour-1"));
+    expect(props.onDone).toHaveBeenCalled();
+  });
+
   it("calls endTour with distance/duration derived from blocksVisited and startTime", async () => {
     mockEndTour.mockResolvedValue({ mood: "hidden_city" });
     await render(<TourCompleteScreen {...baseProps({ blocksVisited: 4 })} />);

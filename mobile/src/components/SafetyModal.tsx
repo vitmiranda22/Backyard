@@ -5,7 +5,7 @@
 // regardless of whether this is still open.
 
 import React from "react";
-import { View, Text, StyleSheet, Modal, TouchableOpacity } from "react-native";
+import { View, Text, Image, StyleSheet, Modal, TouchableOpacity } from "react-native";
 import { useTranslation } from "react-i18next";
 import { colors, font, radius, type, spacing } from "../theme";
 import BoscoHero from "./BoscoHero";
@@ -20,7 +20,16 @@ interface SafetyModalProps {
   onDismiss: () => void;
 }
 
-const TIP_ICONS = ["🚦", "👀", "🎧", "📱", "🌙"];
+// "General awareness" has no real icon yet -- emoji fallback per the
+// ship-with-placeholders call, swap in real art via OTA once it exists.
+const TIP_ICONS: (any | null)[] = [
+  require("../../assets/icons/traffic_awareness.png"),
+  null,
+  require("../../assets/icons/headphones.png"),
+  require("../../assets/icons/phone_distraction.png"),
+  require("../../assets/icons/night_walking.png"),
+];
+const TIP_EMOJI_FALLBACK = ["🚦", "👀", "🎧", "📱", "🌙"];
 
 export default function SafetyModal({ visible, onDismiss }: SafetyModalProps) {
   const { t } = useTranslation();
@@ -47,7 +56,11 @@ export default function SafetyModal({ visible, onDismiss }: SafetyModalProps) {
           <View style={styles.content}>
             {TIP_ICONS.map((icon, i) => (
               <View key={i} style={styles.tip}>
-                <Text style={styles.tipIcon}>{icon}</Text>
+                {icon ? (
+                  <Image source={icon} style={styles.tipIconImage} resizeMode="contain" />
+                ) : (
+                  <Text style={styles.tipIcon}>{TIP_EMOJI_FALLBACK[i]}</Text>
+                )}
                 <Text style={styles.tipText}>{t(`activeTour.safety.tip${i + 1}`)}</Text>
               </View>
             ))}
@@ -70,7 +83,7 @@ export default function SafetyModal({ visible, onDismiss }: SafetyModalProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.text,
+    backgroundColor: colors.ink,
   },
   topTitle: {
     position: "absolute",
@@ -79,10 +92,9 @@ const styles = StyleSheet.create({
     right: 0,
     paddingTop: 56,
     paddingHorizontal: spacing.lg,
-    fontFamily: font.display,
-    fontSize: type.display,
-    lineHeight: 36,
-    fontWeight: "700",
+    fontFamily: font.cursiveBold,
+    fontSize: 43,
+    lineHeight: 45,
     color: "#fff",
     textAlign: "center",
     textShadowColor: "rgba(0,0,0,0.55)",
@@ -108,25 +120,32 @@ const styles = StyleSheet.create({
     width: 20,
     textAlign: "center",
   },
+  tipIconImage: {
+    width: 22,
+    height: 22,
+    tintColor: "#fff",
+  },
   tipText: {
     flex: 1,
-    fontSize: 12.5,
+    fontFamily: font.serifItalic,
+    fontSize: 14,
     color: "#fff",
-    lineHeight: 17,
+    lineHeight: 20,
     textShadowColor: "rgba(0,0,0,0.6)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
   cta: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.fieldGreen,
     borderRadius: radius.md,
     padding: 15,
     marginTop: 10,
   },
   ctaText: {
+    fontFamily: font.cursiveBold,
     textAlign: "center",
-    color: colors.accentText,
-    fontWeight: "700",
-    fontSize: 15,
+    color: colors.parchmentSurface,
+    fontSize: 21,
+    lineHeight: 28,
   },
 });

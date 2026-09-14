@@ -4,8 +4,8 @@ Zone data fetcher — orchestrates all data sources in parallel.
 For any geographic zone, we:
 1. Fire off 15 DataSF queries (only when the geocoded city is San
    Francisco — see `is_san_francisco`/`DATASF_SOURCE_NAMES`, skipped
-   entirely with zero network calls everywhere else) + 12 always-on
-   global queries + 1 UK-gated query + N other-city queries (no-op
+   entirely with zero network calls everywhere else) + 17 always-on
+   global queries + 2 UK-gated queries + N other-city queries (no-op
    instantly unless the geocoded city matches the registry in
    city_data.py, which now spans multiple platforms — Socrata and
    OpenDataSoft; GeoNames/Europeana no-op instantly unless their
@@ -31,7 +31,7 @@ from app.services import datasf, global_sources, city_data
 logger = logging.getLogger(__name__)
 
 
-# DataSF's 15 fetchers hit data.sfgov.org directly with no location check
+# DataSF's 15 fetchers hit data.sf.gov directly with no location check
 # of their own — unlike city_data.py's NYC/Chicago sources, which gate on
 # a city-name match before making any network call. Gating here, once,
 # before the task dict is even built, means a non-SF location makes zero
@@ -96,7 +96,7 @@ async def fetch_all_zone_data(
             })
 
         tasks.update({
-            # --- Global sources (11 sources, any city, zero gating) ---
+            # --- Global sources (17 sources, any city, zero gating) ---
             "wikipedia": global_sources.fetch_wikipedia(lat, lng, client),
             "wikimedia_photos": global_sources.fetch_wikimedia_commons(lat, lng, client),
             "osm_buildings": global_sources.fetch_osm_buildings(lat, lng, client),
@@ -109,6 +109,9 @@ async def fetch_all_zone_data(
             "wikivoyage": global_sources.fetch_wikivoyage(lat, lng, client),
             "gbif": global_sources.fetch_gbif_occurrences(lat, lng, client),
             "earthquake_history": global_sources.fetch_earthquake_history(lat, lng, client),
+            "weather_history": global_sources.fetch_weather_history(lat, lng, client),
+            "musicbrainz_artists": global_sources.fetch_musicbrainz_artists(city, client),
+            "open_library_books": global_sources.fetch_open_library_books(city, client),
             "uk_police": global_sources.fetch_uk_police_data(lat, lng, country, client),
             "uk_planning": global_sources.fetch_uk_planning_data(lat, lng, country, client),
         })
@@ -360,6 +363,9 @@ def format_zone_data_for_prompt(zone_data: dict, mode: str = None) -> str:
         "neighborhoods": ("📌 NEIGHBORHOOD INFO", _format_generic),
         "businesses": ("🏪 BUSINESSES (PAST & PRESENT)", _format_generic),
         "wikimedia_photos": ("📷 HISTORICAL PHOTOS NEARBY", _format_generic),
+        "weather_history": ("🌤️ WEATHER HERE, ONE YEAR AGO TODAY (Open-Meteo)", _format_weather_history),
+        "musicbrainz_artists": ("🎵 MUSICIANS TIED TO THIS CITY (MusicBrainz)", _format_musicbrainz),
+        "open_library_books": ("📖 BOOKS SET IN THIS CITY (Open Library)", _format_open_library),
 
         # --- Tier 3 ---
         "building_permits": ("🏗️ BUILDING PERMITS", _format_building_permits),
@@ -555,6 +561,8 @@ def _format_osm(data: list) -> str:
         artwork_type = b.get("artwork_type", "")
         disused_shop = b.get("disused_shop", "")
         amenity = b.get("amenity", "")
+        shop = b.get("shop", "")
+        cuisine = b.get("cuisine", "")
         landuse = b.get("landuse", "")
         leisure = b.get("leisure", "")
         natural = b.get("natural", "")
@@ -583,6 +591,13 @@ def _format_osm(data: list) -> str:
             parts.append(f"artwork: {artwork_type}")
         if disused_shop:
             parts.append(f"ghost sign — formerly a {disused_shop} shop")
+        if shop:
+            parts.append(f"shop: {shop}")
+        if amenity in ("cafe", "restaurant", "bar", "pub"):
+            desc = f"{amenity}"
+            if cuisine:
+                desc += f" ({cuisine})"
+            parts.append(desc)
         if amenity == "grave_yard" or landuse == "cemetery":
             parts.append("cemetery/graveyard nearby")
         if leisure in ("park", "garden"):
@@ -709,6 +724,66 @@ def _format_gbif(data: list) -> str:
         line = f"- {species}"
         if taxon_class:
             line += f" ({taxon_class})"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_weather_history(data: list) -> str:
+    """
+    Deliberately singular — fetch_weather_history returns at most one row
+    (one fixed date, one year before today). Framed explicitly as "one
+    year ago today," never as current conditions, since the model has no
+    other way to know this isn't live weather.
+    """
+    lines = []
+    for w in data[:1]:
+        date = w.get("date", "")
+        high = w.get("high_c")
+        low = w.get("low_c")
+        precip = w.get("precip_mm")
+        if high is None:
+            continue
+        line = f"- One year ago today ({date}), it reached {high}°C"
+        if low is not None:
+            line += f" (low {low}°C)"
+        if precip is not None:
+            line += f", {precip}mm of rain" if precip > 0 else ", no rain"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_musicbrainz(data: list) -> str:
+    lines = []
+    for a in data[:5]:
+        name = a.get("name", "")
+        if not name:
+            continue
+        kind = a.get("type", "")
+        disamb = a.get("disambiguation", "")
+        begin = a.get("begin", "")
+        line = f"- {name}"
+        details = [d for d in (kind, disamb) if d]
+        if details:
+            line += f" ({', '.join(details)})"
+        if begin:
+            line += f" — active since {begin}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_open_library(data: list) -> str:
+    lines = []
+    for b in data[:5]:
+        title = b.get("title", "")
+        if not title:
+            continue
+        author = b.get("author", "")
+        year = b.get("year", "")
+        line = f"- \"{title}\""
+        if author:
+            line += f" by {author}"
+        if year:
+            line += f" ({year})"
         lines.append(line)
     return "\n".join(lines)
 

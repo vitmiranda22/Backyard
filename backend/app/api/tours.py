@@ -688,6 +688,26 @@ async def publish_tour(
             detail={"error": "This tour doesn't belong to you.", "code": "forbidden", "retry": False},
         )
 
+    # A tour with no narrated blocks has nothing real to save or share --
+    # the mobile client already skips this whole screen for a 0-block tour
+    # (see TourCompleteScreen's empty-tour branch), but this is the actual
+    # enforcement point, in case an older client or a direct API call gets
+    # here anyway. Counts the real tour_blocks rows rather than trusting
+    # tour.blocks_visited -- that summary column is only written by
+    # /end-tour, and Save isn't gated on that call finishing first, so it
+    # can still read stale (pre-finalize) here for a tour that really does
+    # have content.
+    blocks = await supabase_db.get_tour_blocks(request.tour_id)
+    if not blocks:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "This walk doesn't have any stories to save or share.",
+                "code": "empty_tour",
+                "retry": False,
+            },
+        )
+
     if request.title and moderation.contains_denylisted_content(request.title):
         raise HTTPException(
             status_code=400,

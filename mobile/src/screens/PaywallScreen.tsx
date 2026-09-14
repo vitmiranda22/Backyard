@@ -5,9 +5,14 @@
 // src/config.ts) and an offering is set up in the RevenueCat dashboard,
 // getPackages() returns [] and this screen falls back to the same
 // "Coming soon" stub it always showed — nothing breaks in the meantime.
+//
+// Visually the one deliberate break from the rest of the app's parchment
+// "Field Guide" system — a deep green-and-gold "ticket" instead of an aged
+// page, since this is the one screen that should feel like the special
+// premium moment rather than another page in the journal.
 
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Linking } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { PurchasesPackage, PACKAGE_TYPE } from "react-native-purchases";
@@ -22,10 +27,10 @@ const PRIVACY_URL = "https://backyard-api.onrender.com/privacy";
 const TERMS_URL = "https://backyard-api.onrender.com/terms";
 
 const PERK_KEYS = [
-  { emoji: "🕵️", key: "paywall.perkMoods" },
-  { emoji: "🎙️", key: "paywall.perkVoices" },
-  { emoji: "⚡", key: "paywall.perkLimit" },
-  { emoji: "💬", key: "paywall.perkQuestions" },
+  { icon: require("../../assets/icons/dark_side.png"), key: "paywall.perkMoods" },
+  { icon: require("../../assets/icons/premium_voices.png"), key: "paywall.perkVoices" },
+  { icon: require("../../assets/icons/higher_limit.png"), key: "paywall.perkLimit" },
+  { icon: require("../../assets/icons/ask_question_paywall.png"), key: "paywall.perkQuestions" },
 ];
 
 interface PaywallScreenProps {
@@ -91,21 +96,23 @@ export default function PaywallScreen({ onClose, onPurchased }: PaywallScreenPro
         <Text style={styles.closeText}>✕</Text>
       </TouchableOpacity>
 
-      <Text style={styles.emoji}>✨</Text>
+      <View style={styles.badge}>
+        <Image source={require("../../assets/icons/sparkle.png")} style={styles.badgeIcon} resizeMode="contain" />
+      </View>
       <Text style={styles.title}>{t("paywall.title")}</Text>
       <Text style={styles.subtitle}>{t("paywall.subtitle")}</Text>
 
       <View style={styles.perks}>
         {PERK_KEYS.map((perk) => (
           <View key={perk.key} style={styles.perkRow}>
-            <Text style={styles.perkEmoji}>{perk.emoji}</Text>
+            <Image source={perk.icon} style={styles.perkIcon} resizeMode="contain" />
             <Text style={styles.perkText}>{t(perk.key)}</Text>
           </View>
         ))}
       </View>
 
       {purchasing ? (
-        <ActivityIndicator size="large" color={colors.pro} style={{ marginBottom: 20 }} />
+        <ActivityIndicator size="large" color={colors.paywallGold} style={{ marginBottom: 20 }} />
       ) : (
         <>
           <TouchableOpacity
@@ -170,7 +177,7 @@ export default function PaywallScreen({ onClose, onPurchased }: PaywallScreenPro
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: colors.paywallBg,
     padding: spacing.lg,
     paddingTop: 60,
     justifyContent: "center",
@@ -180,24 +187,36 @@ const styles = StyleSheet.create({
     right: 20,
   },
   closeText: {
-    color: colors.muted,
-    fontSize: 20,
+    color: "rgba(244,239,221,0.7)",
+    fontSize: 22,
   },
-  emoji: {
-    fontSize: 44,
-    textAlign: "center",
+  badge: {
+    alignSelf: "center",
+    width: 60,
+    height: 60,
+    borderRadius: 34,
+    borderWidth: 1.5,
+    borderColor: colors.paywallGold,
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: spacing.sm,
   },
+  badgeIcon: {
+    width: 28,
+    height: 28,
+    tintColor: colors.paywallGold,
+  },
   title: {
-    fontFamily: font.display,
-    fontSize: 26,
-    color: colors.text,
+    fontFamily: font.serif,
+    fontSize: 28,
+    color: colors.paywallText,
     textAlign: "center",
     marginBottom: 6,
   },
   subtitle: {
-    fontSize: type.label,
-    color: colors.muted,
+    fontFamily: font.serifItalic,
+    fontSize: type.title,
+    color: "rgba(244,239,221,0.78)",
     textAlign: "center",
     marginBottom: 28,
   },
@@ -207,85 +226,95 @@ const styles = StyleSheet.create({
   perkRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 14,
     marginBottom: 14,
   },
-  perkEmoji: {
-    fontSize: 20,
+  perkIcon: {
+    width: 23,
+    height: 23,
+    tintColor: colors.paywallGold,
   },
   perkText: {
     flex: 1,
+    fontFamily: font.cursive,
     fontSize: type.label,
-    color: colors.text,
+    color: colors.paywallText,
   },
   planBtn: {
-    backgroundColor: colors.pro,
+    backgroundColor: colors.paywallGold,
     padding: spacing.md,
     borderRadius: radius.md,
     marginBottom: 12,
   },
   planBtnLabel: {
-    color: colors.proText,
+    fontFamily: font.sansBold,
+    color: colors.ink,
     textAlign: "center",
-    fontSize: 11,
-    fontWeight: "700",
+    fontSize: 12,
     textTransform: "uppercase",
     letterSpacing: 0.4,
-    opacity: 0.85,
+    opacity: 0.75,
     marginBottom: 2,
   },
   planBtnText: {
-    color: colors.proText,
+    fontFamily: font.cursiveBold,
+    color: colors.ink,
     textAlign: "center",
-    fontSize: type.body,
-    fontWeight: "700",
+    fontSize: 22,
+    lineHeight: 29,
   },
   planBtnOutline: {
-    borderWidth: 1,
-    borderColor: colors.pro,
+    borderWidth: 1.3,
+    borderColor: colors.paywallGold,
     padding: spacing.md,
     borderRadius: radius.md,
     marginBottom: 12,
   },
   planBtnOutlineLabel: {
-    color: colors.pro,
+    fontFamily: font.sansBold,
+    color: colors.paywallGold,
     textAlign: "center",
-    fontSize: 11,
-    fontWeight: "700",
+    fontSize: 12,
     textTransform: "uppercase",
     letterSpacing: 0.4,
-    opacity: 0.85,
     marginBottom: 2,
   },
   planBtnOutlineText: {
-    color: colors.pro,
+    fontFamily: font.cursiveBold,
+    color: colors.paywallText,
     textAlign: "center",
-    fontSize: type.body,
-    fontWeight: "700",
+    fontSize: 22,
+    lineHeight: 29,
   },
   planBtnSub: {
-    color: colors.muted,
+    fontFamily: font.cursive,
+    color: "rgba(244,239,221,0.7)",
     textAlign: "center",
     fontSize: type.caption,
     marginTop: 2,
   },
   autoRenews: {
-    color: colors.muted,
+    fontFamily: font.cursive,
+    color: "rgba(244,239,221,0.55)",
     textAlign: "center",
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 12,
+    lineHeight: 16,
     marginBottom: spacing.sm,
   },
   restoreText: {
-    color: colors.muted,
+    fontFamily: font.cursiveBold,
+    color: "rgba(244,239,221,0.75)",
     textAlign: "center",
-    fontSize: 13,
+    fontSize: 17,
+    lineHeight: 23,
     marginBottom: 14,
   },
   notNow: {
-    color: colors.muted,
+    fontFamily: font.cursiveBold,
+    color: "rgba(244,239,221,0.75)",
     textAlign: "center",
-    fontSize: type.label,
+    fontSize: 17,
+    lineHeight: 23,
   },
   legalRow: {
     flexDirection: "row",
@@ -295,12 +324,13 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   legalLink: {
-    color: colors.muted,
+    fontFamily: font.cursive,
+    color: "rgba(244,239,221,0.5)",
     fontSize: type.caption,
     textDecorationLine: "underline",
   },
   legalSeparator: {
-    color: colors.muted,
+    color: "rgba(244,239,221,0.5)",
     fontSize: type.caption,
   },
 });

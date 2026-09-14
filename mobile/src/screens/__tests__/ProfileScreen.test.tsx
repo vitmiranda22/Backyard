@@ -9,7 +9,6 @@ jest.mock("../../services/auth", () => ({
 jest.mock("../../services/api", () => ({
   getSettings: jest.fn(),
   updateSettings: jest.fn(),
-  getUserStats: jest.fn(),
   deleteAccount: jest.fn(),
 }));
 jest.mock("../../services/toast", () => ({ showToast: jest.fn() }));
@@ -23,39 +22,23 @@ jest.mock("../../i18n", () => ({
 
 import ProfileScreen from "../ProfileScreen";
 import { getCurrentUserEmail, signOut } from "../../services/auth";
-import { getSettings, updateSettings, getUserStats, deleteAccount } from "../../services/api";
+import { getSettings, updateSettings, deleteAccount } from "../../services/api";
 import { showToast } from "../../services/toast";
+import { setLanguage } from "../../i18n";
 
 const mockGetCurrentUserEmail = getCurrentUserEmail as jest.Mock;
 const mockSignOut = signOut as jest.Mock;
 const mockGetSettings = getSettings as jest.Mock;
 const mockUpdateSettings = updateSettings as jest.Mock;
-const mockGetUserStats = getUserStats as jest.Mock;
 const mockDeleteAccount = deleteAccount as jest.Mock;
 const mockShowToast = showToast as jest.Mock;
 
-function stats(overrides = {}) {
-  return {
-    tours_completed: 5,
-    total_distance_m: 42_500,
-    cities_visited: 1,
-    moods_tried: ["time_machine"],
-    routes_published: 1,
-    total_likes_received: 0,
-    longest_streak_days: 3,
-    night_streak_days: 0,
-    early_streak_days: 0,
-    ...overrides,
-  };
-}
-
 function baseProps(overrides = {}) {
   return {
+    onBack: jest.fn(),
     onSignedOut: jest.fn(),
     isPremium: false,
-    onOpenVoicePicker: jest.fn(),
     onOpenPaywall: jest.fn(),
-    onOpenBadges: jest.fn(),
     ...overrides,
   };
 }
@@ -66,7 +49,6 @@ describe("ProfileScreen", () => {
     jest.spyOn(Alert, "alert").mockImplementation(() => {});
     mockGetCurrentUserEmail.mockResolvedValue("walker@example.com");
     mockGetSettings.mockResolvedValue({ content_safety: false, display_name: "Ada" });
-    mockGetUserStats.mockResolvedValue(stats());
   });
 
   it("shows the signed-in email once loaded", async () => {
@@ -115,26 +97,6 @@ describe("ProfileScreen", () => {
 
     await waitFor(() => expect(props.onSignedOut).toHaveBeenCalled());
     expect(mockSignOut).toHaveBeenCalled();
-  });
-
-  it("shows earned badges but not unearned ones", async () => {
-    // first_steps needs >=1 tour, on_a_roll needs a 3-day streak — stats()
-    // has exactly 3, so both should be earned; century_club (needs 200km)
-    // should not.
-    const { findByText, queryByText } = await render(<ProfileScreen {...baseProps()} />);
-
-    expect(await findByText("badges.first_steps.label")).toBeTruthy();
-    expect(await findByText("badges.on_a_roll.label")).toBeTruthy();
-    expect(queryByText("badges.century_club.label")).toBeNull();
-  });
-
-  it("opens the badge gallery when the badges card is pressed", async () => {
-    const props = baseProps();
-    const { findByText } = await render(<ProfileScreen {...props} />);
-
-    await fireEvent.press(await findByText("profile.badges"));
-
-    expect(props.onOpenBadges).toHaveBeenCalled();
   });
 
   it("shows the current display name, and saves a new one once edited", async () => {
@@ -256,5 +218,33 @@ describe("ProfileScreen", () => {
     await fireEvent.press(await findByText("profile.deleteAccount"));
 
     expect((Alert.alert as jest.Mock).mock.calls[0][1]).toBe("profile.deleteAccountBody");
+  });
+
+  it("opens a themed language picker (not a native alert) and applies a selection", async () => {
+    const { findByLabelText, findByText, queryByText } = await render(<ProfileScreen {...baseProps()} />);
+
+    // "English" is ambiguous once the sheet is open (it's both the row's
+    // current-language summary and an option inside the sheet) -- "Español"
+    // and the Cancel button are unique to the sheet itself, so they're what
+    // prove it actually opened.
+    await fireEvent.press(await findByLabelText("profile.language"));
+    expect(await findByText("Español")).toBeTruthy();
+    expect(await findByText("common.cancel")).toBeTruthy();
+    expect(Alert.alert).not.toHaveBeenCalled();
+
+    await fireEvent.press(await findByText("Español"));
+
+    expect(setLanguage).toHaveBeenCalledWith("es");
+    await waitFor(() => expect(queryByText("Español")).toBeNull());
+  });
+
+  it("closes the language picker without changing anything on cancel", async () => {
+    const { findByLabelText, findByText, queryByText } = await render(<ProfileScreen {...baseProps()} />);
+
+    await fireEvent.press(await findByLabelText("profile.language"));
+    await fireEvent.press(await findByText("common.cancel"));
+
+    expect(setLanguage).not.toHaveBeenCalled();
+    await waitFor(() => expect(queryByText("Español")).toBeNull());
   });
 });

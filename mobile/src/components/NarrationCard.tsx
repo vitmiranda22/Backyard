@@ -5,12 +5,14 @@
 // controls. Has loading and error states.
 
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Modal, TouchableOpacity, ScrollView, Linking } from "react-native";
+import { View, Text, Image, StyleSheet, ActivityIndicator, Modal, TouchableOpacity, ScrollView, Linking } from "react-native";
 import { useTranslation } from "react-i18next";
 import AudioPlayer from "./AudioPlayer";
 import ZonePhoto from "./ZonePhoto";
 import EmptyState from "./EmptyState";
-import { colors, radius, type, spacing } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
+
+const LOCATION_ICON = require("../../assets/icons/location.png");
 
 export interface NarrationHighlight {
   text: string;
@@ -76,7 +78,7 @@ function renderWithHighlights(text: string, highlights: NarrationHighlight[] | n
 }
 
 const narrationLinkStyle = {
-  color: colors.pro,
+  color: colors.fieldGreen,
   textDecorationLine: "underline" as const,
 };
 
@@ -100,7 +102,7 @@ export default function NarrationCard({
     return (
       <View style={styles.card}>
         <View style={styles.content}>
-          <ActivityIndicator size="small" color={colors.accent} />
+          <ActivityIndicator size="small" color={colors.ink} />
           <Text style={styles.loadingText}>{t("narrationCard.finding")}</Text>
         </View>
       </View>
@@ -136,7 +138,10 @@ export default function NarrationCard({
           {/* Street name — a location label, not the content itself, so it
               reads as secondary (small-caps eyebrow) rather than competing
               with the actual story below it for the same glance. */}
-          <Text style={styles.streetName}>📍 {streetName}</Text>
+          <View style={styles.streetNameRow}>
+            <Image source={LOCATION_ICON} style={styles.streetNameIcon} resizeMode="contain" />
+            <Text style={styles.streetName}>{streetName}</Text>
+          </View>
 
           {/* The narration text IS the product -- this is what someone
               opened the app to hear, so it carries the primary reading
@@ -181,7 +186,10 @@ export default function NarrationCard({
         <View style={styles.modalScrim}>
           <View style={styles.modalSheet}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalStreetName}>📍 {streetName}</Text>
+            <View style={styles.modalStreetNameRow}>
+              <Image source={LOCATION_ICON} style={styles.modalStreetNameIcon} resizeMode="contain" />
+              <Text style={styles.modalStreetName}>{streetName}</Text>
+            </View>
             <ScrollView style={styles.modalScroll}>
               <Text style={styles.modalText}>{renderWithHighlights(narrationText, highlights)}</Text>
             </ScrollView>
@@ -205,11 +213,11 @@ const styles = StyleSheet.create({
     // No clipping here — the popup photo needs to poke above the card.
   },
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.parchmentSurface,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.fieldBorder,
     borderBottomWidth: 0,
     overflow: "hidden",
     maxHeight: 460,
@@ -220,7 +228,7 @@ const styles = StyleSheet.create({
     right: 18,
     transform: [{ rotate: "-4deg" }],
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.parchmentSurface,
     padding: spacing.xs,
     shadowColor: "#000",
     shadowOpacity: 0.25,
@@ -232,54 +240,68 @@ const styles = StyleSheet.create({
     width: 118,
     height: 88,
     borderRadius: radius.sm,
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.parchmentBg,
   },
   content: {
     padding: spacing.md,
     paddingTop: 26,
   },
-  streetName: {
-    fontSize: type.caption,
-    fontWeight: "700",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-    color: colors.muted,
+  streetNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
     marginBottom: 10,
+  },
+  streetNameIcon: {
+    width: 14,
+    height: 14,
+    tintColor: colors.fieldMuted,
+  },
+  streetName: {
+    fontFamily: font.cursiveBold,
+    fontSize: 15,
+    lineHeight: 21,
+    letterSpacing: 0.2,
+    color: colors.fieldMuted,
     maxWidth: "85%",
   },
   narrationText: {
+    fontFamily: font.serifItalic,
     fontSize: type.body,
-    fontWeight: "500",
-    color: colors.text,
-    lineHeight: 24,
+    color: colors.ink,
+    lineHeight: 26,
   },
   expandHint: {
-    fontSize: type.caption,
-    fontWeight: "700",
-    color: colors.accent,
+    fontFamily: font.cursiveBold,
+    fontSize: 15,
+    lineHeight: 21,
+    color: colors.fieldGreen,
     textAlign: "center",
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
   },
   loadingText: {
-    color: colors.muted,
+    fontFamily: font.cursiveBold,
+    color: colors.fieldMuted,
     textAlign: "center",
     marginTop: spacing.sm,
-    fontSize: type.label,
+    fontSize: 17,
+    lineHeight: 23,
   },
   emptyText: {
-    color: colors.muted,
+    fontFamily: font.serifItalic,
+    color: colors.fieldMuted,
     textAlign: "center",
     fontSize: type.label,
     padding: 20,
   },
   modalScrim: {
     flex: 1,
-    backgroundColor: "rgba(10, 12, 18, 0.5)",
+    backgroundColor: "rgba(36, 29, 18, 0.5)",
     justifyContent: "flex-end",
   },
   modalSheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.parchmentSurface,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     padding: 20,
@@ -289,35 +311,48 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.border,
+    backgroundColor: colors.fieldBorder,
     alignSelf: "center",
     marginBottom: 14,
   },
-  modalStreetName: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: colors.text,
+  modalStreetNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
     marginBottom: 12,
+  },
+  modalStreetNameIcon: {
+    width: 20,
+    height: 20,
+    tintColor: colors.ink,
+  },
+  modalStreetName: {
+    fontFamily: font.cursiveBold,
+    fontSize: 22,
+    lineHeight: 29,
+    color: colors.ink,
   },
   modalScroll: {
     marginBottom: spacing.md,
   },
   modalText: {
-    fontSize: 15,
-    color: colors.text,
-    lineHeight: 23,
+    fontFamily: font.serifItalic,
+    fontSize: 16,
+    color: colors.ink,
+    lineHeight: 25,
   },
   modalCloseBtn: {
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.parchmentBg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.fieldBorder,
     borderRadius: radius.md,
     padding: 14,
   },
   modalCloseBtnText: {
+    fontFamily: font.cursiveBold,
     textAlign: "center",
-    fontSize: 15,
-    fontWeight: "700",
-    color: colors.text,
+    fontSize: 20,
+    lineHeight: 26,
+    color: colors.ink,
   },
 });

@@ -79,7 +79,7 @@ export default withTranslation()(ErrorBoundary);
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.text,
+    backgroundColor: colors.ink,
   },
   topTitle: {
     position: "absolute",
@@ -88,8 +88,9 @@ const styles = StyleSheet.create({
     right: 0,
     paddingTop: 56,
     paddingHorizontal: spacing.lg,
-    fontFamily: font.display,
-    fontSize: type.headline,
+    fontFamily: font.cursiveBold,
+    fontSize: 31,
+    lineHeight: 41,
     color: "#fff",
     textAlign: "center",
     textShadowColor: "rgba(0,0,0,0.5)",
@@ -106,24 +107,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   body: {
-    fontSize: 14.5,
+    fontSize: 15,
     color: "#fff",
     textAlign: "center",
     marginBottom: spacing.lg,
-    lineHeight: 21,
+    lineHeight: 22,
     textShadowColor: "rgba(0,0,0,0.55)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6,
   },
   button: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.fieldGreen,
     borderRadius: radius.pill,
     paddingVertical: 14,
     paddingHorizontal: spacing.xl,
   },
   buttonText: {
-    color: colors.accentText,
-    fontSize: 15,
-    fontWeight: "700",
+    fontFamily: font.cursiveBold,
+    color: colors.parchmentSurface,
+    fontSize: 21,
+    lineHeight: 28,
   },
 });

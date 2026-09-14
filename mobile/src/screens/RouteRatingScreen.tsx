@@ -4,7 +4,7 @@
 // (rating vs. share toggle) — they only share TourStatsGrid.
 
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import { rateTour, TourDetail } from "../services/api";
 import StarRating from "../components/StarRating";
@@ -42,7 +42,7 @@ export default function RouteRatingScreen({ tour, onDone }: RouteRatingScreenPro
 
   return (
     <View style={styles.container}>
-      <Text style={styles.emoji}>🏁</Text>
+      <Image source={require("../../assets/icons/finish.png")} style={styles.finishIcon} resizeMode="contain" />
       <Text style={styles.title}>{t("routeRating.routeComplete")}</Text>
       <Text style={styles.tourTitle}>{tour.title}</Text>
       <Text style={styles.creator}>
@@ -81,40 +81,47 @@ export default function RouteRatingScreen({ tour, onDone }: RouteRatingScreenPro
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
-  emoji: {
-    fontSize: 56,
+  finishIcon: {
+    width: 56,
+    height: 56,
     marginBottom: spacing.sm,
+    tintColor: colors.ink,
   },
   title: {
-    fontFamily: font.display,
-    fontSize: type.headline,
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 32,
+    lineHeight: 43,
+    color: colors.ink,
     marginBottom: spacing.xs,
   },
   tourTitle: {
-    fontSize: type.body,
-    color: colors.accent,
-    fontWeight: "600",
+    fontFamily: font.cursiveBold,
+    fontSize: 22,
+    lineHeight: 29,
+    color: colors.fieldGreen,
     marginTop: spacing.xs,
   },
   creator: {
-    fontSize: 13,
-    color: colors.muted,
+    fontFamily: font.cursiveBold,
+    fontSize: 17,
+    lineHeight: 23,
+    color: colors.fieldMuted,
     marginBottom: 20,
   },
   rateLabel: {
-    fontSize: 15,
-    color: colors.text,
-    fontWeight: "600",
+    fontFamily: font.cursiveBold,
+    fontSize: 20,
+    lineHeight: 26,
+    color: colors.ink,
     marginBottom: 12,
   },
   submitBtn: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.ink,
     paddingHorizontal: 40,
     paddingVertical: spacing.md,
     borderRadius: radius.md,
@@ -122,17 +129,20 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   submitBtnDisabled: {
-    backgroundColor: colors.border,
+    backgroundColor: colors.fieldBorder,
   },
   submitBtnText: {
-    color: colors.accentText,
-    fontSize: type.body,
-    fontWeight: "bold",
+    fontFamily: font.cursiveBold,
+    color: colors.parchmentSurface,
+    fontSize: 22,
+    lineHeight: 29,
     textAlign: "center",
   },
   skipLink: {
-    color: colors.muted,
-    fontSize: type.label,
+    fontFamily: font.cursiveBold,
+    color: colors.fieldMuted,
+    fontSize: 17,
+    lineHeight: 23,
     marginTop: spacing.md,
   },
 });

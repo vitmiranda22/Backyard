@@ -12,6 +12,7 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
+  Image,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -35,6 +36,7 @@ import BoscoHero from "../components/BoscoHero";
 // method step gets the full-bleed hero treatment -- the email/DOB details
 // step is a dense form that needs to stay a plain, focused card.
 const MASCOT_IMAGE = require("../../assets/bosco-sendoff.jpg");
+const CALENDAR_ICON = require("../../assets/icons/calendar.png");
 
 const PRIVACY_URL = "https://backyard-api.onrender.com/privacy";
 const TERMS_URL = "https://backyard-api.onrender.com/terms";
@@ -232,7 +234,12 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
           </TouchableOpacity>
 
           <View style={styles.methodContent}>
-            <Text style={styles.wordmarkOnDark}>{t("login.title")}</Text>
+            <Image
+              source={require("../../assets/lOGOBACKYARD.png")}
+              style={styles.methodLogo}
+              resizeMode="contain"
+              accessibilityLabel={t("login.title")}
+            />
             <Text style={styles.subheadingOnDark}>{t("signup.methodSubtitle")}</Text>
 
             {socialLoading ? (
@@ -296,7 +303,7 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
       <TextInput
         style={styles.input}
         placeholder={t("signup.fullNamePlaceholder")}
-        placeholderTextColor={colors.muted}
+        placeholderTextColor={colors.fieldMuted}
         value={fullName}
         onChangeText={setFullName}
         autoCapitalize="words"
@@ -305,7 +312,7 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
       <TextInput
         style={styles.input}
         placeholder={t("signup.emailPlaceholder")}
-        placeholderTextColor={colors.muted}
+        placeholderTextColor={colors.fieldMuted}
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
@@ -324,7 +331,7 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
             ? dobDate.toLocaleDateString(i18n.language, { month: "long", day: "numeric", year: "numeric" })
             : t("signup.dobPlaceholder")}
         </Text>
-        <Text style={styles.dobFieldIcon}>📅</Text>
+        <Image source={CALENDAR_ICON} style={styles.dobFieldIcon} resizeMode="contain" />
       </TouchableOpacity>
       <Text style={styles.helperText}>{t("signup.dobHelper")}</Text>
 
@@ -372,7 +379,7 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
       <TextInput
         style={styles.input}
         placeholder={t("signup.passwordPlaceholder")}
-        placeholderTextColor={colors.muted}
+        placeholderTextColor={colors.fieldMuted}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -382,7 +389,7 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
       <TextInput
         style={styles.input}
         placeholder={t("signup.confirmPasswordPlaceholder")}
-        placeholderTextColor={colors.muted}
+        placeholderTextColor={colors.fieldMuted}
         value={confirmPassword}
         onChangeText={setConfirmPassword}
         secureTextEntry
@@ -414,7 +421,7 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
       </TouchableOpacity>
 
       {loading ? (
-        <ActivityIndicator size="large" color={colors.accent} style={{ margin: 20 }} />
+        <ActivityIndicator size="large" color={colors.ink} style={{ margin: 20 }} />
       ) : (
         <TouchableOpacity
           style={[styles.primaryBtn, !canSubmit && styles.primaryBtnDisabled]}
@@ -435,7 +442,7 @@ export default function SignupScreen({ onBack, onSignedUp }: SignupScreenProps) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: "transparent",
   },
   scrollContent: {
     padding: spacing.lg,
@@ -444,7 +451,7 @@ const styles = StyleSheet.create({
   },
   methodContainer: {
     flex: 1,
-    backgroundColor: colors.text,
+    backgroundColor: colors.ink,
   },
   methodBackArrow: {
     position: "absolute",
@@ -453,7 +460,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   backArrowOnDark: {
-    fontSize: 22,
+    fontSize: 23,
     color: "#fff",
     textShadowColor: "rgba(0,0,0,0.5)",
     textShadowOffset: { width: 0, height: 1 },
@@ -467,20 +474,19 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: 44,
   },
-  wordmarkOnDark: {
-    fontFamily: font.display,
-    fontWeight: "800",
-    fontSize: 26,
-    color: "#fff",
-    textAlign: "center",
+  // Real content aspect ratio is ~2.28:1 (source file is a square canvas
+  // with a lot of transparent padding around the actual wood-sign art) --
+  // sized off height, not width, so it actually reads as big.
+  methodLogo: {
+    alignSelf: "center",
+    width: 200,
+    height: 88,
     marginBottom: spacing.sm,
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 10,
   },
   subheadingOnDark: {
-    fontSize: type.label,
-    color: "rgba(255,255,255,0.8)",
+    fontFamily: font.serifItalic,
+    fontSize: type.title,
+    color: "rgba(255,255,255,0.85)",
     textAlign: "center",
     marginBottom: 22,
   },
@@ -490,34 +496,36 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.25)",
   },
   dividerTextOnDark: {
-    fontSize: 11,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    color: "rgba(255,255,255,0.7)",
+    fontFamily: font.cursiveBold,
+    fontSize: 15,
+    lineHeight: 21,
+    color: "rgba(255,255,255,0.75)",
   },
   backArrow: {
-    fontSize: 22,
-    color: colors.text,
+    fontSize: 23,
+    color: colors.ink,
     marginBottom: 18,
   },
   heading: {
-    fontFamily: font.display,
-    fontSize: type.headline,
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 32,
+    lineHeight: 43,
+    color: colors.ink,
     textAlign: "center",
     marginBottom: spacing.xs,
   },
   subheading: {
-    fontSize: type.label,
-    color: colors.muted,
+    fontFamily: font.serifItalic,
+    fontSize: type.title,
+    color: colors.fieldMuted,
     textAlign: "center",
     marginBottom: 22,
   },
   fieldLabel: {
-    fontSize: type.caption,
-    fontWeight: "600",
-    color: colors.muted,
+    fontFamily: font.cursiveBold,
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.fieldMuted,
     marginBottom: 6,
     marginTop: 2,
   },
@@ -533,17 +541,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.parchmentSurface,
+    borderWidth: 1.3,
+    borderColor: colors.fieldBorder,
     borderRadius: radius.md,
     padding: 14,
     marginBottom: 12,
   },
   oauthText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 20,
+    lineHeight: 26,
+    color: colors.ink,
   },
   dividerRow: {
     flexDirection: "row",
@@ -551,14 +560,16 @@ const styles = StyleSheet.create({
     gap: 10,
     marginVertical: spacing.md,
   },
+  // Deliberately NOT cursive -- live user-typed text, not UI chrome.
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.parchmentSurface,
     borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
+    borderColor: colors.fieldBorder,
+    color: colors.ink,
     padding: 14,
     borderRadius: radius.md,
     marginBottom: 10,
+    fontFamily: font.sans,
     fontSize: type.body,
   },
   dobField: {
@@ -567,25 +578,27 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   dobFieldValue: {
+    fontFamily: font.cursiveBold,
     fontSize: type.body,
-    color: colors.text,
-    fontWeight: "600",
+    color: colors.ink,
   },
   dobFieldPlaceholder: {
+    fontFamily: font.cursive,
     fontSize: type.body,
-    color: colors.muted,
+    color: colors.fieldMuted,
   },
   dobFieldIcon: {
-    fontSize: type.body,
-    opacity: 0.6,
+    width: 20,
+    height: 20,
+    tintColor: colors.fieldMuted,
   },
   dobSheetScrim: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: "rgba(10,12,18,0.4)",
+    backgroundColor: "rgba(36,29,18,0.4)",
   },
   dobSheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.parchmentSurface,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     paddingBottom: 20,
@@ -596,31 +609,35 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.fieldBorder,
   },
   dobSheetCancel: {
-    fontSize: type.label,
-    fontWeight: "600",
-    color: colors.muted,
+    fontFamily: font.cursiveBold,
+    fontSize: 21,
+    lineHeight: 28,
+    color: colors.fieldMuted,
+    paddingRight: 6,
   },
   dobSheetTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 18,
+    lineHeight: 25,
+    color: colors.ink,
   },
   dobSheetDone: {
-    fontSize: type.label,
-    fontWeight: "700",
-    color: colors.accent,
+    fontFamily: font.cursiveBold,
+    fontSize: 17,
+    lineHeight: 23,
+    color: colors.fieldGreen,
   },
   helperText: {
-    fontSize: 11.5,
-    color: colors.muted,
+    fontSize: 13,
+    color: colors.fieldMuted,
     marginTop: spacing.xs,
     marginBottom: 14,
   },
   errorText: {
-    fontSize: 11.5,
+    fontSize: 13,
     color: colors.danger,
     marginTop: -6,
     marginBottom: 14,
@@ -632,36 +649,37 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   checkboxBox: {
-    width: 20,
-    height: 20,
+    width: 22,
+    height: 22,
     borderWidth: 1.5,
-    borderColor: colors.muted,
+    borderColor: colors.fieldMuted,
     borderRadius: 5,
     marginTop: 1,
     alignItems: "center",
     justifyContent: "center",
   },
   checkboxBoxChecked: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
   },
   checkboxMark: {
-    color: colors.accentText,
-    fontSize: 13,
+    color: colors.parchmentSurface,
+    fontSize: 14,
     fontWeight: "700",
   },
   checkboxText: {
     flex: 1,
-    fontSize: 13,
-    color: colors.muted,
-    lineHeight: 19,
+    fontFamily: font.cursive,
+    fontSize: 14,
+    color: colors.fieldMuted,
+    lineHeight: 21,
   },
   checkboxLink: {
-    color: colors.accent,
-    fontWeight: "600",
+    color: colors.fieldGreen,
+    fontWeight: "700",
   },
   primaryBtn: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.ink,
     padding: spacing.md,
     borderRadius: radius.md,
   },
@@ -669,9 +687,10 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   primaryBtnText: {
-    color: colors.accentText,
+    fontFamily: font.cursiveBold,
+    color: colors.parchmentSurface,
     textAlign: "center",
-    fontSize: type.title,
-    fontWeight: "700",
+    fontSize: 23,
+    lineHeight: 32,
   },
 });

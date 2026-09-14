@@ -32,12 +32,43 @@ export const colors = {
   // one-off, not because the look itself needed to change.
   hudBackground: "#181A24",
   hudAccent: "#FF9666",
+
+  // "Field Guide" direction — sampled directly from mobile/mockups/
+  // field_guide_mockup_v2.png's own pixels, not guessed. Additive, not a
+  // replacement for the Dawn Air tokens above yet — screens migrate over
+  // one at a time (see the design-direction plan), starting with this one.
+  parchmentBg: "#F4EFE1",
+  parchmentSurface: "#FBF7EA",
+  ink: "#241D12",
+  fieldMuted: "#96805F",
+  fieldGreen: "#3C4F35",
+  fieldBorder: "#E2D9C2",
+  fieldBorderSoft: "#EBE3CD",
+
+  // Paywall's own deliberate break from parchment -- a deep green/gold
+  // "ticket" look reserved for that one screen, not a general-purpose pair.
+  paywallBg: "#2E4028",
+  paywallGold: "#C9A227",
+  paywallText: "#F4EFDD",
 };
 
 export const font = {
-  // Serif for headlines/greetings; body text just uses the system default
-  // (omit fontFamily entirely rather than pass undefined).
+  // Kept as an alias during the Field Guide migration -- existing screens
+  // that haven't moved over yet still read `font.display`.
   display: Platform.select({ ios: "Georgia", android: "serif", default: "Georgia" }),
+
+  // Field Guide type system (see mobile/App.tsx's useFonts call for the
+  // loaded weights). Cursive carries almost everything -- headlines,
+  // buttons, labels -- by deliberate choice (matches the approved mockups);
+  // serifItalic is reserved for narration/log prose specifically, the one
+  // place cursive stays out of for readability over a full paragraph.
+  cursive: "Caveat_600SemiBold",
+  cursiveBold: "Caveat_700Bold",
+  serif: "LibreBaskerville_700Bold",
+  serifItalic: "LibreBaskerville_400Regular_Italic",
+  sans: "WorkSans_400Regular",
+  sansMedium: "WorkSans_500Medium",
+  sansBold: "WorkSans_700Bold",
 };
 
 // Named by role, not size — before this existed, every screen picked its

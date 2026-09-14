@@ -1,7 +1,7 @@
 // Route Detail screen — shown after tapping a Discover card, before replay.
 
 import React, { useCallback, useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Share, Alert, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Share, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import MapView, { Marker } from "react-native-maps";
@@ -14,14 +14,12 @@ import EmptyState from "../components/EmptyState";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
 import { colors, font, radius, type, spacing } from "../theme";
+import { MOOD_ICONS, FALLBACK_MOOD_ICON } from "../services/moods";
 
-const MOOD_EMOJI: Record<string, string> = {
-  time_machine: "🕰️",
-  hidden_city: "🔮",
-  dark_side: "🕵️",
-  behind_scenes: "🎬",
-  unfiltered: "🎭",
-};
+const LIKE_ICON = require("../../assets/icons/like.png");
+const LOCATION_ICON = require("../../assets/icons/location.png");
+const DISTANCE_ICON = require("../../assets/icons/distance.png");
+const DURATION_ICON = require("../../assets/icons/duration.png");
 
 interface RouteDetailScreenProps {
   tourId: string;
@@ -99,12 +97,12 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
   if (!tour) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.accent} />
+        <ActivityIndicator size="large" color={colors.ink} />
       </View>
     );
   }
 
-  const distanceKm = tour.total_distance_m ? (tour.total_distance_m / 1000).toFixed(1) : null;
+  const distanceKm = tour.total_distance_m != null ? (tour.total_distance_m / 1000).toFixed(1) : null;
   const durationMin = tour.duration_sec ? Math.round(tour.duration_sec / 60) : null;
   const hasAudio = tour.blocks.some((b) => b.audio_url);
 
@@ -172,7 +170,7 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.emoji}>{MOOD_EMOJI[tour.mood] ?? "🗺️"}</Text>
+        <Image source={MOOD_ICONS[tour.mood] ?? FALLBACK_MOOD_ICON} style={styles.emoji} resizeMode="contain" />
         <Text style={styles.title}>{tour.title}</Text>
         <Text style={styles.creator}>
           {t("routeDetail.by", {
@@ -195,13 +193,27 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
           accessibilityRole="button"
           accessibilityLabel={liked ? t("routeDetail.unlikeThisRoute") : t("routeDetail.likeThisRoute")}
         >
-          <Text style={styles.likeBtnText}>{liked ? "❤️" : "🤍"} {likeCount}</Text>
+          <Image source={LIKE_ICON} style={[styles.likeIcon, liked && styles.likeIconActive]} resizeMode="contain" />
+          <Text style={styles.likeBtnText}>{likeCount}</Text>
         </TouchableOpacity>
 
         <View style={styles.statsRow}>
-          <Text style={styles.statText}>📍 {t("routeDetail.stopsCount", { count: tour.blocks_visited })}</Text>
-          {distanceKm && <Text style={styles.statText}>🚶 {distanceKm} km</Text>}
-          {durationMin && <Text style={styles.statText}>⏱️ {durationMin} {t("routeDetail.minAbbr")}</Text>}
+          <View style={styles.statItem}>
+            <Image source={LOCATION_ICON} style={styles.statIcon} resizeMode="contain" />
+            <Text style={styles.statText}>{t("routeDetail.stopsCount", { count: tour.blocks_visited })}</Text>
+          </View>
+          {distanceKm && (
+            <View style={styles.statItem}>
+              <Image source={DISTANCE_ICON} style={styles.statIcon} resizeMode="contain" />
+              <Text style={styles.statText}>{distanceKm} km</Text>
+            </View>
+          )}
+          {durationMin && (
+            <View style={styles.statItem}>
+              <Image source={DURATION_ICON} style={styles.statIcon} resizeMode="contain" />
+              <Text style={styles.statText}>{durationMin} {t("routeDetail.minAbbr")}</Text>
+            </View>
+          )}
         </View>
 
         {routeCoords.length > 0 && (
@@ -216,11 +228,11 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
               pointerEvents="none"
             >
               {routeCoords.length > 1 && <RoutePolyline coordinates={routeCoords} />}
-              <Marker coordinate={routeCoords[0]} pinColor={colors.accent} title={t("common.start")} />
+              <Marker coordinate={routeCoords[0]} pinColor={colors.fieldGreen} title={t("common.start")} />
               {routeCoords.length > 1 && (
                 <Marker
                   coordinate={routeCoords[routeCoords.length - 1]}
-                  pinColor={colors.pro}
+                  pinColor={colors.fieldMuted}
                   title={t("common.endOfRoute")}
                 />
               )}
@@ -237,16 +249,21 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
         {tour.is_own_tour && tour.blocks.length > 0 && (
           <View style={styles.logSection}>
             <Text style={styles.logHeader}>{t("routeDetail.yourWalkLog")}</Text>
-            {tour.blocks.map((block) => (
+            {tour.blocks.map((block, i) => (
               <View key={block.block_id} style={styles.logCard}>
                 {block.image_url && (
-                  <ZonePhoto uri={block.image_url} thumbnailStyle={styles.logImage} />
+                  <View style={[styles.logPhotoFrame, i % 2 === 0 ? styles.logPhotoTiltLeft : styles.logPhotoTiltRight]}>
+                    <ZonePhoto uri={block.image_url} thumbnailStyle={styles.logImage} />
+                  </View>
                 )}
                 <View style={styles.logCardBody}>
-                  <Text style={styles.logStreet}>
-                    📍 {block.street_name}
-                    {block.neighborhood ? `, ${block.neighborhood}` : ""}
-                  </Text>
+                  <View style={styles.logStreetRow}>
+                    <Image source={LOCATION_ICON} style={styles.logStreetIcon} resizeMode="contain" />
+                    <Text style={styles.logStreet}>
+                      {block.street_name}
+                      {block.neighborhood ? `, ${block.neighborhood}` : ""}
+                    </Text>
+                  </View>
                   <Text style={styles.logText}>{block.narration_text}</Text>
                 </View>
               </View>
@@ -267,7 +284,7 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: "transparent",
   },
   header: {
     flexDirection: "row",
@@ -275,9 +292,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingBottom: 12,
-    backgroundColor: colors.bg,
+    backgroundColor: "transparent",
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.fieldBorder,
   },
   content: {
     padding: 20,
@@ -287,14 +304,15 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: colors.bg,
+    backgroundColor: "transparent",
     padding: 20,
   },
   backLink: {
+    fontFamily: font.cursiveBold,
     alignSelf: "flex-start",
-    color: colors.accent,
-    fontSize: 15,
-    fontWeight: "600",
+    color: colors.fieldMuted,
+    fontSize: 20,
+    lineHeight: 26,
   },
   headerActions: {
     flexDirection: "row",
@@ -302,29 +320,36 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   reportLink: {
-    color: colors.muted,
-    fontSize: 15,
-    fontWeight: "600",
+    fontFamily: font.cursiveBold,
+    color: colors.fieldMuted,
+    fontSize: 17,
+    lineHeight: 23,
   },
   shareLink: {
-    color: colors.pro,
-    fontSize: 15,
-    fontWeight: "600",
+    fontFamily: font.cursiveBold,
+    color: colors.fieldGreen,
+    fontSize: 17,
+    lineHeight: 23,
   },
   emoji: {
-    fontSize: 48,
+    width: 52,
+    height: 52,
+    tintColor: colors.ink,
     marginBottom: spacing.sm,
   },
   title: {
-    fontFamily: font.display,
-    fontSize: type.headline,
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 32,
+    lineHeight: 43,
+    color: colors.ink,
     textAlign: "center",
     marginBottom: spacing.xs,
   },
   creator: {
-    fontSize: 13,
-    color: colors.muted,
+    fontFamily: font.cursiveBold,
+    fontSize: 18,
+    lineHeight: 25,
+    color: colors.fieldMuted,
     marginBottom: 12,
   },
   ratingRow: {
@@ -334,30 +359,58 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   ratingCount: {
-    fontSize: 13,
-    color: colors.muted,
+    fontFamily: font.cursive,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.fieldMuted,
   },
   likeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     marginBottom: spacing.md,
   },
+  likeIcon: {
+    width: 20,
+    height: 20,
+    tintColor: colors.fieldMuted,
+  },
+  likeIconActive: {
+    tintColor: colors.danger,
+  },
   likeBtnText: {
-    fontSize: 15,
-    color: colors.text,
-    fontWeight: "600",
+    fontFamily: font.cursiveBold,
+    fontSize: 20,
+    lineHeight: 26,
+    color: colors.ink,
   },
   statsRow: {
     flexDirection: "row",
     gap: spacing.md,
     marginBottom: spacing.md,
   },
+  statItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  statIcon: {
+    width: 17,
+    height: 17,
+    tintColor: colors.ink,
+  },
   statText: {
-    fontSize: type.label,
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 18,
+    lineHeight: 25,
+    color: colors.ink,
   },
   mapPreview: {
     width: "100%",
     height: 180,
     borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
     overflow: "hidden",
     marginBottom: spacing.md,
   },
@@ -365,8 +418,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   warning: {
-    fontSize: 13,
-    color: colors.muted,
+    fontFamily: font.serifItalic,
+    fontSize: 14,
+    color: colors.fieldMuted,
     textAlign: "center",
     paddingHorizontal: 10,
   },
@@ -375,50 +429,89 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   logHeader: {
-    fontFamily: font.display,
-    fontSize: type.title,
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 26,
+    lineHeight: 34,
+    color: colors.ink,
     marginBottom: 12,
     alignSelf: "flex-start",
   },
   logCard: {
     width: "100%",
-    backgroundColor: colors.surface,
+    flexDirection: "row",
+    gap: 12,
+    backgroundColor: colors.parchmentSurface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.fieldBorderSoft,
     borderRadius: radius.md,
-    overflow: "hidden",
+    padding: 12,
     marginBottom: 10,
+  },
+  // Polaroid-style stamp -- small, white-bordered, slightly rotated --
+  // matching the same treatment used for the cover photo on Tour Complete.
+  logPhotoFrame: {
+    width: 60,
+    height: 52,
+    borderRadius: 3,
+    backgroundColor: colors.parchmentSurface,
+    borderWidth: 3,
+    borderColor: colors.parchmentSurface,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+    overflow: "hidden",
+  },
+  logPhotoTiltLeft: {
+    transform: [{ rotate: "-4deg" }],
+  },
+  logPhotoTiltRight: {
+    transform: [{ rotate: "3deg" }],
   },
   logImage: {
     width: "100%",
-    height: 120,
-    backgroundColor: colors.surfaceAlt,
+    height: "100%",
+    backgroundColor: colors.parchmentBg,
   },
   logCardBody: {
-    padding: 14,
+    flex: 1,
+  },
+  logStreetRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginBottom: 4,
+  },
+  logStreetIcon: {
+    width: 15,
+    height: 15,
+    tintColor: colors.ink,
   },
   logStreet: {
-    fontSize: type.label,
-    fontWeight: "700",
-    color: colors.text,
-    marginBottom: 6,
+    fontFamily: font.cursiveBold,
+    fontSize: 17,
+    lineHeight: 23,
+    color: colors.ink,
+    flexShrink: 1,
   },
   logText: {
-    fontSize: 13,
-    color: colors.muted,
-    lineHeight: 19,
+    fontFamily: font.serifItalic,
+    fontSize: 14,
+    color: colors.fieldMuted,
+    lineHeight: 21,
   },
   startBtn: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.ink,
     padding: spacing.md,
     margin: 20,
     borderRadius: radius.md,
   },
   startBtnText: {
-    color: colors.accentText,
+    fontFamily: font.cursiveBold,
+    color: colors.parchmentSurface,
     textAlign: "center",
-    fontSize: type.body,
-    fontWeight: "bold",
+    fontSize: 23,
+    lineHeight: 32,
   },
 });

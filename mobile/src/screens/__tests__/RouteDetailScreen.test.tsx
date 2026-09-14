@@ -99,27 +99,29 @@ describe("RouteDetailScreen", () => {
     mockGetTourDetail.mockResolvedValue(baseTour({ liked_by_me: false, like_count: 2 }));
     mockToggleLike.mockResolvedValue({ tour_id: "tour-1", liked: true, like_count: 3 });
 
-    const { findByText } = await render(
+    const { findByLabelText, findByText } = await render(
       <RouteDetailScreen tourId="tour-1" onStartReplay={jest.fn()} onBack={jest.fn()} />
     );
 
-    await fireEvent.press(await findByText("🤍 2"));
+    await fireEvent.press(await findByLabelText("routeDetail.likeThisRoute"));
 
-    expect(await findByText("❤️ 3")).toBeTruthy();
+    expect(await findByText("3")).toBeTruthy();
+    expect(await findByLabelText("routeDetail.unlikeThisRoute")).toBeTruthy();
   });
 
   it("shows a toast and leaves the like state unchanged when toggling fails", async () => {
     mockGetTourDetail.mockResolvedValue(baseTour({ liked_by_me: false, like_count: 2 }));
     mockToggleLike.mockRejectedValue(new Error("network error"));
 
-    const { findByText } = await render(
+    const { findByLabelText, findByText } = await render(
       <RouteDetailScreen tourId="tour-1" onStartReplay={jest.fn()} onBack={jest.fn()} />
     );
 
-    await fireEvent.press(await findByText("🤍 2"));
+    await fireEvent.press(await findByLabelText("routeDetail.likeThisRoute"));
 
     await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("routeDetail.couldntUpdateLike"));
-    expect(await findByText("🤍 2")).toBeTruthy();
+    expect(await findByText("2")).toBeTruthy();
+    expect(await findByLabelText("routeDetail.likeThisRoute")).toBeTruthy();
   });
 
   it("calls onStartReplay with the loaded tour when Start Replay is pressed", async () => {

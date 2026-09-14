@@ -3,10 +3,10 @@
 // Supports: play, pause, skip, progress bar, background playback
 
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { Audio } from "expo-av";
 import { useTranslation } from "react-i18next";
-import { colors, type, spacing } from "../theme";
+import { colors, font, type, spacing } from "../theme";
 
 interface AudioPlayerProps {
   audioUrl: string | null;
@@ -135,14 +135,18 @@ export default function AudioPlayer({
       {/* Controls */}
       <View style={styles.controls}>
         <TouchableOpacity onPress={togglePlayPause} style={styles.playBtn}>
-          <Text style={styles.playBtnText}>{isPlaying ? "⏸" : "▶️"}</Text>
+          <Image
+            source={isPlaying ? require("../../assets/icons/pause.png") : require("../../assets/icons/play.png")}
+            style={styles.playBtnIcon}
+            resizeMode="contain"
+          />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={handleSkip}
           style={styles.skipBtn}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text style={styles.skipBtnText}>⏭</Text>
+          <Image source={require("../../assets/icons/skip.png")} style={styles.skipBtnIcon} resizeMode="contain" />
         </TouchableOpacity>
       </View>
 
@@ -170,28 +174,32 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   playBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.accent,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.ink,
     alignItems: "center",
     justifyContent: "center",
   },
-  playBtnText: {
-    fontSize: 20,
+  playBtnIcon: {
+    width: 22,
+    height: 22,
+    tintColor: colors.parchmentSurface,
   },
   skipBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceAlt,
+    width: 43,
+    height: 43,
+    borderRadius: 22,
+    backgroundColor: colors.parchmentBg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.fieldBorder,
     alignItems: "center",
     justifyContent: "center",
   },
-  skipBtnText: {
-    fontSize: type.body,
+  skipBtnIcon: {
+    width: 20,
+    height: 20,
+    tintColor: colors.ink,
   },
   progressContainer: {
     flexDirection: "row",
@@ -199,25 +207,27 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   timeText: {
+    fontFamily: font.cursive,
     fontSize: type.caption,
-    color: colors.muted,
+    color: colors.fieldMuted,
     width: 40,
     textAlign: "center",
   },
   progressBar: {
     flex: 1,
     height: 4,
-    backgroundColor: colors.border,
+    backgroundColor: colors.fieldBorder,
     borderRadius: 2,
   },
   progressFill: {
     height: 4,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.fieldGreen,
     borderRadius: 2,
   },
   fallbackText: {
+    fontFamily: font.serifItalic,
     textAlign: "center",
-    color: colors.muted,
+    color: colors.fieldMuted,
     fontSize: type.label,
     padding: 12,
   },

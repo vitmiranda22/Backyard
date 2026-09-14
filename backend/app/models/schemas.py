@@ -66,6 +66,26 @@ class NarrateBlockRequest(BaseModel):
     )
 
 
+class PrefetchZoneRequest(BaseModel):
+    """
+    POST /api/prefetch-zone
+
+    Speculatively warms zone_data_cache for a coordinate the walker hasn't
+    reached yet (the client projects this from their current heading — see
+    ActiveTourScreen.tsx). Deliberately doesn't take mood/voice/content_safety:
+    it only ever touches the free, mood-agnostic zone_data_cache, never
+    narration_cache, so it can't accidentally generate (and bill for) a
+    narration for a block the walker may never actually enter.
+    """
+    lat: float = Field(..., ge=-90, le=90, examples=[37.7696])
+    lng: float = Field(..., ge=-180, le=180, examples=[-122.4469])
+
+
+class PrefetchZoneResponse(BaseModel):
+    """POST /api/prefetch-zone"""
+    cached: bool = Field(..., description="True whether this call warmed the cache or it was already warm.")
+
+
 class ZoneDataUsed(BaseModel):
     sources_hit: List[str] = Field(default_factory=list)
     sources_skipped: List[str] = Field(default_factory=list)

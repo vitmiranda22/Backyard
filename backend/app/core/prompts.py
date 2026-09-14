@@ -592,9 +592,12 @@ own knowledge/web search, never invented.
 # =============================================================================
 
 _ZONE_DATA_SECTION = """
-=== REAL DATA ABOUT THIS EXACT LOCATION ===
-This data comes from city records, public databases, and historical sources.
-It is SPECIFIC to the exact spot the listener is standing at.
+=== REAL DATA FROM AROUND THIS LOCATION ===
+This data comes from city records, public databases, and historical sources,
+gathered from within roughly 200 meters of the listener's exact coordinates —
+it is NOT all at the exact spot. Most entries below carry a real distance
+label like "(148m away)"; that number is load-bearing, not decorative — see
+rule 7 below for exactly how to use it.
 
 {zone_data}
 === END DATA ===
@@ -626,7 +629,19 @@ CRITICAL RULES FOR USING THIS DATA:
    discussing, you MUST say it out loud somewhere in the narration — that's the
    single most reliable way for someone to confirm they're looking at the right
    place. Don't paraphrase it away as "the building nearby."
-8. Some of this data is administrative record-keeping about real people's current
+8. USE THE DISTANCE LABELS — this is not optional. Zone data is gathered from a
+   200m radius, so most of what's above is near the listener, not AT them. A fact
+   labeled roughly 30m away or less can be described as directly present ("right
+   here", "above you", "the building you're standing in front of"). Anything
+   farther — 90m, 148m, out toward the 200m edge — MUST be framed as nearby, not
+   present: "a couple of doors down," "half a block south," "just around the
+   corner," using the real distance/direction if you have it. Never describe
+   something 50m+ away as if the listener is looking directly at it right now —
+   that's not scene-setting, it's telling a real person standing at a real
+   address that they're looking at a building that isn't actually in front of
+   them. If the ONLY rich fact you have is far away, tell it as a "just down the
+   block" or "a short walk from here" story, not as this exact spot's story.
+9. Some of this data is administrative record-keeping about real people's current
    homes and daily lives — building permits, 311 complaints, police/fire incident
    logs, eviction notices. Treat all of it as last-resort background, never the
    primary hook of the story, and prefer the historical, cultural, or architectural

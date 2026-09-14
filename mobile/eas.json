@@ -1,7 +1,7 @@
 {
   "cli": {
     "version": ">= 12.0.0",
-    "appVersionSource": "remote"
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
@@ -22,6 +22,17 @@
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
+    "testflight": {
+      "autoIncrement": true,
+      "distribution": "store",
+      "channel": "preview",
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "channel": "production",
@@ -32,6 +43,11 @@
   },
   "submit": {
     "production": {
+      "ios": {
+        "ascAppId": "6789675904"
+      }
+    },
+    "testflight": {
       "ios": {
         "ascAppId": "6789675904"
       }

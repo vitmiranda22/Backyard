@@ -24,7 +24,7 @@ export default function RoutePolyline({ coordinates }: RoutePolylineProps) {
       />
       <Polyline
         coordinates={coordinates}
-        strokeColor={colors.accent}
+        strokeColor={colors.fieldGreen}
         strokeWidth={10}
         lineCap="round"
         lineJoin="round"

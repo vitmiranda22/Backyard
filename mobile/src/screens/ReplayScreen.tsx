@@ -3,16 +3,26 @@
 // ORIGINAL recorded audio for that block. Zero Gemini/TTS calls.
 
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useTranslation } from "react-i18next";
 import MapView, { Marker } from "react-native-maps";
-import { watchPosition, getCurrentLocation } from "../services/location";
+import {
+  watchPosition,
+  watchHeading,
+  getCurrentLocation,
+  bearingBetween,
+  distanceMeters,
+  compassLabel,
+} from "../services/location";
 import { getTourDetail, TourDetail, TourBlockDetail } from "../services/api";
 import { haversineDistanceMeters } from "../utils/geo";
 import { REPLAY_PROXIMITY_M } from "../config";
 import NarrationCard from "../components/NarrationCard";
-import { colors, radius, type, spacing } from "../theme";
+import WaypointCompass from "../components/WaypointCompass";
+import { colors, font, radius, type, spacing } from "../theme";
 import { showToast } from "../services/toast";
+
+const LOCATION_ICON = require("../../assets/icons/location.png");
 
 interface ReplayScreenProps {
   tour: TourDetail;
@@ -24,6 +34,7 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
   const { t } = useTranslation();
   const [blocks, setBlocks] = useState<TourBlockDetail[]>(tour.blocks);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [heading, setHeading] = useState(0);
   const [targetIndex, setTargetIndex] = useState(0);
   const [activeBlock, setActiveBlock] = useState<TourBlockDetail | null>(null);
   const [isRefreshingAudio, setIsRefreshingAudio] = useState(false);
@@ -31,6 +42,7 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
   const targetIndexRef = useRef(0);
   const activeBlockRef = useRef<TourBlockDetail | null>(null);
   const subscriptionRef = useRef<any>(null);
+  const headingSubscriptionRef = useRef<any>(null);
   const blocksRef = useRef<TourBlockDetail[]>(tour.blocks);
 
   useEffect(() => {
@@ -70,6 +82,9 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
           checkProximity(lat, lng);
         });
         subscriptionRef.current = sub;
+
+        const headingSub = await watchHeading(setHeading);
+        headingSubscriptionRef.current = headingSub;
       } catch (e: any) {
         Alert.alert(t("common.error"), t("replay.failedToGetLocation", { error: e.message }));
       }
@@ -79,6 +94,7 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
     return () => {
       cancelled = true;
       if (subscriptionRef.current) subscriptionRef.current.remove();
+      if (headingSubscriptionRef.current) headingSubscriptionRef.current.remove();
     };
   }, []);
 
@@ -123,6 +139,11 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
   }
 
   const target = blocks[targetIndex];
+  const targetBearing =
+    target && location ? bearingBetween(location.lat, location.lng, target.lat, target.lng) : null;
+  const relativeBearing = targetBearing !== null ? (targetBearing - heading + 360) % 360 : 0;
+  const distanceToTarget =
+    target && location ? distanceMeters(location.lat, location.lng, target.lat, target.lng) : 0;
 
   return (
     <View style={styles.container}>
@@ -142,7 +163,7 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
               <Marker
                 key={b.block_id}
                 coordinate={{ latitude: b.lat, longitude: b.lng }}
-                pinColor={i < targetIndex ? colors.pro : i === targetIndex ? colors.accent : colors.muted}
+                pinColor={i < targetIndex ? colors.fieldGreen : i === targetIndex ? colors.ink : colors.fieldMuted}
                 title={b.street_name}
               />
             ))}
@@ -158,9 +179,12 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
         <TouchableOpacity onPress={onExit} accessibilityRole="button" accessibilityLabel={t("replay.exitReplayA11y")}>
           <Text style={styles.exitLink}>‹ {t("replay.exit")}</Text>
         </TouchableOpacity>
-        <Text style={styles.statsText}>
-          📍 {t("replay.progress", { current: Math.min(targetIndex + 1, blocks.length), total: blocks.length })}
-        </Text>
+        <View style={styles.statsTextRow}>
+          <Image source={LOCATION_ICON} style={styles.statsIcon} resizeMode="contain" />
+          <Text style={styles.statsText}>
+            {t("replay.progress", { current: Math.min(targetIndex + 1, blocks.length), total: blocks.length })}
+          </Text>
+        </View>
         <Text style={styles.title} numberOfLines={1}>
           {tour.title}
         </Text>
@@ -181,9 +205,19 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
       ) : (
         target && (
           <View style={styles.guideCard}>
-            <Text style={styles.guideText}>
-              {isRefreshingAudio ? t("replay.refreshingAudio") : t("replay.walkToward", { street: target.street_name })}
-            </Text>
+            {isRefreshingAudio ? (
+              <Text style={styles.guideText}>{t("replay.refreshingAudio")}</Text>
+            ) : targetBearing !== null ? (
+              <>
+                <WaypointCompass
+                  bearingDeg={relativeBearing}
+                  distanceLabel={`${Math.round(distanceToTarget)}m · ${compassLabel(targetBearing)}`}
+                />
+                <Text style={styles.guideText}>{t("replay.walkToward", { street: target.street_name })}</Text>
+              </>
+            ) : (
+              <Text style={styles.guideText}>{t("replay.walkToward", { street: target.street_name })}</Text>
+            )}
           </View>
         )
       )}
@@ -194,7 +228,7 @@ export default function ReplayScreen({ tour, onReplayComplete, onExit }: ReplayS
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: "transparent",
   },
   mapHero: {
     height: "38%",
@@ -206,10 +240,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.parchmentSurface,
   },
   placeholderText: {
-    color: colors.muted,
+    fontFamily: font.cursive,
+    fontSize: 18,
+    lineHeight: 25,
+    color: colors.fieldMuted,
   },
   statsBar: {
     flexDirection: "row",
@@ -218,23 +255,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     gap: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.parchmentSurface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.fieldBorder,
   },
   exitLink: {
-    color: colors.accent,
-    fontSize: 15,
-    fontWeight: "600",
+    fontFamily: font.cursiveBold,
+    color: colors.fieldGreen,
+    fontSize: 17,
+    lineHeight: 23,
+  },
+  statsTextRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  statsIcon: {
+    width: 16,
+    height: 16,
+    tintColor: colors.ink,
   },
   statsText: {
-    color: colors.text,
-    fontSize: type.label,
-    fontWeight: "700",
+    fontFamily: font.cursiveBold,
+    color: colors.ink,
+    fontSize: 17,
+    lineHeight: 23,
   },
   title: {
-    color: colors.muted,
-    fontSize: 13,
+    fontFamily: font.cursiveBold,
+    color: colors.fieldMuted,
+    fontSize: 15,
+    lineHeight: 21,
     flex: 1,
     textAlign: "right",
     marginLeft: 12,
@@ -244,8 +295,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   guideText: {
-    color: colors.muted,
-    fontSize: type.label,
+    fontFamily: font.cursiveBold,
+    color: colors.fieldMuted,
+    fontSize: 16,
+    lineHeight: 22,
     textAlign: "center",
+    marginTop: spacing.sm,
   },
 });

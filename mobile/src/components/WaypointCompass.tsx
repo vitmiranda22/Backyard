@@ -33,9 +33,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   badge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 69,
+    height: 69,
+    borderRadius: 38,
     backgroundColor: colors.hudBackground,
     borderWidth: 1.4,
     borderColor: "rgba(255, 107, 74, 0.45)",

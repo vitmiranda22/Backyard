@@ -3,7 +3,7 @@
 // native dependency / build).
 
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { colors, font, radius, type, spacing } from "../theme";
@@ -12,9 +12,14 @@ import BoscoHero from "../components/BoscoHero";
 
 const CARD_KEYS = ["card1", "card2", "card3", "card4"];
 // Cards 1 and 4 (the welcome and send-off cards) render Bosco full-bleed
-// instead of an emoji -- see the branches in the component below. Indices
+// instead of an icon -- see the branches in the component below. Indices
 // 0 and 3 here are placeholders, never actually read.
-const CARD_EMOJI = ["🚶", "🎭", "🗺️", "✨"];
+const CARD_ICON = [
+  null,
+  require("../../assets/icons/sparkle.png"),
+  require("../../assets/icons/explore.png"),
+  null,
+];
 
 // Holding a "Welcome Backyard" sign -- card 1 only.
 const WELCOME_IMAGE = require("../../assets/bosco-onboarding-welcome.jpg");
@@ -101,7 +106,9 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
       </TouchableOpacity>
 
       <View style={styles.content}>
-        <Text style={styles.emoji}>{CARD_EMOJI[index]}</Text>
+        <View style={styles.iconRing}>
+          <Image source={CARD_ICON[index]} style={styles.icon} resizeMode="contain" />
+        </View>
         <Text style={styles.title}>{t(`onboarding.${CARD_KEYS[index]}.title`)}</Text>
         <Text style={styles.body}>{t(`onboarding.${CARD_KEYS[index]}.body`)}</Text>
       </View>
@@ -123,7 +130,7 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
 const styles = StyleSheet.create({
   welcomeContainer: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: colors.ink,
   },
   welcomeContent: {
     position: "absolute",
@@ -139,62 +146,79 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   welcomeSkipText: {
+    fontFamily: font.cursiveBold,
     color: "rgba(255,255,255,0.9)",
-    fontSize: type.label,
-    fontWeight: "600",
+    fontSize: 18,
+    lineHeight: 25,
   },
   welcomeTitle: {
-    fontFamily: font.display,
-    fontSize: 28,
+    fontFamily: font.cursiveBold,
+    fontSize: 37,
+    lineHeight: 50,
     color: "#fff",
     marginBottom: 10,
   },
   welcomeBody: {
-    fontSize: type.label,
-    color: "rgba(255,255,255,0.85)",
-    lineHeight: 21,
+    fontFamily: font.serifItalic,
+    fontSize: type.title,
+    color: "rgba(255,255,255,0.88)",
+    lineHeight: 23,
     marginBottom: 20,
   },
   dotOnDark: {
-    width: 8,
-    height: 8,
+    width: 9,
+    height: 9,
     borderRadius: 4,
     backgroundColor: "rgba(255,255,255,0.35)",
   },
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: "transparent",
     padding: spacing.lg,
     paddingTop: 60,
     justifyContent: "space-between",
   },
   skip: {
+    fontFamily: font.cursiveBold,
     alignSelf: "flex-end",
-    color: colors.muted,
-    fontSize: type.label,
-    fontWeight: "600",
+    color: colors.fieldMuted,
+    fontSize: 18,
+    lineHeight: 25,
   },
   content: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
-  emoji: {
-    fontSize: 56,
+  iconRing: {
+    width: 77,
+    height: 77,
+    borderRadius: 38,
+    borderWidth: 1.5,
+    borderColor: colors.ink,
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: spacing.md,
   },
+  icon: {
+    width: 37,
+    height: 37,
+    tintColor: colors.ink,
+  },
   title: {
-    fontFamily: font.display,
-    fontSize: 26,
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 32,
+    lineHeight: 43,
+    color: colors.ink,
     textAlign: "center",
     marginBottom: 12,
   },
   body: {
-    fontSize: 15,
-    color: colors.muted,
+    fontFamily: font.serifItalic,
+    fontSize: 17,
+    color: colors.fieldMuted,
     textAlign: "center",
-    lineHeight: 22,
+    lineHeight: 25,
     paddingHorizontal: 12,
   },
   dots: {
@@ -204,24 +228,25 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   dot: {
-    width: 8,
-    height: 8,
+    width: 9,
+    height: 9,
     borderRadius: 4,
-    backgroundColor: colors.border,
+    backgroundColor: colors.fieldBorder,
   },
   dotActive: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.fieldGreen,
     width: 20,
   },
   nextBtn: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.ink,
     padding: spacing.md,
     borderRadius: radius.md,
   },
   nextBtnText: {
-    color: colors.accentText,
+    fontFamily: font.cursiveBold,
+    color: colors.parchmentSurface,
     textAlign: "center",
-    fontSize: type.body,
-    fontWeight: "700",
+    fontSize: 23,
+    lineHeight: 32,
   },
 });

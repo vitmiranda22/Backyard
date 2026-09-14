@@ -1,245 +1,229 @@
-// Home screen — "Dawn Air" — immersive map: a full-bleed interactive map
-// with floating glass-style controls on top (location pill, mood picker +
-// start sheet) instead of a map-then-sheet stacked layout. Mood pins from
-// nearby community routes live directly on the map.
+// Home screen — "Field Guide" journal cover. Replaces the old full-bleed
+// map (that's now its own MapScreen, reached via the Map FAB below): a
+// parchment landing page with the app's identity up top, a 3-icon FAB row
+// for the main actions, and a preview of the walker's own recent stories.
 
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Image } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import MapView, { Marker, Circle } from "react-native-maps";
-import RoutePolyline from "../components/RoutePolyline";
-import {
-  requestLocationPermission,
-  getCurrentLocation,
-  reverseGeocode,
-} from "../services/location";
-import { getNearbyRoutes, getTourDetail, NearbyRoute } from "../services/api";
+import { getTours, getUserStats, TourSummary, UserStats } from "../services/api";
+import { getAllBadges, BadgeStatus } from "../services/badges";
+import { MOOD_ICONS, FALLBACK_MOOD_ICON } from "../services/moods";
 import { colors, font, radius, type, spacing } from "../theme";
-import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
 
-const MOODS = [
-  { id: "time_machine", emoji: "🕰️" },
-  { id: "hidden_city", emoji: "🔮" },
-  { id: "dark_side", emoji: "🕵️", pro: true },
-  { id: "behind_scenes", emoji: "🎬", pro: true },
-  { id: "unfiltered", emoji: "🎭", pro: true },
-];
+// Same mascot/pose already used for ToursScreen's own empty states -- Home's
+// "Recent Stories" list is the same kind of content, so it gets the same
+// on-brand illustrated empty state instead of a bare line of text.
+const MASCOT_IMAGE = require("../../assets/bosco-empty-state-square.jpg");
+
+// Home only teases a handful of badges (easiest-first, same order as the
+// full gallery) -- the complete set lives one tap away in Badge Gallery.
+const BADGE_PREVIEW_LIMIT = 5;
+
+// Kept short so the stories list never crowds the FAB row below it --
+// the full history lives one tap away in the Journal.
+const RECENT_STORIES_LIMIT = 2;
+
+function formatMeta(t: TFunction, tour: TourSummary) {
+  // total_distance_m is only ever null before a tour is finalized -- a
+  // finished tour that covered no real distance (ended seconds after it
+  // started) legitimately saves 0, which `!tour.total_distance_m` used to
+  // treat the same as "still in progress." Only null means unfinished.
+  if (tour.total_distance_m == null) return t("tours.inProgress");
+  const km = (tour.total_distance_m / 1000).toFixed(1);
+  const min = tour.duration_sec ? Math.round(tour.duration_sec / 60) : null;
+  return min ? `${km} km · ${min} min` : `${km} km`;
+}
 
 interface HomeScreenProps {
   onStartTour: () => void;
-  onQuickStart: (mood: string) => void;
   onSelectRoute: (tourId: string) => void;
-  isPremium: boolean;
-  onRequirePremium: () => void;
+  onOpenMap: () => void;
+  onOpenJournal: () => void;
+  onOpenProfile: () => void;
+  onOpenBadges: () => void;
 }
 
 export default function HomeScreen({
   onStartTour,
-  onQuickStart,
   onSelectRoute,
-  isPremium,
-  onRequirePremium,
+  onOpenMap,
+  onOpenJournal,
+  onOpenProfile,
+  onOpenBadges,
 }: HomeScreenProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [hasPermission, setHasPermission] = useState(false);
-  const [placeLabel, setPlaceLabel] = useState<string | null>(null);
-  const [nearbyRoutes, setNearbyRoutes] = useState<NearbyRoute[]>([]);
-
-  // The full walked path of whichever pin was last tapped, drawn directly
-  // on this map. Fetched on demand (nearby-route pins only carry a single
-  // point, not the full block-by-block path) rather than up front for
-  // every pin, since most of them will never get tapped.
-  const [selectedPath, setSelectedPath] = useState<{ latitude: number; longitude: number }[]>([]);
-  const [selectedTourId, setSelectedTourId] = useState<string | null>(null);
-
-  async function handlePinPress(route: NearbyRoute) {
-    if (selectedTourId === route.tour_id) return;
-    setSelectedTourId(route.tour_id);
-    try {
-      const detail = await getTourDetail(route.tour_id);
-      // Prefer the actual walked GPS trace over the sparse per-narration
-      // blocks — connecting those with straight lines can cut through
-      // buildings whenever the street curves. Older tours recorded before
-      // path persistence shipped fall back to the blocks-based path.
-      setSelectedPath(
-        detail.path.length > 1
-          ? detail.path.map((p) => ({ latitude: p.lat, longitude: p.lng }))
-          : detail.blocks.map((b) => ({ latitude: b.lat, longitude: b.lng }))
-      );
-    } catch (e: any) {
-      console.warn("Failed to load route path:", e.message);
-      setSelectedTourId(null);
-    }
-  }
+  const [recentTours, setRecentTours] = useState<TourSummary[] | null>(null);
+  const [stats, setStats] = useState<UserStats | null>(null);
+  const [badges, setBadges] = useState<BadgeStatus[]>([]);
 
   useEffect(() => {
-    async function init() {
-      const granted = await requestLocationPermission();
-      setHasPermission(granted);
-      if (granted) {
-        try {
-          const loc = await getCurrentLocation();
-          setLocation(loc);
+    getTours()
+      .then((tours) => setRecentTours(tours.slice(0, RECENT_STORIES_LIMIT)))
+      .catch((e: any) => console.warn("Failed to load recent tours:", e.message));
 
-          // Neither of these depends on the other, so they fire together
-          // instead of the place label needlessly blocking the nearby-
-          // routes pins from starting to load until it's done.
-          reverseGeocode(loc.lat, loc.lng).then((place) => {
-            if (place && (place.neighborhood || place.city)) {
-              setPlaceLabel(
-                [place.neighborhood, place.city].filter(Boolean).join(", ")
-              );
-            }
-          });
-
-          // Most-voted nearby routes, shown as pins right on the home map.
-          getNearbyRoutes(loc.lat, loc.lng, { sortBy: "rating", limit: 10 })
-            .then(setNearbyRoutes)
-            .catch((e) => {
-              console.warn("Failed to load nearby routes:", e.message);
-              showToast(t("home.couldntLoadRoutes"));
-            });
-        } catch (e) {
-          console.error("Failed to get location:", e);
-        }
-      } else {
-        Alert.alert(t("home.locationRequiredTitle"), t("home.locationRequiredBody"));
-      }
-    }
-    init();
+    getUserStats()
+      .then((userStats) => {
+        setStats(userStats);
+        setBadges(getAllBadges(userStats).slice(0, BADGE_PREVIEW_LIMIT));
+      })
+      .catch((e: any) => console.warn("Failed to load stats:", e.message));
   }, []);
 
   return (
-    <View style={styles.container}>
-      {location ? (
-        <MapView
-          style={StyleSheet.absoluteFillObject}
-          initialRegion={{
-            latitude: location.lat,
-            longitude: location.lng,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          }}
-          showsUserLocation
-        >
-          {/* "Low info" zone glow — Uber-surge-style warm tint under any
-              pin whose starting zone came back thin the last time it was
-              narrated (an automatic signal, not a user report). Rendered
-              before the pins so it sits underneath them. Radius is half
-              the ~150m geohash cell the signal is actually keyed to. */}
-          {nearbyRoutes
-            .filter((route) => route.is_low_info)
-            .map((route) => (
-              <Circle
-                key={`${route.tour_id}-low-info`}
-                center={{ latitude: route.lat, longitude: route.lng }}
-                radius={75}
-                fillColor="rgba(201, 146, 43, 0.22)"
-                strokeColor="rgba(138, 94, 21, 0.55)"
-                strokeWidth={1}
-              />
-            ))}
-
-          {nearbyRoutes.map((route) => (
-            <Marker
-              key={route.tour_id}
-              coordinate={{ latitude: route.lat, longitude: route.lng }}
-              title={route.title}
-              description={
-                route.rating_count > 0
-                  ? `★ ${route.avg_rating.toFixed(1)} (${route.rating_count})`
-                  : t("home.notYetRated")
-              }
-              onPress={() => handlePinPress(route)}
-              onCalloutPress={() => onSelectRoute(route.tour_id)}
-              tracksViewChanges={false}
-            >
-              <View style={[styles.moodPin, route.is_low_info && styles.moodPinLowInfo]}>
-                <Text style={styles.moodPinEmoji}>
-                  {MOODS.find((m) => m.id === route.mood)?.emoji ?? "🗺️"}
-                </Text>
-                {route.is_low_info && (
-                  <View style={styles.moodPinBadge}>
-                    <Text style={styles.moodPinBadgeText}>!</Text>
-                  </View>
-                )}
-              </View>
-            </Marker>
-          ))}
-
-          {selectedPath.length > 1 && (
-            <>
-              <RoutePolyline coordinates={selectedPath} />
-              <Marker coordinate={selectedPath[0]} pinColor={colors.accent} title={t("common.start")} />
-              <Marker
-                coordinate={selectedPath[selectedPath.length - 1]}
-                pinColor={colors.danger}
-                title={t("common.endOfRoute")}
-              />
-            </>
-          )}
-        </MapView>
-      ) : (
-        <View style={styles.mapPlaceholder}>
-          <Text style={styles.placeholderText}>
-            {hasPermission ? t("home.findingYou") : t("home.locationPermissionRequired")}
-          </Text>
-        </View>
-      )}
-
-      {/* Floating location pill */}
-      <View style={[styles.locationPill, { top: insets.top + 12 }]}>
-        <Image source={require("../../assets/icon.png")} style={styles.logoBadge} />
-        <Text style={styles.locationPillText} numberOfLines={1}>
-          {placeLabel || t("home.somewhereWorthExploring")}
-        </Text>
+    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <Image
+          source={require("../../assets/lOGOBACKYARD.png")}
+          style={styles.logo}
+          resizeMode="contain"
+          accessibilityLabel={t("home.logoA11y")}
+        />
       </View>
 
-      {/* Floating start sheet */}
-      <View style={styles.sheet}>
-        <View style={styles.dragHandle} />
-        <Text style={styles.sheetLabel}>{t("home.pickYourStory")}</Text>
+      {stats && (
+        <>
+          <View style={styles.statsSection}>
+            <Text style={[styles.statsSectionLabel, styles.centerText]}>{t("profile.yourStats")}</Text>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{stats.tours_completed}</Text>
+                <Text style={styles.statLabel}>{t("profile.statTours")}</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{(stats.total_distance_m / 1000).toFixed(1)}</Text>
+                <Text style={styles.statLabel}>{t("profile.statKm")}</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{stats.cities_visited}</Text>
+                <Text style={styles.statLabel}>{t("profile.statCities")}</Text>
+              </View>
+            </View>
+          </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.moodRow}>
-          {MOODS.map((mood) => (
+          <View style={styles.divider} />
+
+          <TouchableOpacity
+            style={styles.badgesSection}
+            onPress={onOpenBadges}
+            accessibilityRole="button"
+            accessibilityLabel={t("profile.viewAllBadgesA11y")}
+          >
+            <Text style={[styles.sectionLabel, styles.centerText]}>{t("profile.badges")}</Text>
+            <View style={styles.badgeRowCentered}>
+              {badges.map((b) => {
+                const icon = b.earned ? b.icon : b.greyIcon ?? b.icon;
+                return (
+                  <View key={b.id} style={styles.badgeChip}>
+                    {icon ? (
+                      <Image source={icon} style={styles.badgeIconImage} resizeMode="contain" />
+                    ) : (
+                      <Text style={[styles.badgeEmoji, !b.earned && styles.badgeEmojiLocked]}>{b.emoji}</Text>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+        </>
+      )}
+
+      <View style={styles.storiesSection}>
+        <Text style={[styles.sectionLabel, styles.centerText]}>{t("home.recentStories")}</Text>
+        {recentTours && recentTours.length === 0 ? (
+          <View style={styles.emptyFill}>
+            <Image
+              source={MASCOT_IMAGE}
+              style={styles.emptyImage}
+              accessibilityLabel={t("login.mascotA11y")}
+            />
+            <Text style={styles.emptyText}>{t("home.noRecentStories")}</Text>
+          </View>
+        ) : (
+          recentTours?.map((tour) => (
             <TouchableOpacity
-              key={mood.id}
-              style={styles.moodChip}
-              disabled={!location}
-              onPress={() => {
-                tap();
-                mood.pro && !isPremium ? onRequirePremium() : onQuickStart(mood.id);
-              }}
+              key={tour.tour_id}
+              style={styles.storyRow}
+              onPress={() => onSelectRoute(tour.tour_id)}
               accessibilityRole="button"
-              accessibilityLabel={`${t(`moods.${mood.id}.label`)}, ${mood.pro ? t("common.pro") : t("common.free")}`}
             >
-              <Text style={styles.moodEmoji}>{mood.emoji}</Text>
-              <Text style={styles.moodLabel}>{t(`moods.${mood.id}.label`)}</Text>
-              {mood.pro && (
-                <View style={styles.proBadge}>
-                  <Text style={styles.proBadgeText}>{t("common.pro")}</Text>
-                </View>
-              )}
+              <View style={styles.storyIconWrap}>
+                <Image source={MOOD_ICONS[tour.mood] ?? FALLBACK_MOOD_ICON} style={styles.storyIcon} resizeMode="contain" />
+              </View>
+              <View style={styles.storyBody}>
+                <Text style={styles.storyTitle} numberOfLines={1}>{tour.title}</Text>
+                <Text style={styles.storyMeta}>{formatMeta(t, tour)}</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+          ))
+        )}
+      </View>
 
-        <TouchableOpacity
-          style={[styles.startBtn, !location && styles.startBtnDisabled]}
-          onPress={() => {
-            tap();
-            onStartTour();
-          }}
-          disabled={!location}
-          accessibilityRole="button"
-          accessibilityLabel={t("home.startWalkingTour")}
-        >
-          <Text style={styles.startBtnText}>{t("home.startWalkingTour")}</Text>
-        </TouchableOpacity>
+      <View style={styles.fabRow}>
+        <View style={styles.fabWrap}>
+          <TouchableOpacity
+            style={styles.fabSecondary}
+            onPress={() => {
+              tap();
+              onOpenMap();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={t("home.map")}
+          >
+            <Image source={require("../../assets/icons/map.png")} style={styles.fabSecondaryIcon} resizeMode="contain" />
+          </TouchableOpacity>
+          <Text style={styles.fabLabel}>{t("home.map")}</Text>
+        </View>
+
+        <View style={styles.fabWrap}>
+          <TouchableOpacity
+            style={styles.fabPrimary}
+            onPress={() => {
+              tap();
+              onStartTour();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={t("home.explore")}
+          >
+            <Image source={require("../../assets/icons/explore.png")} style={styles.fabPrimaryIcon} resizeMode="contain" />
+          </TouchableOpacity>
+          <Text style={styles.fabLabelPrimary}>{t("home.explore")}</Text>
+        </View>
+
+        <View style={styles.fabWrap}>
+          {/* Settings sits stacked directly above the Journal FAB, its own
+              small button in normal flow -- not overlapping the icon. */}
+          <TouchableOpacity
+            style={styles.settingsAboveJournal}
+            onPress={() => {
+              tap();
+              onOpenProfile();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={t("home.settingsA11y")}
+          >
+            <Image source={require("../../assets/icons/settings.png")} style={styles.settingsAboveJournalIcon} resizeMode="contain" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.fabSecondary}
+            onPress={() => {
+              tap();
+              onOpenJournal();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={t("home.journal")}
+          >
+            <Image source={require("../../assets/icons/journal.png")} style={styles.fabSecondaryIcon} resizeMode="contain" />
+          </TouchableOpacity>
+          <Text style={styles.fabLabel}>{t("home.journal")}</Text>
+        </View>
       </View>
     </View>
   );
@@ -248,165 +232,243 @@ export default function HomeScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: "transparent",
+    paddingHorizontal: spacing.lg,
   },
-  mapPlaceholder: {
-    flex: 1,
-    justifyContent: "center",
+  // Settings now lives on the Journal screen instead -- this header is
+  // just the centered logo.
+  header: {
     alignItems: "center",
-    backgroundColor: colors.surfaceAlt,
+    marginBottom: 4,
   },
-  placeholderText: {
-    color: colors.muted,
-    fontSize: 15,
+  // Real content aspect ratio is ~2.28:1 (the source file is a square
+  // canvas with a lot of transparent padding around the actual wood-sign
+  // art) -- sized off height, not width, so it actually reads as big.
+  logo: {
+    width: 274,
+    height: 120,
   },
-  moodPin: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: colors.pro,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  moodPinEmoji: {
-    fontSize: 17,
-  },
-  moodPinLowInfo: {
-    borderColor: colors.lowInfo,
-    shadowColor: colors.lowInfo,
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-  },
-  moodPinBadge: {
-    position: "absolute",
-    top: -3,
-    right: -3,
-    width: 13,
-    height: 13,
-    borderRadius: 7,
-    backgroundColor: colors.lowInfo,
-    borderWidth: 1.5,
-    borderColor: colors.surface,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  moodPinBadgeText: {
-    fontSize: 8,
-    fontWeight: "800",
-    color: "#fff",
-  },
-  locationPill: {
-    position: "absolute",
-    left: 16,
-    maxWidth: "72%",
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.92)",
-    paddingVertical: spacing.sm,
-    paddingHorizontal: 10,
-    borderRadius: radius.pill,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
-  },
-  logoBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    marginRight: spacing.sm,
-  },
-  locationPillText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.text,
-    flexShrink: 1,
-  },
-  sheet: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    padding: 20,
-    paddingTop: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: -4 },
-    elevation: 10,
-  },
-  dragHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    alignSelf: "center",
-    marginBottom: 14,
-  },
-  sheetLabel: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.text,
-    marginBottom: 10,
-  },
-  startBtn: {
-    backgroundColor: colors.accent,
-    padding: 15,
-    borderRadius: radius.md,
-  },
-  startBtnDisabled: {
-    backgroundColor: colors.border,
-  },
-  startBtnText: {
-    color: colors.accentText,
+  centerText: {
     textAlign: "center",
-    fontSize: type.body,
-    fontWeight: "700",
   },
-  moodRow: {
-    marginBottom: spacing.md,
+  statsSection: {
+    marginTop: spacing.md,
   },
-  moodChip: {
+  // "Your Stats" gets its own heading style (rather than reusing the
+  // shared sectionLabel Badges/Recent Stories still use) so this one
+  // section could be sized up on its own without dragging the others
+  // along with it.
+  statsSectionLabel: {
+    fontFamily: font.cursiveBold,
+    fontSize: 25,
+    lineHeight: 35,
+    color: colors.fieldMuted,
+    marginBottom: spacing.sm,
+  },
+  statsRow: {
     flexDirection: "row",
+    justifyContent: "center",
+    // Tightened from spacing.xl (32) -- the numbers/labels below grew 20%,
+    // so the gap came down a notch to keep all three columns centered
+    // and comfortably on-screen instead of stretching wider than before.
+    // Reduced again (24 -> 23) alongside the 5% pull-back below.
+    gap: 23,
+  },
+  statItem: {
+    alignItems: "center",
+  },
+  statValue: {
+    fontFamily: font.cursiveBold,
+    fontSize: 36,
+    lineHeight: 49,
+    color: colors.ink,
+  },
+  statLabel: {
+    fontFamily: font.cursive,
+    fontSize: 17,
+    lineHeight: 24,
+    color: colors.fieldMuted,
+    marginTop: 2,
+  },
+  badgesSection: {
+    alignItems: "center",
+  },
+  badgeRowCentered: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: spacing.sm,
+  },
+  badgeChip: {
+    width: 50,
+    height: 50,
+    borderRadius: 28,
+    backgroundColor: colors.parchmentSurface,
+    borderWidth: 1.5,
+    borderColor: colors.fieldBorder,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  badgeEmoji: {
+    fontSize: type.label,
+  },
+  badgeEmojiLocked: {
+    opacity: 0.35,
+  },
+  // A thin ruled line between sections -- the "lines in a journal" feel,
+  // instead of pure whitespace, marking the page as one composed sheet.
+  divider: {
+    height: 1,
+    backgroundColor: colors.fieldBorderSoft,
+    marginVertical: spacing.md,
+  },
+  badgeIconImage: {
+    width: 31,
+    height: 31,
+  },
+  fabRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    gap: 28,
+    marginTop: spacing.lg,
+  },
+  fabWrap: {
     alignItems: "center",
     gap: 6,
-    backgroundColor: colors.surfaceAlt,
+  },
+  settingsAboveJournal: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.parchmentSurface,
+    borderWidth: 1.5,
+    borderColor: colors.fieldBorder,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  settingsAboveJournalIcon: {
+    width: 15,
+    height: 15,
+    tintColor: colors.ink,
+  },
+  fabPrimary: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: colors.ink,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  fabPrimaryIcon: {
+    width: 34,
+    height: 34,
+    tintColor: colors.parchmentSurface,
+  },
+  fabSecondary: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.parchmentSurface,
+    borderWidth: 1.5,
+    borderColor: colors.fieldBorder,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  fabSecondaryIcon: {
+    width: 23,
+    height: 23,
+    tintColor: colors.ink,
+  },
+  fabLabel: {
+    fontFamily: font.cursiveBold,
+    fontSize: 17,
+    lineHeight: 23,
+    color: colors.fieldMuted,
+  },
+  fabLabelPrimary: {
+    fontFamily: font.cursiveBold,
+    fontSize: 20,
+    lineHeight: 26,
+    color: colors.ink,
+  },
+  // Claims whatever vertical space is left between Badges and the FAB row
+  // pinned at the bottom -- without this, a short (or empty) story list
+  // left a big dead gap instead of the FAB row sitting flush at the bottom.
+  storiesSection: {
+    flex: 1,
+  },
+  sectionLabel: {
+    fontFamily: font.cursiveBold,
+    fontSize: 22,
+    lineHeight: 31,
+    color: colors.fieldMuted,
+    marginBottom: spacing.sm,
+  },
+  emptyFill: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingBottom: spacing.xl,
+  },
+  emptyImage: {
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    marginBottom: spacing.md,
+  },
+  emptyText: {
+    fontFamily: font.serifItalic,
+    fontSize: 17,
+    color: colors.fieldMuted,
+    textAlign: "center",
+  },
+  storyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.fieldBorderSoft,
+  },
+  storyIconWrap: {
+    width: 39,
+    height: 39,
+    borderRadius: 22,
+    backgroundColor: colors.parchmentSurface,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    paddingVertical: 9,
-    paddingHorizontal: 13,
-    marginRight: spacing.sm,
+    borderColor: colors.fieldBorderSoft,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  moodEmoji: {
+  storyIcon: {
+    width: 22,
+    height: 22,
+    tintColor: colors.ink,
+  },
+  storyBody: {
+    flex: 1,
+  },
+  storyTitle: {
+    fontFamily: font.cursiveBold,
+    fontSize: 21,
+    lineHeight: 28,
+    color: colors.ink,
+  },
+  storyMeta: {
+    fontFamily: font.cursive,
     fontSize: 15,
+    lineHeight: 21,
+    color: colors.fieldMuted,
   },
-  moodLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.text,
-  },
-  proBadge: {
-    backgroundColor: colors.pro,
-    borderRadius: 5,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    marginLeft: 2,
-  },
-  proBadgeText: {
-    color: colors.proText,
-    fontSize: 9,
-    fontWeight: "800",
+  chevron: {
+    color: colors.fieldMuted,
+    fontSize: 22,
   },
 });

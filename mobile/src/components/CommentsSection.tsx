@@ -73,7 +73,7 @@ export default function CommentsSection({ tourId }: CommentsSectionProps) {
       <Text style={styles.header}>{t("comments.header")}</Text>
 
       {comments === null ? (
-        <ActivityIndicator color={colors.accent} />
+        <ActivityIndicator color={colors.ink} />
       ) : comments.length === 0 ? (
         <Text style={styles.emptyText}>{t("comments.noneYet")}</Text>
       ) : (
@@ -103,7 +103,7 @@ export default function CommentsSection({ tourId }: CommentsSectionProps) {
           value={body}
           onChangeText={setBody}
           placeholder={t("comments.addPlaceholder")}
-          placeholderTextColor={colors.muted}
+          placeholderTextColor={colors.fieldMuted}
           maxLength={500}
           multiline
           accessibilityLabel={t("comments.inputA11y")}
@@ -128,22 +128,24 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   header: {
-    fontFamily: font.display,
-    fontSize: type.title,
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 26,
+    lineHeight: 34,
+    color: colors.ink,
     marginBottom: 12,
     alignSelf: "flex-start",
   },
   emptyText: {
-    fontSize: 13,
-    color: colors.muted,
+    fontFamily: font.serifItalic,
+    fontSize: 14,
+    color: colors.fieldMuted,
     marginBottom: 12,
   },
   commentCard: {
     width: "100%",
-    backgroundColor: colors.surface,
+    backgroundColor: colors.parchmentSurface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.fieldBorderSoft,
     borderRadius: radius.md,
     padding: 12,
     marginBottom: spacing.sm,
@@ -154,9 +156,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   commentAuthor: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 17,
+    lineHeight: 23,
+    color: colors.ink,
   },
   commentHeaderRight: {
     flexDirection: "row",
@@ -164,18 +167,23 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   commentDate: {
-    fontSize: 11,
-    color: colors.muted,
+    fontFamily: font.cursive,
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.fieldMuted,
   },
   reportLink: {
-    fontSize: 11,
-    color: colors.muted,
+    fontFamily: font.cursive,
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.fieldMuted,
     textDecorationLine: "underline",
   },
   commentBody: {
-    fontSize: 13,
-    color: colors.text,
-    lineHeight: 18,
+    fontFamily: font.serifItalic,
+    fontSize: 14,
+    color: colors.ink,
+    lineHeight: 20,
   },
   inputRow: {
     flexDirection: "row",
@@ -183,29 +191,32 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     alignItems: "flex-end",
   },
+  // Deliberately NOT cursive -- live user-typed text, not UI chrome.
   input: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.parchmentSurface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.fieldBorder,
     borderRadius: radius.md,
     padding: 10,
-    fontSize: 13,
-    color: colors.text,
+    fontFamily: font.sans,
+    fontSize: 14,
+    color: colors.ink,
     maxHeight: 90,
   },
   postBtn: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.ink,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: 12,
   },
   postBtnDisabled: {
-    backgroundColor: colors.border,
+    backgroundColor: colors.fieldBorder,
   },
   postBtnText: {
-    color: colors.accentText,
-    fontWeight: "700",
-    fontSize: 13,
+    fontFamily: font.cursiveBold,
+    color: colors.parchmentSurface,
+    fontSize: 17,
+    lineHeight: 23,
   },
 });

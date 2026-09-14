@@ -1,26 +1,47 @@
 // Mode picker — choose your experience before starting a tour
 //
-// 2 free modes + 3 premium modes. Tapping a premium mode without an
-// active subscription opens the paywall instead of starting a tour.
+// 2 free modes + 3 premium modes, laid out as stops along a winding trail —
+// no colored badge pills, no preview button, just the same hand-drawn mood
+// icon used everywhere else a mood is shown (Home, Journal, Route Detail).
+// See the "Field Guide" design direction (mobile/mockups/) and the "Choose
+// Your Story" option comparison artifact this screen was picked from
+// ("The Trail"). Tapping a premium mode without an active subscription
+// opens the paywall instead of starting a tour.
 
-import React, { useEffect, useRef, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { Audio } from "expo-av";
 import { colors, font, radius, type, spacing } from "../theme";
 import { tap } from "../services/haptics";
-import { showToast } from "../services/toast";
 import { getCurrentLocation } from "../services/location";
-import { getRichness, RichnessInfo, getMoodSample } from "../services/api";
+import { getRichness, RichnessInfo } from "../services/api";
+import { MOOD_ICONS } from "../services/moods";
 
 const MODES = [
-  { id: "time_machine", emoji: "🕰️", premium: false },
-  { id: "hidden_city", emoji: "🔮", premium: false },
-  { id: "dark_side", emoji: "🕵️", premium: true },
-  { id: "behind_scenes", emoji: "🎬", premium: true },
-  { id: "unfiltered", emoji: "🎭", premium: true },
+  { id: "time_machine", premium: false },
+  { id: "hidden_city", premium: false },
+  { id: "dark_side", premium: true },
+  { id: "behind_scenes", premium: true },
+  { id: "unfiltered", premium: true },
 ];
+
+// Real curved SVG paths need react-native-svg, a native module that only
+// exists starting with the build this shipped in -- OTA updates can't add
+// native code to an already-installed binary. Rather than gate this on
+// build version, the trail is drawn with plain Views instead: each dot in
+// a segment gets its own horizontal offset following a sine curve (0 at
+// both ends of the segment, peaking at the middle), so it reads as a real
+// weave between markers that themselves stay in one straight column --
+// and it's guaranteed to render on every build, same as the rest of the
+// screen.
+const DOTS_PER_SEGMENT = 7;
+const TRAIL_BULGE = 16;
+
+function dotOffset(dotIndex: number, direction: number) {
+  const t = dotIndex / (DOTS_PER_SEGMENT - 1);
+  return direction * TRAIL_BULGE * Math.sin(Math.PI * t);
+}
 
 interface MoodPickerProps {
   onSelect: (mood: string) => void;
@@ -33,12 +54,6 @@ export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequ
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [richness, setRichness] = useState<RichnessInfo | null>(null);
-  const [previewing, setPreviewing] = useState<string | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
-  // Bumped on every handlePreview call so an in-flight request that's been
-  // superseded by a newer tap can tell it's stale once its network calls
-  // finally resolve, instead of unconditionally overwriting soundRef.
-  const previewTokenRef = useRef(0);
 
   useEffect(() => {
     getCurrentLocation()
@@ -48,46 +63,7 @@ export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequ
         // Silent — the richness caption is a nice-to-have, not worth a
         // toast or blocking mood selection if location isn't available yet.
       });
-
-    return () => {
-      soundRef.current?.unloadAsync();
-    };
   }, []);
-
-  // Premium hears each mood's distinct ElevenLabs voice; everyone else
-  // (and any ElevenLabs failure) gets the same preview via the existing
-  // Google TTS fallback the backend already handles — this button always
-  // does something, never silently fails.
-  async function handlePreview(moodId: string) {
-    tap();
-    if (soundRef.current) {
-      await soundRef.current.unloadAsync();
-      soundRef.current = null;
-    }
-    const myToken = ++previewTokenRef.current;
-    setPreviewing(moodId);
-    try {
-      const sample = await getMoodSample(moodId);
-      const { sound } = await Audio.Sound.createAsync({ uri: sample.audio_url }, { shouldPlay: true });
-      // A different preview was tapped while this one's network calls were
-      // still in flight -- shouldPlay:true already started this sound, so
-      // it must be unloaded rather than left playing over the newer one.
-      if (previewTokenRef.current !== myToken) {
-        sound.unloadAsync();
-        return;
-      }
-      soundRef.current = sound;
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          setPreviewing(null);
-        }
-      });
-    } catch (e: any) {
-      console.warn("Failed to preview mood:", e.message);
-      showToast(t("moodPicker.couldntPreview"));
-      if (previewTokenRef.current === myToken) setPreviewing(null);
-    }
-  }
 
   return (
     <View style={styles.container}>
@@ -106,45 +82,50 @@ export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequ
         <Text style={styles.richnessCaption}>{richness.message}</Text>
       )}
 
-      {MODES.map((mode) => (
-        <TouchableOpacity
-          key={mode.id}
-          style={styles.modeCard}
-          onPress={() => {
-            tap();
-            mode.premium && !isPremium ? onRequirePremium() : onSelect(mode.id);
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={`${t(`moods.${mode.id}.label`)}, ${mode.premium ? t("common.pro") : t("common.free")}`}
-        >
-          <Text style={styles.emoji}>{mode.emoji}</Text>
-          <View style={styles.modeInfo}>
-            <View style={styles.labelRow}>
-              <Text style={styles.modeLabel}>{t(`moods.${mode.id}.label`)}</Text>
-              {mode.premium ? (
-                <View style={styles.premiumBadge}>
-                  <Text style={styles.premiumText}>{t("common.pro")}</Text>
-                </View>
-              ) : (
-                <View style={styles.freeBadge}>
-                  <Text style={styles.freeText}>{t("common.free")}</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.modeDesc}>{t(`moods.${mode.id}.desc`)}</Text>
-          </View>
+      <View style={styles.trail}>
+        {MODES.map((mode, i) => (
           <TouchableOpacity
-            style={styles.previewBtn}
-            onPress={() => handlePreview(mode.id)}
-            disabled={previewing === mode.id}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            key={mode.id}
+            style={[styles.trailStop, i === MODES.length - 1 && styles.trailStopLast]}
+            onPress={() => {
+              tap();
+              mode.premium && !isPremium ? onRequirePremium() : onSelect(mode.id);
+            }}
             accessibilityRole="button"
-            accessibilityLabel={t("moodPicker.previewA11y", { mood: t(`moods.${mode.id}.label`) })}
+            accessibilityLabel={`${t(`moods.${mode.id}.label`)}, ${mode.premium ? t("common.pro") : t("common.free")}`}
           >
-            <Text style={styles.previewBtnText}>{previewing === mode.id ? "…" : "▶"}</Text>
+            {i < MODES.length - 1 && (
+              <View style={styles.trailSegment}>
+                {Array.from({ length: DOTS_PER_SEGMENT }).map((_, di) => (
+                  <View
+                    key={di}
+                    style={[
+                      styles.trailSegmentDot,
+                      { transform: [{ translateX: dotOffset(di, i % 2 === 0 ? 1 : -1) }] },
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
+            {/* The trail marker IS the mood's own hand-drawn icon, in a
+                circle sitting in a straight column -- the winding comes
+                from the dotted segment drawn behind it, not from moving
+                this. */}
+            <View style={[styles.trailIconWrap, mode.premium && styles.trailIconWrapPro]}>
+              <Image
+                source={MOOD_ICONS[mode.id]}
+                style={[styles.trailIcon, mode.premium && styles.trailIconPro]}
+                resizeMode="contain"
+              />
+            </View>
+            <Text style={styles.modeLabel}>{t(`moods.${mode.id}.label`)}</Text>
+            <Text style={styles.modeDesc}>{t(`moods.${mode.id}.desc`)}</Text>
+            <Text style={[styles.tag, mode.premium && styles.tagPro]}>
+              {mode.premium ? t("common.pro") : t("common.free")}
+            </Text>
           </TouchableOpacity>
-        </TouchableOpacity>
-      ))}
+        ))}
+      </View>
     </View>
   );
 }
@@ -152,7 +133,7 @@ export default function MoodPickerScreen({ onSelect, onCancel, isPremium, onRequ
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: "transparent",
     padding: 20,
     paddingTop: 60,
     justifyContent: "center",
@@ -163,101 +144,114 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   cancelText: {
-    color: colors.accent,
-    fontSize: 15,
-    fontWeight: "600",
+    fontFamily: font.cursiveBold,
+    color: colors.fieldMuted,
+    fontSize: 23,
+    lineHeight: 32,
+    paddingRight: 6,
   },
   title: {
-    fontFamily: font.display,
-    fontSize: 26,
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 34,
+    lineHeight: 47,
+    color: colors.ink,
     textAlign: "center",
     marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: type.label,
-    color: colors.muted,
+    fontFamily: font.cursive,
+    fontSize: 21,
+    lineHeight: 28,
+    color: colors.fieldMuted,
     textAlign: "center",
     marginBottom: spacing.lg,
   },
   richnessCaption: {
     fontSize: type.caption,
-    color: colors.muted,
+    color: colors.fieldMuted,
     textAlign: "center",
     marginTop: -14,
     marginBottom: 20,
     paddingHorizontal: 20,
   },
-  modeCard: {
-    flexDirection: "row",
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    marginBottom: 10,
+  trail: {
+    paddingLeft: 52,
+  },
+  trailStop: {
+    position: "relative",
+    paddingBottom: 28,
+  },
+  trailStopLast: {
+    paddingBottom: 4,
+  },
+  // A column of dots from just below this marker to the top of the next
+  // one, each with its own sine-curve horizontal offset (see dotOffset
+  // above) -- chains into one continuous weaving trail down the column.
+  trailSegment: {
+    position: "absolute",
+    left: -30,
+    top: 36,
+    bottom: 6,
+    width: 4,
     alignItems: "center",
+    justifyContent: "space-between",
   },
-  emoji: {
-    fontSize: 30,
-    marginRight: 14,
+  trailSegmentDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.fieldMuted,
   },
-  modeInfo: {
-    flex: 1,
-  },
-  previewBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
+  // The trail marker IS the mood's own hand-drawn icon, in a circle sized
+  // to actually hold the artwork, all sitting at the same `left` -- a
+  // straight column (it's the trailSegment dots that weave, not this).
+  trailIconWrap: {
+    position: "absolute",
+    left: -40,
+    top: -2,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.parchmentSurface,
+    borderWidth: 2,
+    borderColor: colors.ink,
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: spacing.sm,
+    zIndex: 1,
   },
-  previewBtnText: {
-    fontSize: type.caption,
-    color: colors.text,
+  trailIconWrapPro: {
+    borderColor: colors.fieldGreen,
   },
-  labelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: 2,
+  trailIcon: {
+    width: 18,
+    height: 18,
+    tintColor: colors.ink,
+  },
+  trailIconPro: {
+    tintColor: colors.fieldGreen,
   },
   modeLabel: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  premiumBadge: {
-    backgroundColor: colors.pro,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 5,
-  },
-  premiumText: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: colors.proText,
-  },
-  freeBadge: {
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 5,
-  },
-  freeText: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: colors.muted,
+    fontFamily: font.cursiveBold,
+    fontSize: 23,
+    lineHeight: 32,
+    color: colors.ink,
   },
   modeDesc: {
-    fontSize: 13,
-    color: colors.muted,
-    marginTop: 2,
+    fontFamily: font.serifItalic,
+    fontSize: 14,
+    color: colors.fieldMuted,
+    marginTop: 3,
+    marginBottom: 6,
+    lineHeight: 20,
+  },
+  tag: {
+    fontFamily: font.cursiveBold,
+    fontSize: 14,
+    lineHeight: 20,
+    letterSpacing: 0.3,
+    color: colors.fieldMuted,
+  },
+  tagPro: {
+    color: colors.fieldGreen,
   },
 });

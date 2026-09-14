@@ -2,10 +2,15 @@ import React from "react";
 import { Alert, TouchableOpacity, Text } from "react-native";
 import { render, fireEvent, waitFor } from "@testing-library/react-native";
 
-jest.mock("../../services/location", () => ({
-  getCurrentLocation: jest.fn(),
-  watchPosition: jest.fn(),
-}));
+jest.mock("../../services/location", () => {
+  const actual = jest.requireActual("../../services/location");
+  return {
+    ...actual,
+    getCurrentLocation: jest.fn(),
+    watchPosition: jest.fn(),
+    watchHeading: jest.fn(),
+  };
+});
 jest.mock("../../services/api", () => ({ getTourDetail: jest.fn() }));
 jest.mock("../../services/toast", () => ({ showToast: jest.fn() }));
 

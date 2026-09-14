@@ -1,120 +1,157 @@
 import React from "react";
-import { Alert } from "react-native";
 import { render, fireEvent, waitFor } from "@testing-library/react-native";
 
-jest.mock("../../services/location", () => ({
-  requestLocationPermission: jest.fn(),
-  getCurrentLocation: jest.fn(),
-  reverseGeocode: jest.fn(),
-}));
 jest.mock("../../services/api", () => ({
-  getNearbyRoutes: jest.fn(),
-  getTourDetail: jest.fn(),
+  getTours: jest.fn(),
+  getUserStats: jest.fn(),
 }));
-jest.mock("../../services/toast", () => ({ showToast: jest.fn() }));
 jest.mock("../../services/haptics", () => ({ tap: jest.fn() }));
 
 import HomeScreen from "../HomeScreen";
-import { requestLocationPermission, getCurrentLocation, reverseGeocode } from "../../services/location";
-import { getNearbyRoutes } from "../../services/api";
+import { getTours, getUserStats } from "../../services/api";
 
-const mockRequestPermission = requestLocationPermission as jest.Mock;
-const mockGetCurrentLocation = getCurrentLocation as jest.Mock;
-const mockReverseGeocode = reverseGeocode as jest.Mock;
-const mockGetNearbyRoutes = getNearbyRoutes as jest.Mock;
+const mockGetTours = getTours as jest.Mock;
+const mockGetUserStats = getUserStats as jest.Mock;
 
 function baseProps(overrides = {}) {
   return {
     onStartTour: jest.fn(),
-    onQuickStart: jest.fn(),
     onSelectRoute: jest.fn(),
-    isPremium: false,
-    onRequirePremium: jest.fn(),
+    onOpenMap: jest.fn(),
+    onOpenJournal: jest.fn(),
+    onOpenProfile: jest.fn(),
+    onOpenBadges: jest.fn(),
     ...overrides,
   };
 }
 
+const NO_STATS = {
+  tours_completed: 0,
+  total_distance_m: 0,
+  cities_visited: 0,
+  moods_tried: [],
+  routes_published: 0,
+  total_likes_received: 0,
+  longest_streak_days: 0,
+  night_streak_days: 0,
+  early_streak_days: 0,
+};
+
 describe("HomeScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    mockGetTours.mockResolvedValue([]);
+    mockGetUserStats.mockResolvedValue(NO_STATS);
   });
 
-  it("shows a location-required alert and a placeholder (no map) when permission is denied", async () => {
-    mockRequestPermission.mockResolvedValue(false);
-
-    const { findByText } = await render(<HomeScreen {...baseProps()} />);
-
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith("home.locationRequiredTitle", "home.locationRequiredBody"));
-    expect(await findByText("home.locationPermissionRequired")).toBeTruthy();
-    expect(mockGetCurrentLocation).not.toHaveBeenCalled();
-  });
-
-  it("loads location, place label, and nearby routes once permission is granted", async () => {
-    mockRequestPermission.mockResolvedValue(true);
-    mockGetCurrentLocation.mockResolvedValue({ lat: 37.7749, lng: -122.4194 });
-    mockReverseGeocode.mockResolvedValue({ neighborhood: "Mission", city: "San Francisco" });
-    mockGetNearbyRoutes.mockResolvedValue([]);
-
-    const { findByText } = await render(<HomeScreen {...baseProps()} />);
-
-    expect(await findByText("Mission, San Francisco")).toBeTruthy();
-    expect(mockGetNearbyRoutes).toHaveBeenCalledWith(37.7749, -122.4194, { sortBy: "rating", limit: 10 });
-  });
-
-  it("disables the start button until location resolves, then enables it", async () => {
-    mockRequestPermission.mockResolvedValue(true);
-    mockGetCurrentLocation.mockResolvedValue({ lat: 37.7749, lng: -122.4194 });
-    mockReverseGeocode.mockResolvedValue(null);
-    mockGetNearbyRoutes.mockResolvedValue([]);
-
-    const { findByLabelText } = await render(<HomeScreen {...baseProps()} />);
-
-    const startBtn = await findByLabelText("home.startWalkingTour");
-    await waitFor(() => expect(startBtn.props.accessibilityState?.disabled).toBe(false));
-  });
-
-  it("calls onStartTour when the start button is pressed", async () => {
-    mockRequestPermission.mockResolvedValue(true);
-    mockGetCurrentLocation.mockResolvedValue({ lat: 37.7749, lng: -122.4194 });
-    mockReverseGeocode.mockResolvedValue(null);
-    mockGetNearbyRoutes.mockResolvedValue([]);
+  it("calls onStartTour when the Explore FAB is pressed", async () => {
     const props = baseProps();
 
     const { findByLabelText } = await render(<HomeScreen {...props} />);
-    const startBtn = await findByLabelText("home.startWalkingTour");
-    await waitFor(() => expect(startBtn.props.accessibilityState?.disabled).toBe(false));
-
-    await fireEvent.press(startBtn);
+    fireEvent.press(await findByLabelText("home.explore"));
 
     expect(props.onStartTour).toHaveBeenCalled();
   });
 
-  it("quick-starts a free mood directly", async () => {
-    mockRequestPermission.mockResolvedValue(true);
-    mockGetCurrentLocation.mockResolvedValue({ lat: 37.7749, lng: -122.4194 });
-    mockReverseGeocode.mockResolvedValue(null);
-    mockGetNearbyRoutes.mockResolvedValue([]);
+  it("calls onOpenMap and onOpenJournal from their FABs", async () => {
+    const props = baseProps();
+
+    const { findByLabelText } = await render(<HomeScreen {...props} />);
+    fireEvent.press(await findByLabelText("home.map"));
+    fireEvent.press(await findByLabelText("home.journal"));
+
+    expect(props.onOpenMap).toHaveBeenCalled();
+    expect(props.onOpenJournal).toHaveBeenCalled();
+  });
+
+  it("calls onOpenProfile when the settings badge on the Journal FAB is pressed", async () => {
+    const props = baseProps();
+
+    const { findByLabelText } = await render(<HomeScreen {...props} />);
+    fireEvent.press(await findByLabelText("home.settingsA11y"));
+
+    expect(props.onOpenProfile).toHaveBeenCalled();
+  });
+
+  it("shows an empty state when there are no recent tours", async () => {
+    mockGetTours.mockResolvedValue([]);
+
+    const { findByText } = await render(<HomeScreen {...baseProps()} />);
+
+    expect(await findByText("home.noRecentStories")).toBeTruthy();
+  });
+
+  it("renders recent tours and calls onSelectRoute when one is tapped", async () => {
+    mockGetTours.mockResolvedValue([
+      {
+        tour_id: "t1",
+        title: "Mission Evening",
+        mood: "time_machine",
+        city: "San Francisco",
+        blocks_visited: 8,
+        total_distance_m: 2400,
+        duration_sec: 1800,
+        created_at: "2026-01-01T00:00:00Z",
+      },
+    ]);
     const props = baseProps();
 
     const { findByText } = await render(<HomeScreen {...props} />);
-    await fireEvent.press(await findByText("moods.time_machine.label"));
+    fireEvent.press(await findByText("Mission Evening"));
 
-    expect(props.onQuickStart).toHaveBeenCalledWith("time_machine");
-    expect(props.onRequirePremium).not.toHaveBeenCalled();
+    expect(props.onSelectRoute).toHaveBeenCalledWith("t1");
   });
 
-  it("routes a premium mood to the paywall for a free user", async () => {
-    mockRequestPermission.mockResolvedValue(true);
-    mockGetCurrentLocation.mockResolvedValue({ lat: 37.7749, lng: -122.4194 });
-    mockReverseGeocode.mockResolvedValue(null);
-    mockGetNearbyRoutes.mockResolvedValue([]);
-    const props = baseProps({ isPremium: false });
+  it("shows a finished zero-distance tour as 0.0 km, not 'in progress'", async () => {
+    // Regression guard: total_distance_m is only ever null before a tour
+    // is finalized. A tour ended seconds after it started legitimately
+    // saves total_distance_m: 0 -- `!tour.total_distance_m` used to treat
+    // that the same as "still in progress," which is wrong once the tour
+    // actually has a real (if tiny) duration on file.
+    mockGetTours.mockResolvedValue([
+      {
+        tour_id: "t1",
+        title: "Lol",
+        mood: "time_machine",
+        city: null,
+        blocks_visited: 0,
+        total_distance_m: 0,
+        duration_sec: 2,
+        created_at: "2026-01-01T00:00:00Z",
+      },
+    ]);
 
-    const { findByText } = await render(<HomeScreen {...props} />);
-    await fireEvent.press(await findByText("moods.dark_side.label"));
+    const { findByText, queryByText } = await render(<HomeScreen {...baseProps()} />);
 
-    expect(props.onRequirePremium).toHaveBeenCalled();
-    expect(props.onQuickStart).not.toHaveBeenCalled();
+    expect(await findByText("0.0 km")).toBeTruthy();
+    expect(queryByText("tours.inProgress")).toBeNull();
+  });
+
+  it("shows stats once they load", async () => {
+    mockGetUserStats.mockResolvedValue({
+      ...NO_STATS,
+      tours_completed: 4,
+      total_distance_m: 12500,
+      cities_visited: 2,
+    });
+
+    const { findByText } = await render(<HomeScreen {...baseProps()} />);
+
+    expect(await findByText("4")).toBeTruthy();
+    expect(await findByText("12.5")).toBeTruthy();
+    expect(await findByText("2")).toBeTruthy();
+  });
+
+  it("calls onOpenBadges when the badges section is pressed", async () => {
+    mockGetUserStats.mockResolvedValue({
+      ...NO_STATS,
+      tours_completed: 1,
+    });
+    const props = baseProps();
+
+    const { findByLabelText } = await render(<HomeScreen {...props} />);
+    fireEvent.press(await findByLabelText("profile.viewAllBadgesA11y"));
+
+    expect(props.onOpenBadges).toHaveBeenCalled();
   });
 });

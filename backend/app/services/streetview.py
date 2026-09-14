@@ -41,7 +41,18 @@ async def fetch_street_view_image(lat: float, lng: float) -> bytes:
         async with httpx.AsyncClient() as client:
             metadata_response = await client.get(
                 STREETVIEW_METADATA_URL,
-                params={"location": location, "key": settings.GOOGLE_STREETVIEW_API_KEY},
+                params={
+                    "location": location,
+                    "key": settings.GOOGLE_STREETVIEW_API_KEY,
+                    # Without this, Google's nearest-panorama search can
+                    # return an indoor business photosphere (a shop/cafe's
+                    # own 360 tour, often through a third-party vendor like
+                    # "VR2GO" or "Threshold 360") instead of a real street-
+                    # level shot -- confirmed happening in production: two
+                    # zones on the same tour got random business interiors
+                    # nowhere near the walker's actual address.
+                    "source": "outdoor",
+                },
                 timeout=REQUEST_TIMEOUT,
             )
             metadata_response.raise_for_status()
@@ -57,6 +68,7 @@ async def fetch_street_view_image(lat: float, lng: float) -> bytes:
                     "size": "640x400",
                     "location": location,
                     "key": settings.GOOGLE_STREETVIEW_API_KEY,
+                    "source": "outdoor",
                 },
                 timeout=REQUEST_TIMEOUT,
             )

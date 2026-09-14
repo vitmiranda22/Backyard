@@ -24,7 +24,7 @@ export default function StarRating({ value, onChange, size = 16 }: StarRatingPro
         if (!interactive) {
           return (
             <View key={star} accessibilityElementsHidden>
-              <Text style={[styles.star, { fontSize: size, color: filled ? colors.accent : colors.border }]}>
+              <Text style={[styles.star, { fontSize: size, color: filled ? colors.fieldGreen : colors.fieldBorder }]}>
                 {filled ? "★" : "☆"}
               </Text>
             </View>
@@ -40,7 +40,7 @@ export default function StarRating({ value, onChange, size = 16 }: StarRatingPro
             accessibilityRole="button"
             accessibilityLabel={t("starRating.rateA11y", { star })}
           >
-            <Text style={[styles.star, { fontSize: size, color: filled ? colors.accent : colors.border }]}>
+            <Text style={[styles.star, { fontSize: size, color: filled ? colors.fieldGreen : colors.fieldBorder }]}>
               {filled ? "★" : "☆"}
             </Text>
           </TouchableOpacity>

@@ -8,6 +8,7 @@ Supabase newer projects sign JWTs with ES256 (asymmetric keys).
 We fetch the public key from Supabase's JWKS endpoint and cache it.
 """
 
+import asyncio
 import logging
 import httpx
 from typing import Annotated
@@ -15,6 +16,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Request
 import jwt as pyjwt
 from jwt import PyJWKClient
+from jwt.exceptions import PyJWKClientConnectionError
 
 from app.config import settings
 
@@ -30,6 +32,23 @@ def _get_jwks_client():
         jwks_url = f"{settings.SUPABASE_URL}/auth/v1/.well-known/jwks.json"
         _jwks_client = PyJWKClient(jwks_url)
     return _jwks_client
+
+
+async def _get_signing_key(jwks_client: PyJWKClient, token: str):
+    """
+    The cached JWKS set (see PyJWKClient's default 5-minute lifespan) still
+    means an occasional live fetch to Supabase, and a transient blip there
+    (a 504 from Supabase's edge, a DNS hiccup) would otherwise surface to
+    the user as a hard "please sign in again" even though their token was
+    never actually invalid — signing in again wouldn't even help, since
+    that hits the same endpoint. One quick retry clears the transient case
+    for free; a real outage still surfaces to the caller after that.
+    """
+    try:
+        return jwks_client.get_signing_key_from_jwt(token)
+    except PyJWKClientConnectionError:
+        await asyncio.sleep(0.3)
+        return jwks_client.get_signing_key_from_jwt(token)
 
 
 async def get_current_user_id(request: Request) -> str:
@@ -55,7 +74,7 @@ async def get_current_user_id(request: Request) -> str:
     try:
         # Get the signing key from JWKS
         jwks_client = _get_jwks_client()
-        signing_key = jwks_client.get_signing_key_from_jwt(token)
+        signing_key = await _get_signing_key(jwks_client, token)
 
         # Decode and verify the token. Pinned to ES256 only — the signing
         # key comes from a JWKS endpoint (asymmetric keys), so also
@@ -90,6 +109,20 @@ async def get_current_user_id(request: Request) -> str:
         raise HTTPException(
             status_code=401,
             detail={"error": "Invalid or expired token. Please sign in again.", "code": "invalid_token", "retry": False},
+        )
+    except PyJWKClientConnectionError as e:
+        # Couldn't reach Supabase's JWKS endpoint even after one retry —
+        # this is an infrastructure hiccup, not a bad token, so it gets its
+        # own status code and a retry:true instead of being lumped in with
+        # "your token is invalid, sign in again" below.
+        logger.error(f"JWKS endpoint unreachable: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "Authentication service is temporarily unavailable. Please try again.",
+                "code": "auth_unavailable",
+                "retry": True,
+            },
         )
     except Exception as e:
         logger.error(f"Auth error: {e}")

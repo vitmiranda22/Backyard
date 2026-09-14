@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   thumbnail: {
     width: "100%",
     height: 140,
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.parchmentBg,
   },
   scrim: {
     flex: 1,
@@ -75,9 +75,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 56,
     right: 20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 43,
+    height: 43,
+    borderRadius: 22,
     backgroundColor: "rgba(255,255,255,0.15)",
     justifyContent: "center",
     alignItems: "center",

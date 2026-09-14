@@ -237,10 +237,41 @@ export default function TourCompleteScreen({
     }
   }
 
+  // No blocks means no narration was ever generated for this walk (ended
+  // seconds after it started) -- there's nothing real to name, photograph,
+  // save, or share, so skip that whole flow instead of presenting a form
+  // for content that doesn't exist. /publish-tour also rejects this
+  // server-side, but this avoids showing the form at all.
+  if (blocksVisited === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>{t("tourComplete.emptyTourTitle")}</Text>
+        <Text style={styles.loadingText}>{t("tourComplete.emptyTourBody")}</Text>
+
+        <TouchableOpacity
+          style={[styles.doneBtn, { marginTop: spacing.lg }]}
+          disabled={discarding}
+          onPress={() => {
+            tap();
+            confirmDiscard();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={t("tourComplete.emptyTourButtonA11y")}
+        >
+          {discarding ? (
+            <ActivityIndicator size="small" color={colors.parchmentSurface} />
+          ) : (
+            <Text style={styles.doneBtnText}>{t("tourComplete.continue")}</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   if (saved) {
     return (
       <View style={styles.container}>
-        <Text style={styles.emoji}>✅</Text>
+        <Image source={require("../../assets/icons/success.png")} style={styles.successIcon} resizeMode="contain" />
         <Text style={styles.title}>{t("tourComplete.savedPublished")}</Text>
         <Text style={styles.loadingText}>{t("tourComplete.shareToWalkToo")}</Text>
 
@@ -336,13 +367,14 @@ export default function TourCompleteScreen({
           />
 
           {!isKeyboardVisible && (loading ? (
-            <ActivityIndicator size="small" color={colors.accent} style={styles.statsLoading} />
+            <ActivityIndicator size="small" color="#fff" style={styles.statsLoading} />
           ) : (
             <TourStatsGrid
               blocksVisited={blocksVisited}
               distanceKm={distanceKm}
               durationMin={durationMin}
               mood={mood}
+              variant="dark"
             />
           ))}
 
@@ -352,14 +384,14 @@ export default function TourCompleteScreen({
               <Switch
                 value={shareAsRoute}
                 onValueChange={setShareAsRoute}
-                trackColor={{ false: colors.border, true: colors.accent }}
+                trackColor={{ false: colors.fieldBorder, true: colors.fieldGreen }}
                 accessibilityLabel={t("tourComplete.publishToggleA11y")}
               />
             </View>
           )}
 
           {saving ? (
-            <ActivityIndicator size="large" color={colors.accent} style={{ margin: 10 }} />
+            <ActivityIndicator size="large" color="#fff" style={{ margin: 10 }} />
           ) : (
             <>
               <TouchableOpacity
@@ -414,23 +446,23 @@ export default function TourCompleteScreen({
 const styles = StyleSheet.create({
   heroContainer: {
     flex: 1,
-    backgroundColor: colors.text,
+    backgroundColor: colors.ink,
   },
   closeBtn: {
     position: "absolute",
     top: 16,
     right: 16,
     zIndex: 2,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: "rgba(10,12,18,0.45)",
     alignItems: "center",
     justifyContent: "center",
   },
   closeBtnText: {
     color: "#fff",
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "700",
   },
   heroTopTitle: {
@@ -440,8 +472,9 @@ const styles = StyleSheet.create({
     right: 0,
     paddingTop: 20,
     paddingHorizontal: 22,
-    fontFamily: font.display,
-    fontSize: 20,
+    fontFamily: font.cursiveBold,
+    fontSize: 28,
+    lineHeight: 38,
     color: "#fff",
     textAlign: "center",
     textShadowColor: "rgba(0,0,0,0.5)",
@@ -466,14 +499,16 @@ const styles = StyleSheet.create({
   },
   // Solid cover over Bosco's photo while the keyboard is up -- painted as
   // a sibling here (not baked into BoscoHero) so it sits above the image/
-  // scrim layers but below heroContent, matching colors.text so it reads
+  // scrim layers but below heroContent, matching colors.ink so it reads
   // as an intentional dark backdrop rather than a missing image.
   keyboardOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.text,
+    backgroundColor: colors.ink,
   },
   compactHint: {
-    fontSize: type.caption,
+    fontFamily: font.cursiveBold,
+    fontSize: 15,
+    lineHeight: 21,
     color: "rgba(255,255,255,0.6)",
     textAlign: "center",
     marginTop: spacing.sm,
@@ -500,26 +535,27 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   polaroidPlaceholder: {
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.parchmentBg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.fieldBorder,
     borderStyle: "dashed",
     alignItems: "center",
     justifyContent: "center",
   },
   polaroidPlaceholderText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: colors.muted,
+    fontFamily: font.cursiveBold,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.fieldMuted,
     textAlign: "center",
     paddingHorizontal: 6,
   },
   polaroidCaption: {
-    fontSize: 10,
+    fontFamily: font.serifItalic,
+    fontSize: 12,
     color: "#555",
     textAlign: "center",
     marginTop: 6,
-    fontStyle: "italic",
   },
   // Semi-transparent instead of a solid card -- Bosco's photo shows through
   // behind the form instead of getting fully covered by an opaque panel.
@@ -534,28 +570,31 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   heroCardLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    color: "rgba(255,255,255,0.75)",
+    fontFamily: font.cursiveBold,
+    fontSize: 16,
+    lineHeight: 22,
+    color: "rgba(255,255,255,0.8)",
     textAlign: "center",
     marginBottom: spacing.sm,
   },
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
-  emoji: {
-    fontSize: 64,
+  successIcon: {
+    width: 69,
+    height: 69,
     marginBottom: 12,
+    tintColor: colors.fieldGreen,
   },
   title: {
-    fontFamily: font.display,
-    fontSize: 26,
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 34,
+    lineHeight: 47,
+    color: colors.ink,
     marginBottom: spacing.md,
     textAlign: "center",
   },
@@ -566,7 +605,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.28)",
     borderRadius: radius.md,
     padding: 12,
-    fontSize: 15,
+    fontSize: 16,
     color: "#fff",
     textAlign: "center",
     marginBottom: 14,
@@ -581,24 +620,26 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   shareText: {
-    fontSize: 13,
-    fontWeight: "700",
+    fontFamily: font.cursiveBold,
+    fontSize: 16,
+    lineHeight: 22,
     color: "#fff",
   },
   doneBtnDisabled: {
-    backgroundColor: colors.border,
+    backgroundColor: colors.fieldBorder,
   },
   doneBtn: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.fieldGreen,
     paddingHorizontal: 40,
     paddingVertical: 14,
     borderRadius: radius.md,
     width: "100%",
   },
   doneBtnText: {
-    color: colors.accentText,
-    fontSize: type.body,
-    fontWeight: "bold",
+    fontFamily: font.cursiveBold,
+    color: colors.parchmentSurface,
+    fontSize: 22,
+    lineHeight: 29,
     textAlign: "center",
   },
   discardBtn: {
@@ -606,18 +647,22 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   discardBtnText: {
+    fontFamily: font.cursiveBold,
     color: colors.danger,
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 16,
+    lineHeight: 22,
     textAlign: "center",
   },
   shareDesc: {
-    fontSize: type.caption,
-    color: colors.muted,
+    fontFamily: font.cursiveBold,
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.fieldMuted,
     marginTop: 2,
   },
   loadingText: {
-    color: colors.muted,
+    fontFamily: font.serifItalic,
+    color: colors.fieldMuted,
     marginTop: spacing.md,
     fontSize: type.body,
   },

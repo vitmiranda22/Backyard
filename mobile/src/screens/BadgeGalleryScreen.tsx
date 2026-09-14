@@ -39,7 +39,7 @@ export default function BadgeGalleryScreen({ onBack }: BadgeGalleryScreenProps) 
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.accent} />
+        <ActivityIndicator size="large" color={colors.ink} />
       </View>
     );
   }
@@ -102,13 +102,13 @@ export default function BadgeGalleryScreen({ onBack }: BadgeGalleryScreenProps) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: "transparent",
   },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: colors.bg,
+    backgroundColor: "transparent",
   },
   hero: {
     height: 260,
@@ -128,16 +128,18 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   backTextOnDark: {
+    fontFamily: font.cursiveBold,
     color: "#fff",
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 18,
+    lineHeight: 25,
     textShadowColor: "rgba(0,0,0,0.5)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6,
   },
   title: {
-    fontFamily: font.display,
-    fontSize: type.headline,
+    fontFamily: font.cursiveBold,
+    fontSize: 34,
+    lineHeight: 47,
     color: "#fff",
     textAlign: "center",
     marginBottom: spacing.xs,
@@ -146,8 +148,9 @@ const styles = StyleSheet.create({
     textShadowRadius: 8,
   },
   subtitle: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.85)",
+    fontFamily: font.serifItalic,
+    fontSize: type.title,
+    color: "rgba(255,255,255,0.88)",
     textAlign: "center",
     textShadowColor: "rgba(0,0,0,0.5)",
     textShadowOffset: { width: 0, height: 1 },
@@ -160,35 +163,37 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surface,
+    backgroundColor: colors.parchmentSurface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.fieldBorderSoft,
     padding: spacing.md,
     borderRadius: radius.md,
     marginBottom: 10,
   },
   cardLocked: {
-    backgroundColor: colors.surfaceAlt,
-    opacity: 0.65,
+    backgroundColor: colors.parchmentBg,
+    opacity: 0.7,
   },
   emojiWrap: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.surfaceAlt,
+    width: 65,
+    height: 65,
+    borderRadius: 32,
+    backgroundColor: colors.parchmentBg,
+    borderWidth: 1.5,
+    borderColor: colors.fieldGreen,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 14,
   },
   emojiWrapLocked: {
-    backgroundColor: colors.border,
+    borderColor: colors.fieldBorder,
   },
   emoji: {
-    fontSize: 22,
+    fontSize: 23,
   },
   iconImage: {
-    width: 46,
-    height: 46,
+    width: 50,
+    height: 50,
   },
   emojiLocked: {
     opacity: 0.4,
@@ -197,16 +202,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   label: {
-    fontSize: type.body,
-    fontWeight: "700",
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 21,
+    lineHeight: 28,
+    color: colors.ink,
   },
   labelLocked: {
-    color: colors.muted,
+    color: colors.fieldMuted,
   },
   requirement: {
+    fontFamily: font.cursive,
     fontSize: type.caption,
-    color: colors.muted,
+    color: colors.fieldMuted,
     marginTop: 2,
   },
   lock: {

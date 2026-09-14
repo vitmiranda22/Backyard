@@ -115,6 +115,19 @@ export async function narrateBlock(
   });
 }
 
+// Fire-and-forget: warms zone_data_cache for a point projected ahead of the
+// walker's heading (see ActiveTourScreen.tsx), so /narrate-block's own
+// cache lookup is more often already warm by the time they actually arrive.
+// Callers should never await this with a loading state or surface its
+// errors -- a failed prefetch just means the cache stays cold and
+// narrateBlock() fetches it the normal way, same as today.
+export async function prefetchZone(lat: number, lng: number): Promise<void> {
+  await authFetch("/prefetch-zone", {
+    method: "POST",
+    body: JSON.stringify({ lat, lng }),
+  });
+}
+
 export interface AskQuestionResponse {
   question_text: string;
   answer_text: string;
@@ -545,17 +558,3 @@ export async function getUserStats(): Promise<UserStats> {
   return authFetch("/user/stats");
 }
 
-export interface VoiceSample {
-  voice: string;
-  audio_url: string;
-}
-
-export async function getVoiceSample(voice: string): Promise<VoiceSample> {
-  return authFetch(`/voices/sample?voice=${voice}`);
-}
-
-// Same shape as VoiceSample (voice/audio_url) -- the backend reuses
-// VoiceSampleResponse for both, with `voice` holding the mood id here.
-export async function getMoodSample(mood: string): Promise<VoiceSample> {
-  return authFetch(`/moods/sample?mood=${mood}`);
-}

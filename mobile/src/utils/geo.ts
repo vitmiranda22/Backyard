@@ -21,3 +21,38 @@ export function haversineDistanceMeters(
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return EARTH_RADIUS_M * c;
 }
+
+function toDeg(rad: number): number {
+  return (rad * 180) / Math.PI;
+}
+
+// Forward geodesic: the point `distanceM` meters from (lat, lng) along
+// compass bearing `bearingDeg` (0 = north, 90 = east). Used to project
+// where a walker is heading -- see prefetchZone's usage in
+// ActiveTourScreen.tsx -- so the zone-data cache can be speculatively
+// warmed for a coordinate the walker hasn't reached yet, not just the
+// one they're standing on right now.
+export function destinationPoint(
+  lat: number,
+  lng: number,
+  bearingDeg: number,
+  distanceM: number
+): { lat: number; lng: number } {
+  const angularDistance = distanceM / EARTH_RADIUS_M;
+  const bearing = toRad(bearingDeg);
+  const lat1 = toRad(lat);
+  const lng1 = toRad(lng);
+
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(angularDistance) +
+      Math.cos(lat1) * Math.sin(angularDistance) * Math.cos(bearing)
+  );
+  const lng2 =
+    lng1 +
+    Math.atan2(
+      Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(lat1),
+      Math.cos(angularDistance) - Math.sin(lat1) * Math.sin(lat2)
+    );
+
+  return { lat: toDeg(lat2), lng: toDeg(lng2) };
+}

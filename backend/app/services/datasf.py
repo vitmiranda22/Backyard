@@ -21,7 +21,11 @@ TIMEOUT = 5.0
 RADIUS_METERS = 100
 LIMIT = 10
 
-BASE_URL = "https://data.sfgov.org/resource"
+# SF's open data portal migrated from data.sfgov.org to data.sf.gov; the old
+# host now 301-redirects here instead of serving data, which silently broke
+# every fetcher below (follow_redirects wasn't set, so all 15 datasets were
+# getting a bare redirect response instead of JSON).
+BASE_URL = "https://data.sf.gov/resource"
 
 
 async def _query_soda_geo(dataset_id: str, geo_column: str, lat: float, lng: float, client: httpx.AsyncClient) -> list:
@@ -29,7 +33,7 @@ async def _query_soda_geo(dataset_id: str, geo_column: str, lat: float, lng: flo
     url = f"{BASE_URL}/{dataset_id}.json"
     where = f"within_circle({geo_column}, {lat}, {lng}, {RADIUS_METERS})"
     try:
-        r = await client.get(url, params={"$where": where, "$limit": str(LIMIT)}, timeout=TIMEOUT)
+        r = await client.get(url, params={"$where": where, "$limit": str(LIMIT)}, timeout=TIMEOUT, follow_redirects=True)
         if r.status_code == 200:
             data = r.json()
             return data if isinstance(data, list) else []
@@ -45,7 +49,7 @@ async def _query_soda_simple(dataset_id: str, params: dict, client: httpx.AsyncC
     url = f"{BASE_URL}/{dataset_id}.json"
     params["$limit"] = str(LIMIT)
     try:
-        r = await client.get(url, params=params, timeout=TIMEOUT)
+        r = await client.get(url, params=params, timeout=TIMEOUT, follow_redirects=True)
         if r.status_code == 200:
             data = r.json()
             return data if isinstance(data, list) else []

@@ -1,39 +1,35 @@
 // Profile screen — account info, content safety toggle, sign out.
 
 import React, { useEffect, useState } from "react";
-import { View, Text, Switch, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert, ScrollView, Image } from "react-native";
+import { View, Text, Switch, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert, ScrollView, KeyboardAvoidingView, Platform, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { getCurrentUserEmail, signOut } from "../services/auth";
-import { getSettings, updateSettings, getUserStats, deleteAccount, UserStats } from "../services/api";
-import { getEarnedBadges, Badge } from "../services/badges";
+import { getSettings, updateSettings, deleteAccount } from "../services/api";
 import { colors, font, radius, type, spacing } from "../theme";
 import { showToast } from "../services/toast";
 import { SUPPORTED_LANGUAGES, setLanguage } from "../i18n";
 
 interface ProfileScreenProps {
+  onBack: () => void;
   onSignedOut: () => void;
   isPremium: boolean;
-  onOpenVoicePicker: () => void;
   onOpenPaywall: () => void;
-  onOpenBadges: () => void;
 }
 
 export default function ProfileScreen({
+  onBack,
   onSignedOut,
   isPremium,
-  onOpenVoicePicker,
   onOpenPaywall,
-  onOpenBadges,
 }: ProfileScreenProps) {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState<string | null>(null);
   const [contentSafety, setContentSafety] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [badges, setBadges] = useState<Badge[]>([]);
-  const [stats, setStats] = useState<UserStats | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [languageModalOpen, setLanguageModalOpen] = useState(false);
 
   // Set at signup from the "full name" field (see SignupScreen), read-only
   // in the UI until now -- PATCH /user/settings has always accepted this,
@@ -54,10 +50,9 @@ export default function ProfileScreen({
 
   useEffect(() => {
     async function load() {
-      const [userEmail, settings, userStats] = await Promise.all([
+      const [userEmail, settings] = await Promise.all([
         getCurrentUserEmail().catch(() => null),
         getSettings().catch(() => null),
-        getUserStats().catch(() => null),
       ]);
       setEmail(userEmail);
       if (settings) {
@@ -71,10 +66,6 @@ export default function ProfileScreen({
           setDobMonth(m);
           setDobDay(d);
         }
-      }
-      if (userStats) {
-        setStats(userStats);
-        setBadges(getEarnedBadges(userStats));
       }
       setLoading(false);
     }
@@ -146,14 +137,12 @@ export default function ProfileScreen({
   }
 
   function handleChangeLanguage() {
-    Alert.alert(
-      t("profile.language"),
-      undefined,
-      SUPPORTED_LANGUAGES.map((lang) => ({
-        text: lang.label,
-        onPress: () => setLanguage(lang.code),
-      })).concat([{ text: t("common.cancel"), style: "cancel" } as any])
-    );
+    setLanguageModalOpen(true);
+  }
+
+  function selectLanguage(code: string) {
+    setLanguage(code);
+    setLanguageModalOpen(false);
   }
 
   function handleDeleteAccount() {
@@ -196,7 +185,7 @@ export default function ProfileScreen({
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.accent} />
+        <ActivityIndicator size="large" color={colors.ink} />
       </View>
     );
   }
@@ -205,8 +194,14 @@ export default function ProfileScreen({
     SUPPORTED_LANGUAGES.find((l) => l.code === i18n.language)?.label ?? SUPPORTED_LANGUAGES[0].label;
 
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 54) }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <KeyboardAvoidingView
+      style={[styles.container, { paddingTop: Math.max(insets.top, 54) }]}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <TouchableOpacity onPress={onBack} accessibilityRole="button" accessibilityLabel={t("common.back")}>
+          <Text style={styles.backArrow}>‹ {t("common.back")}</Text>
+        </TouchableOpacity>
         <Text style={styles.header}>{t("profile.header")}</Text>
 
       <View style={styles.card}>
@@ -239,21 +234,6 @@ export default function ProfileScreen({
 
       <TouchableOpacity
         style={styles.card}
-        onPress={onOpenVoicePicker}
-        accessibilityRole="button"
-        accessibilityLabel={t("profile.narrationVoiceSettingsA11y")}
-      >
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>{t("profile.narrationVoice")}</Text>
-            <Text style={styles.rowDesc}>{t("profile.narrationVoiceDesc")}</Text>
-          </View>
-          <Text style={styles.chevron}>›</Text>
-        </View>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.card}
         onPress={handleChangeLanguage}
         accessibilityRole="button"
         accessibilityLabel={t("profile.language")}
@@ -276,7 +256,7 @@ export default function ProfileScreen({
           <Switch
             value={contentSafety}
             onValueChange={toggleContentSafety}
-            trackColor={{ false: colors.border, true: colors.accent }}
+            trackColor={{ false: colors.fieldBorder, true: colors.fieldGreen }}
             accessibilityLabel={t("profile.matureContentToggleA11y")}
           />
         </View>
@@ -291,12 +271,12 @@ export default function ProfileScreen({
               value={nameInput}
               onChangeText={setNameInput}
               placeholder={t("profile.displayName")}
-              placeholderTextColor={colors.muted}
+              placeholderTextColor={colors.fieldMuted}
               maxLength={50}
               autoCapitalize="words"
             />
             {savingName ? (
-              <ActivityIndicator color={colors.accent} style={{ marginTop: 10 }} />
+              <ActivityIndicator color={colors.ink} style={{ marginTop: 10 }} />
             ) : (
               <TouchableOpacity
                 style={styles.saveDobBtn}
@@ -333,7 +313,7 @@ export default function ProfileScreen({
                 <TextInput
                   style={[styles.dobInput]}
                   placeholder={t("signup.dobMonthPlaceholder")}
-                  placeholderTextColor={colors.muted}
+                  placeholderTextColor={colors.fieldMuted}
                   value={dobMonth}
                   onChangeText={setDobMonth}
                   keyboardType="number-pad"
@@ -342,7 +322,7 @@ export default function ProfileScreen({
                 <TextInput
                   style={[styles.dobInput]}
                   placeholder={t("signup.dobDayPlaceholder")}
-                  placeholderTextColor={colors.muted}
+                  placeholderTextColor={colors.fieldMuted}
                   value={dobDay}
                   onChangeText={setDobDay}
                   keyboardType="number-pad"
@@ -351,7 +331,7 @@ export default function ProfileScreen({
                 <TextInput
                   style={[styles.dobInput, styles.dobYearInput]}
                   placeholder={t("signup.dobYearPlaceholder")}
-                  placeholderTextColor={colors.muted}
+                  placeholderTextColor={colors.fieldMuted}
                   value={dobYear}
                   onChangeText={setDobYear}
                   keyboardType="number-pad"
@@ -359,7 +339,7 @@ export default function ProfileScreen({
                 />
               </View>
               {savingDob ? (
-                <ActivityIndicator color={colors.accent} style={{ marginTop: 10 }} />
+                <ActivityIndicator color={colors.ink} style={{ marginTop: 10 }} />
               ) : (
                 <TouchableOpacity
                   style={styles.saveDobBtn}
@@ -396,52 +376,6 @@ export default function ProfileScreen({
         </View>
       )}
 
-      {stats && (
-        <View style={styles.card}>
-          <Text style={[styles.label, styles.centerText]}>{t("profile.yourStats")}</Text>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{stats.tours_completed}</Text>
-              <Text style={styles.statLabel}>{t("profile.statTours")}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{(stats.total_distance_m / 1000).toFixed(1)}</Text>
-              <Text style={styles.statLabel}>{t("profile.statKm")}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{stats.cities_visited}</Text>
-              <Text style={styles.statLabel}>{t("profile.statCities")}</Text>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {badges.length > 0 && (
-        <TouchableOpacity
-          style={styles.card}
-          onPress={onOpenBadges}
-          accessibilityRole="button"
-          accessibilityLabel={t("profile.viewAllBadgesA11y")}
-        >
-          <View style={styles.badgeHeaderRow}>
-            <Text style={[styles.label, styles.centerText]}>{t("profile.badges")}</Text>
-            <Text style={styles.badgeHeaderChevron}>›</Text>
-          </View>
-          <View style={[styles.badgeRow, styles.centerRow]}>
-            {badges.map((b) => (
-              <View key={b.id} style={styles.badgeChip}>
-                {b.icon ? (
-                  <Image source={b.icon} style={styles.badgeIconImage} resizeMode="contain" />
-                ) : (
-                  <Text style={styles.badgeEmoji}>{b.emoji}</Text>
-                )}
-                <Text style={styles.badgeLabel}>{t(`badges.${b.id}.label`)}</Text>
-              </View>
-            ))}
-          </View>
-        </TouchableOpacity>
-      )}
-
       <TouchableOpacity
         style={styles.signOutBtn}
         onPress={handleSignOut}
@@ -461,14 +395,55 @@ export default function ProfileScreen({
         <Text style={styles.deleteText}>{deleting ? t("profile.deleting") : t("profile.deleteAccount")}</Text>
       </TouchableOpacity>
       </ScrollView>
-    </View>
+
+      <Modal
+        visible={languageModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLanguageModalOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalScrim}
+          activeOpacity={1}
+          onPress={() => setLanguageModalOpen(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.modalSheet} onPress={() => {}}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>{t("profile.language")}</Text>
+            {SUPPORTED_LANGUAGES.map((lang) => {
+              const active = lang.code === i18n.language;
+              return (
+                <TouchableOpacity
+                  key={lang.code}
+                  style={[styles.languageRow, active && styles.languageRowActive]}
+                  onPress={() => selectLanguage(lang.code)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                >
+                  <Text style={[styles.languageRowText, active && styles.languageRowTextActive]}>{lang.label}</Text>
+                  {active && <Text style={styles.languageCheck}>✓</Text>}
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              style={styles.modalCancelBtn}
+              onPress={() => setLanguageModalOpen(false)}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.cancel")}
+            >
+              <Text style={styles.modalCancelBtnText}>{t("common.cancel")}</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: "transparent",
   },
   scrollContent: {
     padding: 20,
@@ -478,33 +453,41 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: colors.bg,
+    backgroundColor: "transparent",
+  },
+  backArrow: {
+    fontFamily: font.cursiveBold,
+    fontSize: 20,
+    lineHeight: 26,
+    color: colors.fieldMuted,
+    marginBottom: 12,
   },
   header: {
-    fontFamily: font.display,
-    fontSize: type.headline,
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 34,
+    lineHeight: 47,
+    color: colors.ink,
     marginBottom: 20,
+    textAlign: "center",
   },
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.parchmentSurface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.fieldBorderSoft,
     borderRadius: radius.md,
     padding: spacing.md,
     marginBottom: 14,
   },
   label: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-    color: colors.muted,
+    fontFamily: font.cursiveBold,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.fieldMuted,
   },
   email: {
+    fontFamily: font.cursiveBold,
     fontSize: type.body,
-    fontWeight: "600",
-    color: colors.text,
+    color: colors.ink,
     marginTop: spacing.xs,
   },
   row: {
@@ -513,61 +496,67 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   rowTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 20,
+    lineHeight: 26,
+    color: colors.ink,
   },
   rowDesc: {
+    fontFamily: font.cursive,
     fontSize: type.caption,
-    color: colors.muted,
+    color: colors.fieldMuted,
     marginTop: 2,
   },
   premiumBadge: {
-    backgroundColor: colors.pro,
+    backgroundColor: colors.fieldGreen,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: radius.pill,
   },
   premiumBadgeText: {
-    color: colors.proText,
-    fontSize: 11,
+    color: colors.parchmentSurface,
+    fontSize: 12,
     fontWeight: "800",
   },
   upgradeBtn: {
-    backgroundColor: colors.pro,
+    backgroundColor: colors.fieldGreen,
     padding: 15,
     borderRadius: radius.md,
     marginBottom: 14,
   },
   upgradeBtnText: {
-    color: colors.proText,
+    fontFamily: font.cursiveBold,
+    color: colors.parchmentSurface,
     textAlign: "center",
-    fontSize: 15,
-    fontWeight: "700",
+    fontSize: 20,
+    lineHeight: 26,
   },
   chevron: {
-    fontSize: 22,
-    color: colors.muted,
+    fontSize: 23,
+    color: colors.fieldMuted,
   },
   addDobPill: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.ink,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: radius.pill,
   },
   addDobPillText: {
-    color: colors.accentText,
-    fontSize: type.caption,
-    fontWeight: "700",
+    fontFamily: font.cursiveBold,
+    color: colors.parchmentSurface,
+    fontSize: 14,
+    lineHeight: 20,
   },
+  // Deliberately NOT cursive -- live user-typed text, not UI chrome.
   nameInput: {
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.parchmentBg,
     borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
+    borderColor: colors.fieldBorder,
+    color: colors.ink,
     padding: 12,
     borderRadius: radius.md,
-    fontSize: 15,
+    fontFamily: font.sans,
+    fontSize: 16,
     marginTop: 10,
   },
   dobRow: {
@@ -577,40 +566,31 @@ const styles = StyleSheet.create({
   },
   dobInput: {
     flex: 1,
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.parchmentBg,
     borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
+    borderColor: colors.fieldBorder,
+    color: colors.ink,
     padding: 12,
     borderRadius: radius.md,
-    fontSize: 15,
+    fontFamily: font.sans,
+    fontSize: 16,
     textAlign: "center",
   },
   dobYearInput: {
     flex: 1.4,
   },
   saveDobBtn: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.ink,
     padding: 13,
     borderRadius: radius.md,
     marginTop: 12,
   },
   saveDobBtnText: {
-    color: colors.accentText,
+    fontFamily: font.cursiveBold,
+    color: colors.parchmentSurface,
     textAlign: "center",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  badgeHeaderRow: {
-    position: "relative",
-    justifyContent: "center",
-  },
-  badgeHeaderChevron: {
-    position: "absolute",
-    right: 0,
-    top: -2,
-    fontSize: 22,
-    color: colors.muted,
+    fontSize: 20,
+    lineHeight: 26,
   },
   signOutBtn: {
     marginTop: 10,
@@ -620,72 +600,94 @@ const styles = StyleSheet.create({
     borderColor: colors.danger,
   },
   signOutText: {
+    fontFamily: font.cursiveBold,
     color: colors.danger,
     textAlign: "center",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  centerText: {
-    textAlign: "center",
-  },
-  centerRow: {
-    justifyContent: "center",
-  },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 10,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: "center",
-  },
-  statValue: {
     fontSize: 20,
-    fontWeight: "800",
-    color: colors.text,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: colors.muted,
-    marginTop: 2,
-  },
-  badgeRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginTop: 10,
-  },
-  badgeChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-  },
-  badgeEmoji: {
-    fontSize: type.label,
-  },
-  badgeIconImage: {
-    width: 28,
-    height: 28,
-  },
-  badgeLabel: {
-    fontSize: type.caption,
-    fontWeight: "600",
-    color: colors.text,
+    lineHeight: 26,
   },
   deleteBtn: {
     marginTop: 10,
     padding: 12,
   },
   deleteText: {
-    color: colors.muted,
+    fontFamily: font.cursiveBold,
+    color: colors.fieldMuted,
     textAlign: "center",
-    fontSize: 13,
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  modalScrim: {
+    flex: 1,
+    backgroundColor: "rgba(36, 29, 18, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    backgroundColor: colors.parchmentSurface,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    padding: 20,
+    paddingBottom: 34,
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.fieldBorder,
+    alignSelf: "center",
+    marginBottom: 14,
+  },
+  modalTitle: {
+    fontFamily: font.cursiveBold,
+    fontSize: 23,
+    lineHeight: 32,
+    color: colors.ink,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  languageRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.parchmentBg,
+    borderWidth: 1,
+    borderColor: colors.fieldBorder,
+    borderRadius: radius.md,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
+  languageRowActive: {
+    borderColor: colors.fieldGreen,
+    backgroundColor: colors.parchmentSurface,
+  },
+  languageRowText: {
+    fontFamily: font.cursive,
+    fontSize: 20,
+    lineHeight: 26,
+    color: colors.ink,
+  },
+  languageRowTextActive: {
+    fontFamily: font.cursiveBold,
+    color: colors.fieldGreen,
+  },
+  languageCheck: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.fieldGreen,
+  },
+  modalCancelBtn: {
+    marginTop: 4,
+    padding: 14,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.fieldBorder,
+  },
+  modalCancelBtnText: {
+    fontFamily: font.cursiveBold,
+    fontSize: 21,
+    lineHeight: 28,
+    color: colors.fieldMuted,
+    textAlign: "center",
   },
 });

@@ -6,7 +6,7 @@
 // - Debounce on zone changes prevents rapid re-fires
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { View, Text, TouchableOpacity, Pressable, StyleSheet, Alert, Animated, Easing, ActivityIndicator } from "react-native";
+import { View, Text, Image, TouchableOpacity, Pressable, StyleSheet, Alert, Animated, Easing, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import MapView from "react-native-maps";
@@ -22,16 +22,19 @@ import {
   compassLabel,
   snapSegmentToRoad,
 } from "../services/location";
-import { narrateBlock, saveBlock, startTour, askQuestion, endTour, EndTourResponse, NarrationHighlight } from "../services/api";
+import { narrateBlock, prefetchZone, saveBlock, startTour, askQuestion, endTour, EndTourResponse, NarrationHighlight } from "../services/api";
+import { destinationPoint } from "../utils/geo";
 import { startRecording, stopRecording, cancelRecording } from "../services/recording";
 import NarrationCard from "../components/NarrationCard";
 import WaypointCompass from "../components/WaypointCompass";
 import SafetyModal from "../components/SafetyModal";
 import AudioPlayer from "../components/AudioPlayer";
-import { colors, radius, type, spacing } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
 import { scheduleUnfinishedTourReminder, cancelReminder } from "../services/notifications";
+
+const LOCATION_ICON = require("../../assets/icons/location.png");
 import { cacheAudio } from "../services/audioCache";
 
 // A tour auto-completes once it reaches this many blocks — must match
@@ -137,6 +140,11 @@ export default function ActiveTourScreen({
   const startTimeRef = useRef(Date.now());
   const subscriptionRef = useRef<any>(null);
   const headingSubRef = useRef<any>(null);
+  // Mirrors `heading` state for reads inside the watchPosition callback
+  // below, whose closure is captured once at subscribe time -- same
+  // "state is stale in callbacks" reasoning as isLoadingRef/
+  // hasActiveAudioRef further down, just for heading instead.
+  const headingRef = useRef(0);
   const tourIdRef = useRef<string | null>(null);
   const pathRef = useRef<{ latitude: number; longitude: number }[]>([]);
 
@@ -309,12 +317,25 @@ export default function ActiveTourScreen({
           // get a real narration for the rest of the tour.
           commitZone(geoHash);
           triggerNarration(lat, lng, "auto");
+
+          // Speculatively warm the NEXT zone's data cache while this one's
+          // narration plays out, projecting ~150m ahead along the walker's
+          // current heading (roughly one geohash cell -- see config.ts's
+          // GEOHASH_PRECISION). Best-effort and silent: a wrong guess (the
+          // walker turns, stops, backtracks) just means this specific
+          // fetch goes unused, not a broken tour -- narrateBlock() always
+          // still works the normal way if this never fires or misses.
+          const projected = destinationPoint(lat, lng, headingRef.current, 150);
+          prefetchZone(projected.lat, projected.lng).catch(() => {});
         });
         subscriptionRef.current = sub;
 
         // Powers the waypoint compass — heading updates independently of
         // position, since you can turn in place without moving.
-        const headingSub = await watchHeading((deg) => setHeading(deg));
+        const headingSub = await watchHeading((deg) => {
+          setHeading(deg);
+          headingRef.current = deg;
+        });
         headingSubRef.current = headingSub;
       } catch (e: any) {
         Alert.alert(t("common.error"), t("activeTour.startFailed", { error: e.message }));
@@ -623,7 +644,10 @@ export default function ActiveTourScreen({
 
       {/* Blocks counter */}
       <View style={styles.statsBar}>
-        <Text style={styles.statsText}>📍 {t("activeTour.blocksCount", { count: blocksVisited })}</Text>
+        <View style={styles.statsTextRow}>
+          <Image source={LOCATION_ICON} style={styles.statsIcon} resizeMode="contain" />
+          <Text style={styles.statsText}>{t("activeTour.blocksCount", { count: blocksVisited })}</Text>
+        </View>
         <Text style={styles.moodBadge}>{t(`moods.${mood}.label`)}</Text>
       </View>
 
@@ -694,9 +718,9 @@ export default function ActiveTourScreen({
             ]}
           >
             {qaState === "thinking" ? (
-              <ActivityIndicator color={colors.accentText} />
+              <ActivityIndicator color={colors.parchmentSurface} />
             ) : (
-              <Text style={styles.askBtnIcon}>🎙️</Text>
+              <Image source={require("../../assets/icons/ask_question_mic.png")} style={styles.askBtnIcon} resizeMode="contain" />
             )}
           </Animated.View>
           {!isPremium && (
@@ -714,7 +738,7 @@ export default function ActiveTourScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: "transparent",
   },
   mapWrap: {
     flex: 1,
@@ -726,23 +750,27 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.parchmentSurface,
   },
   placeholderText: {
-    color: colors.muted,
+    fontFamily: font.cursive,
+    fontSize: 18,
+    lineHeight: 25,
+    color: colors.fieldMuted,
   },
   endLink: {
     position: "absolute",
     right: 16,
-    backgroundColor: "rgba(255,255,255,0.9)",
+    backgroundColor: "rgba(251,247,234,0.92)",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: radius.pill,
   },
   endLinkText: {
-    color: colors.muted,
-    fontSize: 13,
-    fontWeight: "700",
+    fontFamily: font.cursiveBold,
+    color: colors.fieldMuted,
+    fontSize: 16,
+    lineHeight: 22,
   },
   compassOverlay: {
     position: "absolute",
@@ -754,25 +782,37 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.parchmentSurface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.fieldBorder,
+  },
+  statsTextRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  statsIcon: {
+    width: 16,
+    height: 16,
+    tintColor: colors.ink,
   },
   statsText: {
-    color: colors.text,
-    fontSize: type.label,
-    fontWeight: "600",
+    fontFamily: font.cursiveBold,
+    color: colors.ink,
+    fontSize: 17,
+    lineHeight: 23,
   },
   moodBadge: {
-    color: colors.accent,
-    fontSize: type.label,
-    fontWeight: "700",
+    fontFamily: font.cursiveBold,
+    color: colors.fieldGreen,
+    fontSize: 17,
+    lineHeight: 23,
     textTransform: "capitalize",
   },
   answerCard: {
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.parchmentSurface,
     borderTopWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.fieldBorder,
     paddingHorizontal: spacing.md,
     paddingTop: 12,
     paddingBottom: spacing.xs,
@@ -785,65 +825,70 @@ const styles = StyleSheet.create({
   },
   answerQuestion: {
     flex: 1,
-    fontSize: 13,
-    fontStyle: "italic",
-    color: colors.muted,
+    fontFamily: font.serifItalic,
+    fontSize: 14,
+    color: colors.fieldMuted,
     marginRight: 10,
   },
   answerClose: {
     fontSize: type.label,
-    color: colors.muted,
+    color: colors.fieldMuted,
     fontWeight: "700",
   },
   answerText: {
+    fontFamily: font.serifItalic,
     fontSize: type.label,
-    color: colors.text,
-    lineHeight: 20,
+    color: colors.ink,
+    lineHeight: 22,
     marginBottom: spacing.xs,
   },
   footer: {
     alignItems: "center",
     paddingVertical: 14,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.parchmentSurface,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.fieldBorder,
   },
   askBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.accent,
+    width: 69,
+    height: 69,
+    borderRadius: 38,
+    backgroundColor: colors.ink,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: colors.accent,
-    shadowOpacity: 0.5,
+    shadowColor: "#000",
+    shadowOpacity: 0.35,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
   askBtnRecording: {
-    backgroundColor: "#E85A3B",
+    backgroundColor: colors.fieldGreen,
   },
   askBtnIcon: {
-    fontSize: 26,
+    width: 28,
+    height: 28,
+    tintColor: colors.parchmentSurface,
   },
   askProBadge: {
     position: "absolute",
     top: -4,
     right: -4,
-    backgroundColor: colors.pro,
+    backgroundColor: colors.fieldGreen,
     borderRadius: 5,
     paddingHorizontal: 5,
     paddingVertical: 1,
   },
   askProBadgeText: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: "800",
-    color: colors.proText,
+    color: colors.parchmentSurface,
   },
   footerHint: {
+    fontFamily: font.cursiveBold,
     marginTop: spacing.sm,
-    fontSize: type.caption,
-    color: colors.muted,
+    fontSize: 15,
+    lineHeight: 21,
+    color: colors.fieldMuted,
   },
 });

@@ -55,7 +55,7 @@ export default function ResetPasswordScreen({ onDone }: ResetPasswordScreenProps
       <TextInput
         style={styles.input}
         placeholder={t("resetPassword.newPasswordPlaceholder")}
-        placeholderTextColor={colors.muted}
+        placeholderTextColor={colors.fieldMuted}
         value={newPassword}
         onChangeText={setNewPassword}
         secureTextEntry
@@ -65,14 +65,14 @@ export default function ResetPasswordScreen({ onDone }: ResetPasswordScreenProps
       <TextInput
         style={styles.input}
         placeholder={t("resetPassword.confirmPasswordPlaceholder")}
-        placeholderTextColor={colors.muted}
+        placeholderTextColor={colors.fieldMuted}
         value={confirmPassword}
         onChangeText={setConfirmPassword}
         secureTextEntry
       />
 
       {loading ? (
-        <ActivityIndicator size="large" color={colors.accent} style={{ margin: 20 }} />
+        <ActivityIndicator size="large" color={colors.ink} style={{ margin: 20 }} />
       ) : (
         <TouchableOpacity style={styles.primaryBtn} onPress={handleSave}>
           <Text style={styles.primaryBtnText}>{t("resetPassword.save")}</Text>
@@ -85,47 +85,52 @@ export default function ResetPasswordScreen({ onDone }: ResetPasswordScreenProps
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: "transparent",
     justifyContent: "center",
     padding: spacing.lg,
   },
   heading: {
-    fontFamily: font.display,
-    fontSize: type.headline,
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 32,
+    lineHeight: 43,
+    color: colors.ink,
     marginBottom: spacing.xs,
   },
   subheading: {
-    fontSize: type.label,
-    color: colors.muted,
+    fontFamily: font.serifItalic,
+    fontSize: type.title,
+    color: colors.fieldMuted,
     marginBottom: 22,
-    lineHeight: 20,
+    lineHeight: 23,
   },
+  // Deliberately NOT cursive -- live user-typed text, not UI chrome.
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.parchmentSurface,
     borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
+    borderColor: colors.fieldBorder,
+    color: colors.ink,
     padding: 14,
     borderRadius: radius.md,
     marginBottom: 6,
+    fontFamily: font.sans,
     fontSize: type.body,
   },
   helperText: {
-    fontSize: 11.5,
-    color: colors.muted,
+    fontSize: 13,
+    color: colors.fieldMuted,
     marginBottom: spacing.md,
   },
   primaryBtn: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.ink,
     padding: spacing.md,
     borderRadius: radius.md,
     marginTop: spacing.sm,
   },
   primaryBtnText: {
-    color: colors.accentText,
+    fontFamily: font.cursiveBold,
+    color: colors.parchmentSurface,
     textAlign: "center",
-    fontSize: type.title,
-    fontWeight: "700",
+    fontSize: 23,
+    lineHeight: 32,
   },
 });

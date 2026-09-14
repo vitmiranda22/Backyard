@@ -8,6 +8,7 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
+  Image,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -120,7 +121,12 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
         scrimLocations={[0, 0.68, 0.82, 1]}
       >
         <View style={styles.topContent}>
-          <Text style={styles.wordmark}>{t("login.title")}</Text>
+          <Image
+            source={require("../../assets/lOGOBACKYARD.png")}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel={t("login.title")}
+          />
           <Text style={styles.quote}>"{quote.text}"</Text>
           <Text style={styles.quoteAttr}>— {quote.guide}, one of your guides</Text>
         </View>
@@ -133,7 +139,7 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
           <TextInput
             style={styles.input}
             placeholder={t("login.emailPlaceholder")}
-            placeholderTextColor={colors.muted}
+            placeholderTextColor={colors.fieldMuted}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -143,7 +149,7 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
           <TextInput
             style={styles.input}
             placeholder={t("login.passwordPlaceholder")}
-            placeholderTextColor={colors.muted}
+            placeholderTextColor={colors.fieldMuted}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -163,7 +169,7 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
           </TouchableOpacity>
 
           {loading || socialLoading ? (
-            <ActivityIndicator size="large" color={colors.accent} style={{ margin: 20 }} />
+            <ActivityIndicator size="large" color={colors.ink} style={{ margin: 20 }} />
           ) : (
             <>
               <TouchableOpacity style={styles.signInBtn} onPress={handleSignIn}>
@@ -222,7 +228,7 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.text,
+    backgroundColor: colors.ink,
   },
   topContent: {
     position: "absolute",
@@ -232,22 +238,19 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingHorizontal: 26,
   },
-  wordmark: {
-    fontFamily: font.display,
-    fontWeight: "800",
-    fontSize: 34,
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: 14,
-    textShadowColor: "rgba(0,0,0,0.55)",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 14,
+  // Real content aspect ratio is ~2.28:1 (source file is a square canvas
+  // with a lot of transparent padding around the actual wood-sign art) --
+  // sized off height, not width, so it actually reads as big.
+  logo: {
+    alignSelf: "center",
+    width: 220,
+    height: 96,
+    marginBottom: 10,
   },
   quote: {
-    fontFamily: font.display,
-    fontStyle: "italic",
+    fontFamily: font.serifItalic,
     fontSize: type.title,
-    lineHeight: 24,
+    lineHeight: 26,
     color: "#fff",
     textAlign: "center",
     marginBottom: 6,
@@ -256,11 +259,10 @@ const styles = StyleSheet.create({
     textShadowRadius: 8,
   },
   quoteAttr: {
-    fontSize: 11,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    color: "rgba(255,255,255,0.8)",
+    fontFamily: font.cursiveBold,
+    fontSize: 16,
+    lineHeight: 22,
+    color: "rgba(255,255,255,0.85)",
     textAlign: "center",
     textShadowColor: "rgba(0,0,0,0.5)",
     textShadowOffset: { width: 0, height: 1 },
@@ -273,25 +275,30 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.parchmentSurface,
     borderRadius: radius.lg,
     padding: 22,
   },
   cardTitle: {
-    fontFamily: font.display,
-    fontSize: 19,
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 31,
+    lineHeight: 41,
+    color: colors.ink,
     textAlign: "center",
     marginBottom: spacing.md,
   },
+  // Deliberately NOT cursive -- this is live user-typed text (email/
+  // password), not UI chrome, so it stays in a plain legible face like
+  // every other real-content field in the app.
   input: {
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.parchmentBg,
     borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
+    borderColor: colors.fieldBorder,
+    color: colors.ink,
     padding: 14,
     borderRadius: radius.md,
     marginBottom: 12,
+    fontFamily: font.sans,
     fontSize: type.body,
   },
   checkboxRow: {
@@ -301,39 +308,41 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   checkboxBox: {
-    width: 19,
-    height: 19,
+    width: 21,
+    height: 21,
     borderWidth: 1.5,
-    borderColor: colors.muted,
+    borderColor: colors.fieldMuted,
     borderRadius: 5,
     alignItems: "center",
     justifyContent: "center",
   },
   checkboxBoxChecked: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
   },
   checkboxMark: {
-    color: colors.accentText,
+    color: colors.parchmentSurface,
     fontSize: type.caption,
     fontWeight: "700",
   },
   checkboxLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    fontSize: 17,
+    lineHeight: 23,
+    color: colors.ink,
   },
   signInBtn: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.ink,
     padding: spacing.md,
     borderRadius: radius.md,
     marginTop: spacing.xs,
   },
   signInText: {
-    color: colors.accentText,
+    fontFamily: font.cursiveBold,
+    color: colors.parchmentSurface,
     textAlign: "center",
-    fontSize: type.title,
-    fontWeight: "700",
+    fontSize: 23,
+    lineHeight: 32,
   },
   dividerRow: {
     flexDirection: "row",
@@ -345,12 +354,13 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: colors.fieldBorder,
   },
   dividerText: {
-    fontSize: type.caption,
-    fontWeight: "600",
-    color: colors.muted,
+    fontFamily: font.cursiveBold,
+    fontSize: 15,
+    lineHeight: 21,
+    color: colors.fieldMuted,
   },
   // AppleAuthenticationButton forbids backgroundColor/borderRadius in its
   // own style prop (those go through buttonStyle/cornerRadius instead, see
@@ -362,37 +372,40 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   googleBtn: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.parchmentSurface,
+    borderWidth: 1.3,
+    borderColor: colors.ink,
     padding: 14,
     borderRadius: radius.md,
     marginBottom: spacing.xs,
   },
   googleBtnText: {
-    color: colors.text,
+    fontFamily: font.cursiveBold,
+    color: colors.ink,
     textAlign: "center",
-    fontSize: 15,
-    fontWeight: "700",
+    fontSize: 20,
+    lineHeight: 26,
   },
   forgotBtn: {
     padding: 10,
     marginTop: 6,
   },
   forgotText: {
-    color: colors.muted,
+    fontFamily: font.cursiveBold,
+    color: colors.fieldMuted,
     textAlign: "center",
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 16,
+    lineHeight: 22,
   },
   newHereBtn: {
     padding: 14,
     marginTop: spacing.xs,
   },
   newHereText: {
-    color: colors.accent,
+    fontFamily: font.cursiveBold,
+    color: colors.fieldGreen,
     textAlign: "center",
-    fontSize: type.label,
-    fontWeight: "600",
+    fontSize: 20,
+    lineHeight: 26,
   },
 });

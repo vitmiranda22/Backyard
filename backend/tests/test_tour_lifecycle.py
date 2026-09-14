@@ -260,6 +260,7 @@ def test_publish_tour_rejects_non_owner(app, client, auth_as, monkeypatch):
 
 def test_publish_tour_flips_visibility(app, client, auth_as, monkeypatch):
     monkeypatch.setattr(supabase_db, "get_tour", _async(_own_tour()))
+    monkeypatch.setattr(supabase_db, "get_tour_blocks", _async([{"id": "b1"}]))
     monkeypatch.setattr(supabase_db, "publish_tour", _async({"is_public": True, "title": "My Route"}))
     auth_as(app, OWNER_ID)
 
@@ -271,9 +272,24 @@ def test_publish_tour_flips_visibility(app, client, auth_as, monkeypatch):
 
 def test_publish_tour_500s_cleanly_when_persistence_fails(app, client, auth_as, monkeypatch):
     monkeypatch.setattr(supabase_db, "get_tour", _async(_own_tour()))
+    monkeypatch.setattr(supabase_db, "get_tour_blocks", _async([{"id": "b1"}]))
     monkeypatch.setattr(supabase_db, "publish_tour", _async(None))
     auth_as(app, OWNER_ID)
 
     resp = client.post("/api/publish-tour", json={"tour_id": TOUR_ID, "is_public": False})
 
     assert resp.status_code == 500
+
+
+def test_publish_tour_rejects_when_no_blocks_were_narrated(app, client, auth_as, monkeypatch):
+    # Regression guard: a tour ended seconds after it started (0 narrated
+    # blocks) has nothing real to save or share -- Save shouldn't silently
+    # succeed and leave an empty "tour" in someone's history/journal.
+    monkeypatch.setattr(supabase_db, "get_tour", _async(_own_tour()))
+    monkeypatch.setattr(supabase_db, "get_tour_blocks", _async([]))
+    auth_as(app, OWNER_ID)
+
+    resp = client.post("/api/publish-tour", json={"tour_id": TOUR_ID, "is_public": True})
+
+    assert resp.status_code == 400
+    assert resp.json()["detail"]["code"] == "empty_tour"

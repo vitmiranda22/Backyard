@@ -17,6 +17,7 @@ jest.mock("../../services/location", () => {
 jest.mock("../../services/api", () => ({
   startTour: jest.fn(),
   narrateBlock: jest.fn(),
+  prefetchZone: jest.fn().mockResolvedValue(undefined),
   saveBlock: jest.fn(),
   askQuestion: jest.fn(),
   endTour: jest.fn(),

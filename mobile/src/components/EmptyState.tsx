@@ -9,7 +9,7 @@
 import React from "react";
 import { View, Text, Image, ImageSourcePropType, TouchableOpacity, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
-import { colors, radius, type, spacing } from "../theme";
+import { colors, font, radius, type, spacing } from "../theme";
 
 interface EmptyStateProps {
   image?: ImageSourcePropType;
@@ -68,7 +68,8 @@ export default function EmptyState({
           accessibilityRole="button"
           accessibilityLabel={t("common.retry")}
         >
-          <Text style={styles.retryLinkText}>↻ {t("common.retry")}</Text>
+          <Image source={require("../../assets/icons/retry.png")} style={styles.retryLinkIcon} resizeMode="contain" />
+          <Text style={styles.retryLinkText}>{t("common.retry")}</Text>
         </TouchableOpacity>
       )}
 
@@ -101,40 +102,51 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   emoji: {
-    fontSize: 34,
+    fontSize: 37,
     marginBottom: 14,
   },
   message: {
+    fontFamily: font.serifItalic,
     fontSize: type.label,
-    color: colors.muted,
+    color: colors.fieldMuted,
     textAlign: "center",
-    lineHeight: 20,
+    lineHeight: 22,
   },
   messageError: {
     color: colors.danger,
     fontWeight: "600",
   },
   retryBtn: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.ink,
     borderRadius: radius.md,
     paddingHorizontal: 26,
     paddingVertical: 13,
     marginTop: spacing.md,
   },
   retryBtnText: {
-    color: colors.accentText,
-    fontSize: 14.5,
-    fontWeight: "700",
+    fontFamily: font.cursiveBold,
+    color: colors.parchmentSurface,
+    fontSize: 20,
+    lineHeight: 26,
     textAlign: "center",
   },
   retryLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     marginTop: 12,
     padding: 6,
   },
+  retryLinkIcon: {
+    width: 15,
+    height: 15,
+    tintColor: colors.fieldGreen,
+  },
   retryLinkText: {
-    color: colors.accent,
-    fontSize: 13.5,
-    fontWeight: "700",
+    fontFamily: font.cursiveBold,
+    color: colors.fieldGreen,
+    fontSize: 16,
+    lineHeight: 22,
     textAlign: "center",
   },
   secondaryBtn: {
@@ -142,9 +154,10 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   secondaryBtnText: {
-    color: colors.muted,
-    fontSize: 13,
-    fontWeight: "600",
+    fontFamily: font.cursiveBold,
+    color: colors.fieldMuted,
+    fontSize: 15,
+    lineHeight: 21,
     textAlign: "center",
   },
 });

@@ -12,6 +12,26 @@ import { getToken, refreshToken } from "./auth";
 // while still catching a truly hung connection instead of spinning forever.
 const REQUEST_TIMEOUT_MS = 45000;
 
+// Thrown by authFetch on any non-2xx response, carrying the backend's real
+// status/code/retry instead of collapsing every failure into one generic
+// message. Without this, a 429 (rate limit), a 408 (generation failed), and
+// a genuine 500 all looked identical to the caller -- impossible to tell
+// apart from a bug report alone. See ActiveTourScreen's narration catch
+// block for where this actually gets used.
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  retry: boolean;
+
+  constructor(message: string, status: number, code?: string, retry = false) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+    this.retry = retry;
+  }
+}
+
 // Helper: make an authenticated request. Retries once on a 401 after
 // forcing a token refresh — a backstop for the rare case where our token
 // went stale despite auth.ts's onAuthStateChange listener (e.g. a request
@@ -55,10 +75,18 @@ async function authFetch(path: string, options: RequestInit = {}, isRetry = fals
   }
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({
+    const body = await response.json().catch(() => ({
       error: `HTTP ${response.status}`,
     }));
-    throw new Error(error.error || error.detail?.error || `Request failed: ${response.status}`);
+    // FastAPI's HTTPException(detail={...}) shape wraps our fields one
+    // level down; a few older/simpler error responses don't. Handle both.
+    const detail = body.detail && typeof body.detail === "object" ? body.detail : body;
+    throw new ApiError(
+      detail.error || `Request failed: ${response.status}`,
+      response.status,
+      detail.code,
+      detail.retry
+    );
   }
 
   return response.json();

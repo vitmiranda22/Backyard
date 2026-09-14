@@ -43,10 +43,15 @@ services:
         sync: false
       - key: ELEVENLABS_VOICE_ID
         sync: false
+      # Matches app/config.py's own defaults (free = one 5-block tour/day,
+      # premium = three 12-block tours/day) -- set explicitly here (rather
+      # than removed) so this deploy actually overwrites whatever's live on
+      # Render right now, instead of leaving a stale, much looser value
+      # (80/100, from loosening these for TestFlight testing) in place.
       - key: DAILY_NARRATION_LIMIT_FREE
-        value: "80"
+        value: "5"
       - key: DAILY_NARRATION_LIMIT_PREMIUM
-        value: "100"
+        value: "36"
       - key: MINUTE_NARRATION_LIMIT
         value: "15"
       - key: DAILY_QUESTION_LIMIT_FREE

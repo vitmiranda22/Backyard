@@ -7,7 +7,7 @@ jest.mock("../auth", () => ({
   refreshToken: jest.fn(),
 }));
 
-import { narrateBlock } from "../api";
+import { narrateBlock, ApiError } from "../api";
 import { getToken, refreshToken } from "../auth";
 
 const mockGetToken = getToken as jest.Mock;
@@ -110,14 +110,19 @@ describe("authFetch (via narrateBlock)", () => {
     expect(global.fetch).toHaveBeenCalledTimes(1); // no retry attempted
   });
 
-  it("prefers the top-level error message over the nested detail.error shape", async () => {
+  it("prefers detail.error when detail is an object, even alongside a top-level error field", async () => {
+    // Every real backend error is HTTPException(detail={"error":...,
+    // "code":...,"retry":...}) -- a bare top-level `error` never coexists
+    // with a real `detail` object in practice, but when it's present,
+    // `detail` wins: it's also the only place `code`/`retry` live, so
+    // preferring the top-level field would silently lose them.
     mockGetToken.mockReturnValue("valid-token");
     global.fetch = jest.fn().mockResolvedValue({
       status: 400, ok: false,
       json: async () => ({ error: "top-level message", detail: { error: "nested message" } }),
     }) as any;
 
-    await expect(callNarrateBlock()).rejects.toThrow("top-level message");
+    await expect(callNarrateBlock()).rejects.toThrow("nested message");
   });
 
   it("falls back to detail.error when there's no top-level error field", async () => {
@@ -128,6 +133,32 @@ describe("authFetch (via narrateBlock)", () => {
     }) as any;
 
     await expect(callNarrateBlock()).rejects.toThrow("nested message");
+  });
+
+  it("throws an ApiError carrying the real status/code/retry from a rate-limit response", async () => {
+    // This is what let ActiveTourScreen tell a real 429 apart from a
+    // generation_failed 408 or a genuine crash -- previously authFetch
+    // discarded everything but the message string.
+    mockGetToken.mockReturnValue("valid-token");
+    global.fetch = jest.fn().mockResolvedValue({
+      status: 429, ok: false,
+      json: async () => ({
+        detail: { error: "Too many requests", code: "minute_limit_exceeded", retry: true },
+      }),
+    }) as any;
+
+    let caught: any;
+    try {
+      await callNarrateBlock();
+    } catch (e) {
+      caught = e;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    expect(caught.status).toBe(429);
+    expect(caught.code).toBe("minute_limit_exceeded");
+    expect(caught.retry).toBe(true);
+    expect(caught.message).toBe("Too many requests");
   });
 
   it("falls back to a generic HTTP-status message when the error body isn't JSON", async () => {

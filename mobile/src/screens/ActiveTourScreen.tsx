@@ -22,7 +22,8 @@ import {
   compassLabel,
   snapSegmentToRoad,
 } from "../services/location";
-import { narrateBlock, prefetchZone, saveBlock, startTour, askQuestion, endTour, EndTourResponse, NarrationHighlight } from "../services/api";
+import { narrateBlock, prefetchZone, saveBlock, startTour, askQuestion, endTour, EndTourResponse, NarrationHighlight, ApiError } from "../services/api";
+import * as Sentry from "@sentry/react-native";
 import { destinationPoint } from "../utils/geo";
 import { startRecording, stopRecording, cancelRecording } from "../services/recording";
 import NarrationCard from "../components/NarrationCard";
@@ -447,7 +448,37 @@ export default function ActiveTourScreen({
         handleEndTour(true);
       }
     } catch (e: any) {
-      setError(t("activeTour.narrationError"));
+      // Every failure used to collapse into the same generic "keep walking"
+      // message -- a real rate limit, a graceful "no story here," and a
+      // genuine crash all looked identical, which made a bug report
+      // impossible to diagnose from a screenshot alone. Distinguish them.
+      if (!(e instanceof ApiError)) {
+        // authFetch never got a response at all -- timed out, no signal,
+        // or a raw fetch failure. Not a backend bug, nothing to report.
+        setError(t("activeTour.narrationNetworkError"));
+      } else if (e.code === "daily_limit_exceeded") {
+        setError(t("activeTour.narrationDailyLimitError"));
+      } else if (e.code === "minute_limit_exceeded") {
+        setError(t("activeTour.narrationMinuteLimitError"));
+      } else if (e.code === "generation_failed") {
+        // Backend genuinely couldn't produce a narration for this exact
+        // spot -- this is the one case the original copy actually fits.
+        setError(t("activeTour.narrationError"));
+      } else {
+        // An unrecognized status/code -- a real bug, not a known limit or
+        // graceful no-story case. Report it with full context so the next
+        // occurrence shows up in Sentry with everything needed to
+        // reproduce, instead of only ever being a vague screenshot.
+        setError(t("activeTour.narrationError"));
+        Sentry.captureException(e, {
+          extra: {
+            lat, lng, mood, triggerType,
+            tourId: tourIdRef.current,
+            status: e.status,
+            code: e.code,
+          },
+        });
+      }
       console.error("Narration failed:", e.message);
     }
 

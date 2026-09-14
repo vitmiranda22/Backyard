@@ -14,14 +14,37 @@ jest.mock("../../services/location", () => {
     snapSegmentToRoad: jest.fn().mockResolvedValue([{ lat: 0, lng: 0 }]),
   };
 });
-jest.mock("../../services/api", () => ({
-  startTour: jest.fn(),
-  narrateBlock: jest.fn(),
-  prefetchZone: jest.fn().mockResolvedValue(undefined),
-  saveBlock: jest.fn(),
-  askQuestion: jest.fn(),
-  endTour: jest.fn(),
-}));
+jest.mock("../../services/api", () => {
+  // A standalone re-implementation, not jest.requireActual("../../services/api")
+  // -- that module also imports ./auth, which has real side effects that
+  // hang under the test renderer. Defined inline (not hoisted out of the
+  // factory) since jest.mock factories can only reference out-of-scope
+  // variables prefixed with "mock". This just needs to match the real
+  // ApiError shape so `e instanceof ApiError` in the component under test
+  // behaves the same way against errors these mocks reject with.
+  class ApiError extends Error {
+    status: number;
+    code?: string;
+    retry: boolean;
+    constructor(message: string, status: number, code?: string, retry = false) {
+      super(message);
+      this.name = "ApiError";
+      this.status = status;
+      this.code = code;
+      this.retry = retry;
+    }
+  }
+
+  return {
+    ApiError,
+    startTour: jest.fn(),
+    narrateBlock: jest.fn(),
+    prefetchZone: jest.fn().mockResolvedValue(undefined),
+    saveBlock: jest.fn(),
+    askQuestion: jest.fn(),
+    endTour: jest.fn(),
+  };
+});
 jest.mock("../../services/recording", () => ({
   startRecording: jest.fn(),
   stopRecording: jest.fn(),
@@ -34,6 +57,9 @@ jest.mock("../../services/notifications", () => ({
 jest.mock("../../services/audioCache", () => ({ cacheAudio: jest.fn().mockResolvedValue(null) }));
 jest.mock("../../services/toast", () => ({ showToast: jest.fn() }));
 jest.mock("../../services/haptics", () => ({ tap: jest.fn() }));
+// @sentry/react-native ships ESM that jest's default transformIgnorePatterns
+// won't transform -- a bare mock avoids needing a transform override.
+jest.mock("@sentry/react-native", () => ({ captureException: jest.fn() }));
 jest.mock("expo-av", () => ({
   Audio: { Sound: { createAsync: jest.fn() } },
 }));
@@ -68,7 +94,8 @@ jest.mock("../../components/WaypointCompass", () => () => null);
 jest.mock("../../components/AudioPlayer", () => () => null);
 
 import ActiveTourScreen from "../ActiveTourScreen";
-import { startTour, narrateBlock, saveBlock, askQuestion, endTour } from "../../services/api";
+import { startTour, narrateBlock, saveBlock, askQuestion, endTour, ApiError } from "../../services/api";
+import * as Sentry from "@sentry/react-native";
 import { watchPosition, watchHeading, getCurrentLocation, snapSegmentToRoad } from "../../services/location";
 import { startRecording, stopRecording } from "../../services/recording";
 
@@ -160,10 +187,14 @@ describe("ActiveTourScreen", () => {
       started_at: "2026-07-15T00:00:00Z", intro_audio_url: null, guide_name: null,
     });
     mockGetCurrentLocation.mockResolvedValue({ lat: 37.77, lng: -122.41 });
+    // A plain Error (not an ApiError) means authFetch never got a real
+    // response at all -- a timeout or dropped connection, not a backend
+    // status/code. See the dedicated error-type tests below for the
+    // ApiError-branch cases (rate limits, generation_failed, unexpected).
     mockNarrateBlock.mockRejectedValueOnce(new Error("network error"));
 
     const { findByText } = await render(<ActiveTourScreen {...baseProps()} />);
-    await findByText("activeTour.narrationError");
+    await findByText("activeTour.narrationNetworkError");
     expect(mockNarrateBlock).toHaveBeenCalledTimes(1);
 
     await fireEvent.press(await findByText("retry-narration"));
@@ -171,6 +202,47 @@ describe("ActiveTourScreen", () => {
     await findByText("24th St");
     expect(mockNarrateBlock).toHaveBeenCalledTimes(2);
     expect(mockNarrateBlock).toHaveBeenLastCalledWith(37.77, -122.41, "time_machine", "neutral", false, "manual", "tour-1");
+  });
+
+  it("shows the daily-limit message and does not report to Sentry for a daily_limit_exceeded ApiError", async () => {
+    mockNarrateBlock.mockRejectedValueOnce(new ApiError("hit today's limit", 429, "daily_limit_exceeded", false));
+
+    const { findByText } = await render(<ActiveTourScreen {...baseProps()} />);
+
+    await findByText("activeTour.narrationDailyLimitError");
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it("shows the minute-limit message for a minute_limit_exceeded ApiError", async () => {
+    mockNarrateBlock.mockRejectedValueOnce(new ApiError("slow down", 429, "minute_limit_exceeded", true));
+
+    const { findByText } = await render(<ActiveTourScreen {...baseProps()} />);
+
+    await findByText("activeTour.narrationMinuteLimitError");
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it("shows the original keep-walking message for a generation_failed ApiError", async () => {
+    mockNarrateBlock.mockRejectedValueOnce(new ApiError("no story here", 408, "generation_failed", true));
+
+    const { findByText } = await render(<ActiveTourScreen {...baseProps()} />);
+
+    await findByText("activeTour.narrationError");
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it("reports an unrecognized ApiError to Sentry with location/mood/tour context", async () => {
+    mockNarrateBlock.mockRejectedValueOnce(new ApiError("server exploded", 500, undefined, false));
+
+    const { findByText } = await render(<ActiveTourScreen {...baseProps()} />);
+
+    await findByText("activeTour.narrationError");
+    expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+    const [error, context] = (Sentry.captureException as jest.Mock).mock.calls[0];
+    expect(error.message).toBe("server exploded");
+    expect(context.extra).toMatchObject({
+      lat: 37.77, lng: -122.41, mood: "time_machine", tourId: "tour-1", status: 500,
+    });
   });
 
   it("shows the safety modal immediately, and it doesn't block the tour from starting and narrating block 1 underneath it", async () => {

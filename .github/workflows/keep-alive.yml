@@ -20,4 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping /health
-        run: curl -sf --max-time 30 https://backyard-api.onrender.com/health
+        # 30s used to be too short for the one case this actually matters:
+        # a real Render free-tier cold start, which commonly takes 50-60s.
+        # A ping that times out right then fails to confirm the service
+        # actually woke up (confirmed live: ~half of recent runs failed).
+        run: curl -sf --max-time 75 https://backyard-api.onrender.com/health

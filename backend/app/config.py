@@ -85,6 +85,29 @@ class Settings(BaseSettings):
     EUROPEANA_API_KEY: str = ""
 
     # -------------------------------------------------------------------------
+    # Smithsonian Open Access (museum/artifact metadata) — optional, free key
+    # from api.data.gov/signup (instant, no approval wait). Deliberately NOT
+    # defaulted to the public "DEMO_KEY" the docs mention -- that key is
+    # shared globally across every developer testing the API and rate-limited
+    # accordingly, unreliable for real traffic. Source is skipped if blank.
+    # -------------------------------------------------------------------------
+    SMITHSONIAN_API_KEY: str = ""
+
+    # -------------------------------------------------------------------------
+    # NYT Article Search (historic news coverage by keyword) — optional, free
+    # key from developer.nytimes.com. Source is skipped if left blank.
+    # -------------------------------------------------------------------------
+    NYT_API_KEY: str = ""
+
+    # -------------------------------------------------------------------------
+    # US Census Bureau ACS data (demographic snapshot by county) — optional,
+    # free key from api.census.gov/data/key_signup.html. Only the ACS data
+    # step needs this; the coordinates-to-county geocoder step (confirmed
+    # live) needs no key at all. Source is skipped if left blank.
+    # -------------------------------------------------------------------------
+    CENSUS_API_KEY: str = ""
+
+    # -------------------------------------------------------------------------
     # Rate limiting
     # -------------------------------------------------------------------------
     # Tiered by premium status, and now sized to exactly match the real

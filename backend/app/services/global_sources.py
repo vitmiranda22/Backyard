@@ -5,7 +5,7 @@ coordinate as well as well-documented cities, since the whole point of
 this layer is raising the floor in undocumented places, not just adding
 convenience in already-rich ones.
 
-15 sources:
+19 sources:
 - Wikipedia Geosearch: articles about places within 200m
 - Wikivoyage Geosearch: travel-guide entries near these coordinates —
   local-color/"what to notice" voice, distinct from Wikipedia's tone
@@ -27,18 +27,31 @@ convenience in already-rich ones.
 - USGS Earthquake Catalog: notable historical seismic events in the
   region — genuinely global despite the name, confirmed at both Tokyo
   and rural Peru
+- USGS Elevation Point Query Service: the elevation, in meters, at this
+  exact coordinate — also global despite the "national map" name
 - Open-Meteo Historical Weather: real recorded weather for this exact
   spot, one year ago today — global reanalysis-model coverage, works
   even where there's no nearby weather station
 - MusicBrainz: musicians/bands tied to this city (formed/based here)
 - Open Library: real books set in or about this city
+- Smithsonian Open Access: museum/library artifact metadata mentioning
+  this city (guidebooks, art collections, exhibition catalogs)
+- Library of Congress: real historic photos/documents mentioning this
+  exact street/neighborhood
+- NYT Article Search: real news coverage mentioning this street/
+  neighborhood
+- US Census ACS: a real demographic snapshot (population, median
+  income, median age) for this exact location's county — US-only,
+  self-gated on country like the UK sources below
 
-All free. Wikipedia/Wikivoyage/Wikimedia/OSM/Wikidata/UNESCO/GBIF/USGS/
-Open-Meteo/MusicBrainz/Open Library need no API key (MusicBrainz just
-needs a real User-Agent header and respects a ~1req/sec rate limit).
-Knowledge Graph reuses your Google Cloud TTS key. TMDb, GeoNames, and
-Europeana each need their own free key/username (optional — each source
-is skipped entirely if its credential is unset).
+All free. Wikipedia/Wikivoyage/Wikimedia/OSM/Wikidata/UNESCO/GBIF/USGS
+(earthquakes and elevation)/Open-Meteo/MusicBrainz/Open Library/Library
+of Congress need no API key
+(MusicBrainz just needs a real User-Agent header and respects a ~1req/sec
+rate limit). Knowledge Graph reuses your Google Cloud TTS key. TMDb,
+GeoNames, Europeana, Smithsonian, NYT, and US Census each need their own
+free key/username (optional — each source is skipped entirely if its
+credential is unset).
 
 Plus two country-gated sources, `fetch_uk_police_data` and
 `fetch_uk_planning_data` — not global, but not city-specific either:
@@ -810,6 +823,42 @@ async def fetch_earthquake_history(lat: float, lng: float, client: httpx.AsyncCl
         return []
 
 
+async def fetch_elevation(lat: float, lng: float, client: httpx.AsyncClient) -> list:
+    """
+    USGS Elevation Point Query Service — the elevation, in meters, at this
+    exact coordinate. Free, no key, global (despite the "national map"
+    name, confirmed live it answers for non-US coordinates too). Returns
+    at most one row, same singular shape as fetch_weather_history — this
+    is a fact about the exact point, not a list of nearby things.
+    """
+    try:
+        r = await client.get(
+            "https://epqs.nationalmap.gov/v1/json",
+            params={"x": lng, "y": lat, "units": "Meters", "wkid": 4326, "includeDate": "false"},
+            timeout=TIMEOUT,
+        )
+        if r.status_code != 200:
+            return []
+
+        value = r.json().get("value")
+        if value is None:
+            return []
+        try:
+            meters = float(value)
+        except (TypeError, ValueError):
+            return []
+        # The service returns a large negative sentinel (-1000000) for
+        # coordinates outside its raster coverage (open ocean, etc.)
+        # rather than an error status -- treat that as no data.
+        if meters <= -9999:
+            return []
+        return [{"meters": round(meters)}]
+
+    except Exception as e:
+        logger.warning(f"USGS elevation lookup failed: {e}")
+        return []
+
+
 async def fetch_uk_planning_data(lat: float, lng: float, country: str, client: httpx.AsyncClient) -> list:
     """
     UK Planning Data (planning.data.gov.uk) — a separate national API
@@ -963,6 +1012,187 @@ async def fetch_musicbrainz_artists(city: str, client: httpx.AsyncClient) -> lis
 
     except Exception as e:
         logger.warning(f"MusicBrainz lookup failed: {e}")
+        return []
+
+
+async def fetch_smithsonian(city: str, client: httpx.AsyncClient) -> list:
+    """
+    Smithsonian Open Access — real museum/library artifact metadata
+    mentioning this city (guidebooks, art collections, exhibition
+    catalogs). Optional, free key from api.data.gov/signup. City-level
+    only, same granularity as fetch_tmdb_films/fetch_musicbrainz_artists.
+    Deliberately does NOT fall back to the public "DEMO_KEY" the docs
+    mention -- that key is shared globally across every developer testing
+    the API and rate-limited accordingly, unreliable for real traffic.
+    """
+    api_key = getattr(settings, "SMITHSONIAN_API_KEY", None)
+    if not api_key or not city:
+        return []
+
+    try:
+        r = await client.get(
+            "https://api.si.edu/openaccess/api/v1.0/search",
+            params={"q": city, "api_key": api_key, "rows": "6"},
+            timeout=TIMEOUT,
+        )
+        if r.status_code != 200:
+            return []
+
+        results = []
+        for row in r.json().get("response", {}).get("rows", []):
+            title = row.get("title", "")
+            if not title:
+                continue
+            freetext = row.get("content", {}).get("freetext", {})
+            dates = freetext.get("date", [])
+            topics = freetext.get("topic", [])
+            results.append({
+                "title": title,
+                "date": dates[0].get("content", "") if dates else "",
+                "topic": topics[0].get("content", "") if topics else "",
+            })
+        return results
+
+    except Exception as e:
+        logger.warning(f"Smithsonian Open Access failed: {e}")
+        return []
+
+
+async def fetch_library_of_congress(street: str, neighborhood: str, city: str, client: httpx.AsyncClient) -> list:
+    """
+    Library of Congress (loc.gov) — real historic photos/documents whose
+    catalog description mentions this exact street/neighborhood. No API
+    key needed, confirmed live (a real 1987 "Lombard Street, San
+    Francisco" photo came back for that exact query).
+    """
+    query = " ".join(p for p in (street, neighborhood, city) if p).strip()
+    if not query:
+        return []
+
+    try:
+        r = await client.get(
+            "https://www.loc.gov/photos/",
+            params={"q": query, "fo": "json", "c": "6"},
+            timeout=TIMEOUT,
+        )
+        if r.status_code != 200:
+            return []
+
+        results = []
+        for item in r.json().get("results", [])[:6]:
+            title = item.get("title", "")
+            if not title:
+                continue
+            results.append({"title": title, "date": item.get("date", "")})
+        return results
+
+    except Exception as e:
+        logger.warning(f"Library of Congress failed: {e}")
+        return []
+
+
+async def fetch_nyt_articles(street: str, neighborhood: str, city: str, client: httpx.AsyncClient) -> list:
+    """
+    NYT Article Search — real news coverage whose headline/body mentions
+    this street/neighborhood. Optional, free key from developer.nytimes.com.
+    """
+    api_key = getattr(settings, "NYT_API_KEY", None)
+    query = " ".join(p for p in (street, neighborhood, city) if p).strip()
+    if not api_key or not query:
+        return []
+
+    try:
+        r = await client.get(
+            "https://api.nytimes.com/svc/search/v2/articlesearch.json",
+            params={"q": query, "api-key": api_key},
+            timeout=TIMEOUT,
+        )
+        if r.status_code != 200:
+            return []
+
+        results = []
+        for doc in r.json().get("response", {}).get("docs", [])[:5]:
+            headline = (doc.get("headline") or {}).get("main", "")
+            if not headline:
+                continue
+            results.append({
+                "headline": headline,
+                "date": (doc.get("pub_date") or "")[:10],
+            })
+        return results
+
+    except Exception as e:
+        logger.warning(f"NYT Article Search failed: {e}")
+        return []
+
+
+async def fetch_us_census(lat: float, lng: float, country: str, client: httpx.AsyncClient) -> list:
+    """
+    US Census Bureau ACS 5-year estimates — a real demographic snapshot
+    (population, median household income, median age) for this exact
+    location's county. Two real HTTP calls: the coordinates-to-county
+    geocoder (confirmed live, no key needed) feeds the actual ACS data
+    query (confirmed live too, but needs a free key -- api.census.gov
+    started requiring one for this endpoint; skipped if unset, same
+    pattern as every other optional-key source here). Gated on country,
+    same self-gating pattern as the UK-only sources -- US Census data
+    genuinely doesn't exist for anywhere else.
+    """
+    if not country or "united states" not in country.lower():
+        return []
+
+    api_key = getattr(settings, "CENSUS_API_KEY", None)
+    if not api_key:
+        return []
+
+    try:
+        geo_r = await client.get(
+            "https://geocoding.geo.census.gov/geocoder/geographies/coordinates",
+            params={
+                "x": lng, "y": lat,
+                "benchmark": "Public_AR_Current",
+                "vintage": "Current_Current",
+                "format": "json",
+            },
+            timeout=TIMEOUT,
+        )
+        if geo_r.status_code != 200:
+            return []
+
+        counties = geo_r.json().get("result", {}).get("geographies", {}).get("Counties", [])
+        if not counties:
+            return []
+        state_fips = counties[0].get("STATE")
+        county_fips = counties[0].get("COUNTY")
+        if not state_fips or not county_fips:
+            return []
+
+        acs_r = await client.get(
+            "https://api.census.gov/data/2022/acs/acs5",
+            params={
+                "get": "NAME,B01003_001E,B19013_001E,B01002_001E",
+                "for": f"county:{county_fips}",
+                "in": f"state:{state_fips}",
+                "key": api_key,
+            },
+            timeout=TIMEOUT,
+        )
+        if acs_r.status_code != 200:
+            return []
+
+        rows = acs_r.json()
+        if len(rows) < 2:
+            return []
+        record = dict(zip(rows[0], rows[1]))
+        return [{
+            "county": record.get("NAME", counties[0].get("NAME", "")),
+            "population": record.get("B01003_001E"),
+            "median_income": record.get("B19013_001E"),
+            "median_age": record.get("B01002_001E"),
+        }]
+
+    except Exception as e:
+        logger.warning(f"US Census lookup failed: {e}")
         return []
 
 

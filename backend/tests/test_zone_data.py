@@ -262,3 +262,78 @@ def test_osm_formatter_renders_shop_and_restaurant_tags():
 
     assert "shop: bakery" in formatted
     assert "cafe (french)" in formatted
+
+
+# --- New sources: Smithsonian, Library of Congress, NYT, US Census ---
+
+def test_smithsonian_reaches_the_formatted_output():
+    data = {
+        "smithsonian": [
+            {"title": "San Francisco civic art collection", "date": "1989", "topic": "Public art"},
+        ],
+    }
+
+    formatted = zone_data.format_zone_data_for_prompt(data)
+
+    assert "SMITHSONIAN ARCHIVE MENTIONS" in formatted
+    assert "San Francisco civic art collection" in formatted
+    assert "1989" in formatted
+    assert "Public art" in formatted
+
+
+def test_library_of_congress_reaches_the_formatted_output():
+    data = {
+        "library_of_congress": [
+            {"title": "Lombard Street, San Francisco", "date": "1987"},
+        ],
+    }
+
+    formatted = zone_data.format_zone_data_for_prompt(data)
+
+    assert "LIBRARY OF CONGRESS ARCHIVE" in formatted
+    assert "Lombard Street, San Francisco" in formatted
+    assert "1987" in formatted
+
+
+def test_nyt_articles_reach_the_formatted_output():
+    data = {
+        "nyt_articles": [
+            {"headline": "A Walk Down Lombard Street", "date": "1995-04-12"},
+        ],
+    }
+
+    formatted = zone_data.format_zone_data_for_prompt(data)
+
+    assert "NEW YORK TIMES COVERAGE" in formatted
+    assert "A Walk Down Lombard Street" in formatted
+    assert "1995-04-12" in formatted
+
+
+def test_us_census_reaches_the_formatted_output():
+    data = {
+        "us_census": [
+            {"county": "San Francisco County", "population": "873965", "median_income": "126187", "median_age": "38.5"},
+        ],
+    }
+
+    formatted = zone_data.format_zone_data_for_prompt(data)
+
+    assert "CENSUS SNAPSHOT FOR THIS COUNTY" in formatted
+    assert "San Francisco County" in formatted
+    assert "population 873965" in formatted
+    assert "median household income $126187" in formatted
+
+
+def test_elevation_reaches_the_formatted_output():
+    data = {"elevation": [{"meters": 67}]}
+
+    formatted = zone_data.format_zone_data_for_prompt(data)
+
+    assert "ELEVATION AT THIS SPOT" in formatted
+    assert "67 meters above sea level" in formatted
+
+
+def test_elevation_empty_list_produces_no_section():
+    formatted = zone_data.format_zone_data_for_prompt({"elevation": []})
+
+    assert "ELEVATION AT THIS SPOT" not in formatted

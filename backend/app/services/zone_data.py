@@ -4,12 +4,12 @@ Zone data fetcher — orchestrates all data sources in parallel.
 For any geographic zone, we:
 1. Fire off 15 DataSF queries (only when the geocoded city is San
    Francisco — see `is_san_francisco`/`DATASF_SOURCE_NAMES`, skipped
-   entirely with zero network calls everywhere else) + 17 always-on
-   global queries + 2 UK-gated queries + N other-city queries (no-op
-   instantly unless the geocoded city matches the registry in
-   city_data.py, which now spans multiple platforms — Socrata and
-   OpenDataSoft; GeoNames/Europeana no-op instantly unless their
-   optional API keys are set)
+   entirely with zero network calls everywhere else) + 21 always-on
+   global queries + 1 US-gated query + 2 UK-gated queries + N other-city
+   queries (no-op instantly unless the geocoded city matches the
+   registry in city_data.py, which now spans multiple platforms —
+   Socrata and OpenDataSoft; GeoNames/Europeana/Smithsonian/NYT/US Census
+   no-op instantly unless their optional API keys are set)
 2. Wait for all of them (with timeouts — if one fails, others continue)
 3. Bundle everything into a single JSON blob
 4. Store it in zone_data_cache (reused across all moods for 30 days)
@@ -96,7 +96,7 @@ async def fetch_all_zone_data(
             })
 
         tasks.update({
-            # --- Global sources (17 sources, any city, zero gating) ---
+            # --- Global sources (21 sources, any city, zero gating) ---
             "wikipedia": global_sources.fetch_wikipedia(lat, lng, client),
             "wikimedia_photos": global_sources.fetch_wikimedia_commons(lat, lng, client),
             "osm_buildings": global_sources.fetch_osm_buildings(lat, lng, client),
@@ -109,11 +109,17 @@ async def fetch_all_zone_data(
             "wikivoyage": global_sources.fetch_wikivoyage(lat, lng, client),
             "gbif": global_sources.fetch_gbif_occurrences(lat, lng, client),
             "earthquake_history": global_sources.fetch_earthquake_history(lat, lng, client),
+            "elevation": global_sources.fetch_elevation(lat, lng, client),
             "weather_history": global_sources.fetch_weather_history(lat, lng, client),
             "musicbrainz_artists": global_sources.fetch_musicbrainz_artists(city, client),
             "open_library_books": global_sources.fetch_open_library_books(city, client),
+            "smithsonian": global_sources.fetch_smithsonian(city, client),
+            "library_of_congress": global_sources.fetch_library_of_congress(street_name, neighborhood, city, client),
+            "nyt_articles": global_sources.fetch_nyt_articles(street_name, neighborhood, city, client),
             "uk_police": global_sources.fetch_uk_police_data(lat, lng, country, client),
             "uk_planning": global_sources.fetch_uk_planning_data(lat, lng, country, client),
+            # --- US-gated (1 source) ---
+            "us_census": global_sources.fetch_us_census(lat, lng, country, client),
         })
 
         # --- Other-city Socrata (gated on city match — NYC/Chicago/LA/
@@ -359,6 +365,7 @@ def format_zone_data_for_prompt(zone_data: dict, mode: str = None) -> str:
         "city_street_trees": ("🌳 STREET TREES", _format_generic),
         "gbif": ("🦋 WILDLIFE RECORDED NEARBY (GBIF)", _format_gbif),
         "earthquake_history": ("🌎 NOTABLE EARTHQUAKES IN THIS REGION (USGS)", _format_earthquakes),
+        "elevation": ("⛰️ ELEVATION AT THIS SPOT (USGS)", _format_elevation),
         "geonames": ("📌 NEARBY NAMED PLACES (GeoNames)", _format_geonames),
         "neighborhoods": ("📌 NEIGHBORHOOD INFO", _format_generic),
         "businesses": ("🏪 BUSINESSES (PAST & PRESENT)", _format_generic),
@@ -366,6 +373,10 @@ def format_zone_data_for_prompt(zone_data: dict, mode: str = None) -> str:
         "weather_history": ("🌤️ WEATHER HERE, ONE YEAR AGO TODAY (Open-Meteo)", _format_weather_history),
         "musicbrainz_artists": ("🎵 MUSICIANS TIED TO THIS CITY (MusicBrainz)", _format_musicbrainz),
         "open_library_books": ("📖 BOOKS SET IN THIS CITY (Open Library)", _format_open_library),
+        "smithsonian": ("🏛️ SMITHSONIAN ARCHIVE MENTIONS", _format_smithsonian),
+        "library_of_congress": ("📷 LIBRARY OF CONGRESS ARCHIVE", _format_library_of_congress),
+        "nyt_articles": ("📰 NEW YORK TIMES COVERAGE", _format_nyt_articles),
+        "us_census": ("📊 CENSUS SNAPSHOT FOR THIS COUNTY", _format_us_census),
 
         # --- Tier 3 ---
         "building_permits": ("🏗️ BUILDING PERMITS", _format_building_permits),
@@ -785,6 +796,82 @@ def _format_open_library(data: list) -> str:
         if year:
             line += f" ({year})"
         lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_smithsonian(data: list) -> str:
+    lines = []
+    for item in data[:5]:
+        title = item.get("title", "")
+        if not title:
+            continue
+        details = [d for d in (item.get("date", ""), item.get("topic", "")) if d]
+        line = f"- \"{title}\""
+        if details:
+            line += f" ({', '.join(details)})"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_library_of_congress(data: list) -> str:
+    lines = []
+    for item in data[:5]:
+        title = item.get("title", "")
+        if not title:
+            continue
+        date = item.get("date", "")
+        line = f"- \"{title}\""
+        if date:
+            line += f" ({date})"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_nyt_articles(data: list) -> str:
+    lines = []
+    for item in data[:5]:
+        headline = item.get("headline", "")
+        if not headline:
+            continue
+        date = item.get("date", "")
+        line = f"- \"{headline}\""
+        if date:
+            line += f" ({date})"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_us_census(data: list) -> str:
+    lines = []
+    for item in data[:1]:
+        county = item.get("county", "")
+        if not county:
+            continue
+        parts = []
+        if item.get("population"):
+            parts.append(f"population {item['population']}")
+        if item.get("median_income"):
+            parts.append(f"median household income ${item['median_income']}")
+        if item.get("median_age"):
+            parts.append(f"median age {item['median_age']}")
+        line = f"- {county}"
+        if parts:
+            line += f" — {', '.join(parts)}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_elevation(data: list) -> str:
+    """
+    Deliberately singular, same shape as _format_weather_history — one
+    fact about this exact point, not a list of nearby things.
+    """
+    lines = []
+    for item in data[:1]:
+        meters = item.get("meters")
+        if meters is None:
+            continue
+        lines.append(f"- {meters} meters above sea level")
     return "\n".join(lines)
 
 

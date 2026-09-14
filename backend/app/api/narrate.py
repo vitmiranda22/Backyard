@@ -294,7 +294,7 @@ async def narrate_block(
             zone_hit_count = cached_zone.get("sources_hit_count")
             zone_eligible_count = cached_zone.get("sources_eligible_count")
         else:
-            # Step 5: Fetch ALL 29 sources in parallel
+            # Step 5: Fetch ALL 34 sources in parallel
             logger.info(f"Zone data cache MISS for {geo_hash} — fetching all sources...")
             result = await fetch_all_zone_data(
                 lat=request.lat,

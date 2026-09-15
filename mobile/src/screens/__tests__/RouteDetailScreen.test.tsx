@@ -6,6 +6,7 @@ jest.mock("../../services/api", () => ({
   getTourDetail: jest.fn(),
   toggleLike: jest.fn(),
   reportTour: jest.fn(),
+  deleteTour: jest.fn(),
   // CommentsSection (a child of this screen) shares this same mocked
   // module — give it enough to render without crashing.
   getComments: jest.fn().mockResolvedValue([]),
@@ -16,12 +17,13 @@ jest.mock("../../services/toast", () => ({ showToast: jest.fn() }));
 jest.mock("../../services/haptics", () => ({ tap: jest.fn() }));
 
 import RouteDetailScreen from "../RouteDetailScreen";
-import { getTourDetail, toggleLike, reportTour } from "../../services/api";
+import { getTourDetail, toggleLike, reportTour, deleteTour } from "../../services/api";
 import { showToast } from "../../services/toast";
 
 const mockGetTourDetail = getTourDetail as jest.Mock;
 const mockToggleLike = toggleLike as jest.Mock;
 const mockReportTour = reportTour as jest.Mock;
+const mockDeleteTour = deleteTour as jest.Mock;
 const mockShowToast = showToast as jest.Mock;
 
 function baseTour(overrides = {}) {
@@ -193,5 +195,53 @@ describe("RouteDetailScreen", () => {
     );
 
     expect(await findByText("routeDetail.audioUnavailable")).toBeTruthy();
+  });
+
+  it("shows the delete button only for your own tour, not someone else's", async () => {
+    mockGetTourDetail.mockResolvedValue(baseTour({ is_own_tour: false }));
+    const { findByText, queryByText } = await render(
+      <RouteDetailScreen tourId="tour-1" onStartReplay={jest.fn()} onBack={jest.fn()} />
+    );
+    await findByText("Mission Murals");
+    expect(queryByText("routeDetail.delete")).toBeNull();
+  });
+
+  it("deletes the tour and goes back after confirming", async () => {
+    mockGetTourDetail.mockResolvedValue(baseTour({ is_own_tour: true }));
+    mockDeleteTour.mockResolvedValue(undefined);
+    const onBack = jest.fn();
+
+    const { findByText } = await render(
+      <RouteDetailScreen tourId="tour-1" onStartReplay={jest.fn()} onBack={onBack} />
+    );
+    await findByText("Mission Murals");
+
+    await fireEvent.press(await findByText("routeDetail.delete"));
+    const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
+    const confirmButton = buttons.find((b: any) => b.text === "routeDetail.delete");
+    await confirmButton.onPress();
+
+    expect(mockDeleteTour).toHaveBeenCalledWith("tour-1");
+    await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("routeDetail.deleted"));
+    expect(onBack).toHaveBeenCalled();
+  });
+
+  it("shows a toast and stays on the screen when deleting fails", async () => {
+    mockGetTourDetail.mockResolvedValue(baseTour({ is_own_tour: true }));
+    mockDeleteTour.mockRejectedValue(new Error("network error"));
+    const onBack = jest.fn();
+
+    const { findByText } = await render(
+      <RouteDetailScreen tourId="tour-1" onStartReplay={jest.fn()} onBack={onBack} />
+    );
+    await findByText("Mission Murals");
+
+    await fireEvent.press(await findByText("routeDetail.delete"));
+    const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
+    const confirmButton = buttons.find((b: any) => b.text === "routeDetail.delete");
+    await confirmButton.onPress();
+
+    await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("routeDetail.couldntDelete"));
+    expect(onBack).not.toHaveBeenCalled();
   });
 });

@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import MapView, { Marker } from "react-native-maps";
 import RoutePolyline from "../components/RoutePolyline";
-import { getTourDetail, TourDetail, toggleLike, reportTour, ReportReason } from "../services/api";
+import { getTourDetail, TourDetail, toggleLike, reportTour, ReportReason, deleteTour } from "../services/api";
 import StarRating from "../components/StarRating";
 import ZonePhoto from "../components/ZonePhoto";
 import CommentsSection from "../components/CommentsSection";
@@ -51,6 +51,7 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
   const [error, setError] = useState<string | null>(null);
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadTour = useCallback(() => {
     setError(null);
@@ -133,6 +134,26 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
       console.warn("Failed to submit report:", e.message);
       showToast(t("report.couldntSubmit"));
     }
+  }
+
+  async function handleDeleteConfirmed() {
+    setIsDeleting(true);
+    try {
+      await deleteTour(tourId);
+      showToast(t("routeDetail.deleted"));
+      onBack();
+    } catch (e: any) {
+      console.warn("Failed to delete tour:", e.message);
+      showToast(t("routeDetail.couldntDelete"));
+      setIsDeleting(false);
+    }
+  }
+
+  function handleDelete() {
+    Alert.alert(t("routeDetail.deleteConfirmTitle"), t("routeDetail.deleteConfirmBody"), [
+      { text: t("routeDetail.delete"), style: "destructive", onPress: handleDeleteConfirmed },
+      { text: t("common.cancel"), style: "cancel" },
+    ]);
   }
 
   function handleReport() {
@@ -276,9 +297,24 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
         <CommentsSection tourId={tourId} />
       </ScrollView>
 
-      <TouchableOpacity style={styles.startBtn} onPress={() => onStartReplay(tour)}>
-        <Text style={styles.startBtnText}>{t("routeDetail.startReplay")}</Text>
-      </TouchableOpacity>
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.startBtn} onPress={() => onStartReplay(tour)}>
+          <Text style={styles.startBtnText}>{t("routeDetail.startReplay")}</Text>
+        </TouchableOpacity>
+
+        {tour.is_own_tour && (
+          <TouchableOpacity
+            onPress={handleDelete}
+            disabled={isDeleting}
+            accessibilityRole="button"
+            accessibilityLabel={t("routeDetail.deleteA11y")}
+          >
+            <Text style={styles.deleteLink}>
+              {isDeleting ? t("routeDetail.deleting") : t("routeDetail.delete")}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -503,10 +539,13 @@ const styles = StyleSheet.create({
     color: colors.fieldMuted,
     lineHeight: 21,
   },
+  footer: {
+    padding: 20,
+    gap: 12,
+  },
   startBtn: {
     backgroundColor: colors.ink,
     padding: spacing.md,
-    margin: 20,
     borderRadius: radius.md,
   },
   startBtnText: {
@@ -515,5 +554,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 23,
     lineHeight: 32,
+  },
+  deleteLink: {
+    fontFamily: font.cursiveBold,
+    color: colors.danger,
+    textAlign: "center",
+    fontSize: 17,
+    lineHeight: 23,
   },
 });

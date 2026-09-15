@@ -540,13 +540,23 @@ async def update_tour_narrative_summary(
 
 
 async def get_tours_by_user(creator_id: str, limit: int = 20):
-    """Get a user's tours, most recent first. Returns a list (empty on failure)."""
+    """
+    Get a user's tours, most recent first. Returns a list (empty on failure).
+
+    Excludes blocks_visited=0 rows -- a "tours" row is created the moment a
+    walk starts, before any block is ever narrated, so abandoning a walk
+    immediately (closing the app, losing signal) leaves a permanent empty
+    row with no title. Left unfiltered, those show up in "My Walks" as an
+    "Untitled Tour" with nothing in it forever. Same filter get_user_stats
+    already applies when aggregating a user's real stats.
+    """
     try:
         client = _get_client()
         result = (
             client.table("tours")
             .select("*")
             .eq("creator_id", creator_id)
+            .gt("blocks_visited", 0)
             .order("created_at", desc=True)
             .limit(limit)
             .execute()

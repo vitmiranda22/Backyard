@@ -381,7 +381,14 @@
     "yourWalkLog": "Tu registro de caminata",
     "shareMessage": "Mira \"{{title}}\" en Backyard: backyard://route/{{tourId}}",
     "shareA11y": "Compartir esta ruta",
-    "startReplay": "Iniciar Repetición"
+    "startReplay": "Iniciar Repetición",
+    "delete": "Eliminar",
+    "deleteA11y": "Eliminar este tour",
+    "deleteConfirmTitle": "¿Eliminar este tour?",
+    "deleteConfirmBody": "Esto elimina el tour y todo lo que contiene de forma permanente. No se puede deshacer.",
+    "deleting": "Eliminando...",
+    "deleted": "Tour eliminado.",
+    "couldntDelete": "No se pudo eliminar el tour. Inténtalo de nuevo en un momento."
   },
   "replay": {
     "failedToGetLocation": "No se pudo obtener tu ubicación: {{error}}",

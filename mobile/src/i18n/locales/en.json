@@ -381,7 +381,14 @@
     "yourWalkLog": "Your walk log",
     "shareMessage": "Check out \"{{title}}\" on Backyard: backyard://route/{{tourId}}",
     "shareA11y": "Share this route",
-    "startReplay": "Start Replay"
+    "startReplay": "Start Replay",
+    "delete": "Delete",
+    "deleteA11y": "Delete this tour",
+    "deleteConfirmTitle": "Delete this tour?",
+    "deleteConfirmBody": "This permanently deletes the tour and everything on it. This can't be undone.",
+    "deleting": "Deleting...",
+    "deleted": "Tour deleted.",
+    "couldntDelete": "Couldn't delete this tour. Try again in a moment."
   },
   "replay": {
     "failedToGetLocation": "Failed to get your location: {{error}}",

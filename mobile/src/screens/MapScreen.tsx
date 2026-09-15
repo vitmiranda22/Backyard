@@ -23,12 +23,17 @@ import EventDetailSheet from "../components/EventDetailSheet";
 // covers every tour pin whose mood icon is missing.
 const EVENT_ICON = require("../../assets/icons/calendar.png");
 
+// No dedicated museum icon exists yet either -- reuse the same fallback
+// tour icon rather than block shipping on new art.
+const MUSEUM_ICON = FALLBACK_MOOD_ICON;
+
 interface MapScreenProps {
   onSelectRoute: (tourId: string) => void;
+  onSelectMuseumTour: (tourId: string) => void;
   onBack: () => void;
 }
 
-export default function MapScreen({ onSelectRoute, onBack }: MapScreenProps) {
+export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }: MapScreenProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -36,6 +41,7 @@ export default function MapScreen({ onSelectRoute, onBack }: MapScreenProps) {
   const [nearbyRoutes, setNearbyRoutes] = useState<NearbyRoute[]>([]);
   const [nearbyEvents, setNearbyEvents] = useState<NearbyEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<NearbyEvent | null>(null);
+  const [museumTours, setMuseumTours] = useState<NearbyRoute[]>([]);
 
   // The full walked path of whichever pin was last tapped, drawn directly
   // on this map. Fetched on demand (nearby-route pins only carry a single
@@ -84,6 +90,13 @@ export default function MapScreen({ onSelectRoute, onBack }: MapScreenProps) {
           getNearbyEvents(loc.lat, loc.lng)
             .then(setNearbyEvents)
             .catch((e) => console.warn("Failed to load nearby events:", e.message));
+          // A dedicated call (not a client-side filter of nearbyRoutes
+          // above) so museum pins always show regardless of how many
+          // other highly-rated walking tours fill that call's own
+          // limit:10 -- same reasoning nearbyEvents gets its own fetch.
+          getNearbyRoutes(loc.lat, loc.lng, { tourType: "museum", sortBy: "rating", limit: 10 })
+            .then(setMuseumTours)
+            .catch((e) => console.warn("Failed to load nearby museum tours:", e.message));
         } catch (e) {
           console.error("Failed to get location:", e);
         }
@@ -113,7 +126,7 @@ export default function MapScreen({ onSelectRoute, onBack }: MapScreenProps) {
               before the pins so it sits underneath them. Radius is half
               the ~150m geohash cell the signal is actually keyed to. */}
           {nearbyRoutes
-            .filter((route) => route.is_low_info)
+            .filter((route) => route.is_low_info && route.tour_type !== "museum")
             .map((route) => (
               <Circle
                 key={`${route.tour_id}-low-info`}
@@ -125,7 +138,9 @@ export default function MapScreen({ onSelectRoute, onBack }: MapScreenProps) {
               />
             ))}
 
-          {nearbyRoutes.map((route) => (
+          {nearbyRoutes
+            .filter((route) => route.tour_type !== "museum")
+            .map((route) => (
             <Marker
               key={route.tour_id}
               coordinate={{ latitude: route.lat, longitude: route.lng }}
@@ -193,6 +208,26 @@ export default function MapScreen({ onSelectRoute, onBack }: MapScreenProps) {
             >
               <View style={styles.eventPin}>
                 <Image source={EVENT_ICON} style={styles.eventPinIcon} resizeMode="contain" />
+              </View>
+            </Marker>
+          ))}
+
+          {/* Museum tours -- one fixed indoor point each, no zone circle
+              (unlike events, a museum tour isn't a geographic area you
+              walk into). Tapping goes straight to MuseumTourScreen, not
+              RouteDetailScreen/Replay -- see onSelectMuseumTour. */}
+          {museumTours.map((museum) => (
+            <Marker
+              key={museum.tour_id}
+              testID={`museum-marker-${museum.tour_id}`}
+              coordinate={{ latitude: museum.lat, longitude: museum.lng }}
+              title={museum.title}
+              description={t("home.museumTourCallout")}
+              onCalloutPress={() => onSelectMuseumTour(museum.tour_id)}
+              tracksViewChanges={false}
+            >
+              <View style={styles.museumPin}>
+                <Image source={MUSEUM_ICON} style={styles.museumPinIcon} resizeMode="contain" />
               </View>
             </Marker>
           ))}
@@ -304,6 +339,26 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     tintColor: colors.accentText,
+  },
+  museumPin: {
+    width: 36,
+    height: 36,
+    borderRadius: 20,
+    backgroundColor: colors.fieldGreen,
+    borderWidth: 2,
+    borderColor: colors.parchmentSurface,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  museumPinIcon: {
+    width: 18,
+    height: 18,
+    tintColor: colors.parchmentSurface,
   },
   backBtn: {
     position: "absolute",

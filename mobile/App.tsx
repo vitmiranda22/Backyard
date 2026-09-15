@@ -37,6 +37,7 @@ import ResetPasswordScreen from "./src/screens/ResetPasswordScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import MapScreen from "./src/screens/MapScreen";
+import MuseumTourScreen from "./src/screens/MuseumTourScreen";
 import ToursScreen from "./src/screens/ToursScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import MoodPickerScreen from "./src/screens/MoodPickerScreen";
@@ -102,7 +103,8 @@ type Screen =
   | "replay"
   | "rate"
   | "paywall"
-  | "badgeGallery";
+  | "badgeGallery"
+  | "museumTour";
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -140,6 +142,7 @@ export default function App() {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [replayTour, setReplayTour] = useState<TourDetail | null>(null);
   const [pendingRouteId, setPendingRouteId] = useState<string | null>(null);
+  const [selectedMuseumTourId, setSelectedMuseumTourId] = useState<string | null>(null);
 
   // Premium entitlement + voice preference — fetched once after login,
   // refreshed whenever the user returns from the Paywall or Voice Picker.
@@ -375,6 +378,10 @@ export default function App() {
             setSelectedRouteId(id);
             setScreen("routeDetail");
           }}
+          onSelectMuseumTour={(id) => {
+            setSelectedMuseumTourId(id);
+            setScreen("museumTour");
+          }}
           onBack={() => setScreen("main")}
         />
       )}
@@ -452,6 +459,13 @@ export default function App() {
 
       {screen === "rate" && replayTour && (
         <RouteRatingScreen tour={replayTour} onDone={backToTours} />
+      )}
+
+      {screen === "museumTour" && selectedMuseumTourId && (
+        <MuseumTourScreen
+          tourId={selectedMuseumTourId}
+          onExit={() => setScreen("map")}
+        />
       )}
 
       {screen === "paywall" && (

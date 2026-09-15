@@ -92,6 +92,24 @@ def build_tour_r2_key(tour_id: str, geo_hash: str, content_safety: bool, voice: 
     return f"audio/tours/{tour_id}/{geo_hash}/{safety_str}/{voice}.mp3"
 
 
+def build_museum_audio_r2_key(object_id: int, voice: str) -> str:
+    """
+    Build the R2 object key for one museum object's narration audio.
+
+    build_tour_r2_key is keyed by (tour_id, geo_hash, content_safety,
+    voice) -- every object in a museum tour shares the same fixed
+    lat/lng (see plant_museum_tours.py), so geo_hash is identical across
+    every block in the tour, and every object's audio would silently
+    overwrite the previous one at the same R2 key. Keyed by object_id
+    instead, unique per object regardless of which museum tour it's
+    part of -- same reasoning as build_museum_image_r2_key.
+
+    Returns:
+        R2 object key, e.g. "audio/museum/436524/neutral.mp3"
+    """
+    return f"audio/museum/{object_id}/{voice}.mp3"
+
+
 def build_question_r2_key(tour_id: str, question_id: str) -> str:
     """
     Build the R2 object key for a spoken answer to a voice question.
@@ -117,6 +135,22 @@ def build_image_r2_key(geo_hash: str) -> str:
         R2 object key, e.g. "images/9q8yyk8.jpg"
     """
     return f"images/{geo_hash}.jpg"
+
+
+def build_museum_image_r2_key(object_id: int) -> str:
+    """
+    Build the R2 object key for one museum object's photo.
+
+    Every object in a museum tour shares the same building/geohash (see
+    plant_museum_tours.py — all blocks use the museum's one fixed
+    lat/lng), so build_image_r2_key's geohash-only key would collide
+    across every object in the tour. Keyed by object_id instead, unique
+    per object regardless of which museum tour it's part of.
+
+    Returns:
+        R2 object key, e.g. "images/museum/436524.jpg"
+    """
+    return f"images/museum/{object_id}.jpg"
 
 
 async def upload_image(image_bytes: bytes, r2_key: str) -> bool:

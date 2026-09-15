@@ -254,6 +254,80 @@ async def generate_narration(
         return None
 
 
+async def generate_museum_narration(object_facts: dict, museum_name: str, voice: str) -> str:
+    """
+    Write narration for one museum object, grounded in its real facts (see
+    met_museum.fetch_met_object) -- used only by scripts/plant_museum_tours.py,
+    never by a live per-request endpoint.
+
+    Deliberately does NOT go through build_prompt()/the mood system --
+    build_prompt is hard-shaped around a street corner (street/neighborhood,
+    mood-specific opener/pivot/closer beats), the wrong fit for a single
+    gallery object. No web_search tool either: the Met's own fields are
+    already ground truth, there's nothing to look up.
+    """
+    artist_bio = object_facts.get("artist_display_bio") or ""
+    artist_line = object_facts["artist_display_name"] or "Unknown"
+    if artist_bio:
+        artist_line = f"{artist_line} ({artist_bio})"
+
+    facts_str = (
+        f"Title: {object_facts['title']}\n"
+        f"Artist: {artist_line}\n"
+        f"Date: {object_facts['object_date']}\n"
+        f"Medium: {object_facts['medium']}\n"
+        f"Culture: {object_facts['culture']}\n"
+        f"Department: {object_facts['department']}\n"
+        f"Classification: {object_facts['classification']}"
+    )
+
+    instructions = (
+        f"You are Bosco, Backyard's guide, narrating one stop on a fixed museum tour "
+        f"of {museum_name}. Ground every sentence in the real facts given below -- "
+        f"never invent an artist, date, detail, or story not present in them. Write in "
+        f"a warm, conversational spoken-audio register (never an academic wall-label "
+        f"tone), 90-150 words. Never include citations, footnotes, or markdown links."
+    )
+
+    try:
+        response = await client.responses.create(
+            model=MODEL,
+            instructions=instructions,
+            input=f"Write the narration for this piece:\n\n{facts_str}",
+            temperature=0.8,
+            max_output_tokens=4096,
+        )
+
+        narration = None
+        try:
+            narration = response.output_text
+        except Exception:
+            pass
+
+        if not narration and response.output:
+            text_parts = []
+            for item in response.output:
+                if getattr(item, "type", None) == "message":
+                    for part in getattr(item, "content", []):
+                        if getattr(part, "text", None):
+                            text_parts.append(part.text)
+            if text_parts:
+                narration = " ".join(text_parts)
+
+        if narration:
+            narration = _strip_citations(narration)
+
+        if not narration or len(narration) < 20:
+            logger.warning(f"OpenAI returned empty or too-short museum narration for {object_facts['title']}")
+            return None
+
+        return narration
+
+    except Exception as e:
+        logger.error(f"Museum narration generation failed for {object_facts['title']}: {e}")
+        return None
+
+
 def _pick_opener_category(used_openers: list) -> tuple:
     """
     Shuffle-bag pick: don't repeat any opener category until all of them

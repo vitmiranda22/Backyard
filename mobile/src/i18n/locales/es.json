@@ -103,6 +103,7 @@
     "pickYourStory": "Elige tu historia",
     "startWalkingTour": "Comenzar recorrido",
     "notYetRated": "Aún sin calificar. Toca el marcador para ver la ruta, toca la tarjeta para más detalles",
+    "museumTourCallout": "Toca para comenzar el recorrido del museo",
     "end": "Finalizar",
     "couldntLoadRoutes": "No se pudieron cargar las rutas cercanas.",
     "explore": "Explorar",
@@ -514,5 +515,12 @@
     "distanceAway": "A {{distance}}",
     "closeA11y": "Cerrar detalles del evento",
     "close": "Cerrar"
+  },
+  "museumTour": {
+    "progress": "{{current}} de {{total}}",
+    "next": "Siguiente",
+    "previous": "Anterior",
+    "exitA11y": "Salir del recorrido del museo",
+    "failedToLoad": "No se pudo cargar este recorrido."
   }
 }

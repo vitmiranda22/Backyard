@@ -103,6 +103,7 @@
     "pickYourStory": "Pick your story",
     "startWalkingTour": "Start Walking Tour",
     "notYetRated": "Not yet rated. Tap the marker to see the path, tap the card for details",
+    "museumTourCallout": "Tap to start the museum tour",
     "end": "End",
     "couldntLoadRoutes": "Couldn't load nearby routes.",
     "explore": "Explore",
@@ -514,5 +515,12 @@
     "distanceAway": "{{distance}} away",
     "closeA11y": "Close event details",
     "close": "Close"
+  },
+  "museumTour": {
+    "progress": "{{current}} of {{total}}",
+    "next": "Next",
+    "previous": "Previous",
+    "exitA11y": "Exit museum tour",
+    "failedToLoad": "Couldn't load this tour."
   }
 }

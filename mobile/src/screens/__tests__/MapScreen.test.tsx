@@ -49,6 +49,32 @@ const EVENT = {
   phase: "happening",
 };
 
+const MUSEUM_TOUR = {
+  tour_id: "museum-tour-1",
+  title: "The Metropolitan Museum of Art",
+  mood: "time_machine",
+  tour_type: "museum",
+  city: "New York",
+  avg_rating: 0,
+  rating_count: 0,
+  blocks_visited: 10,
+  total_distance_m: null,
+  duration_sec: null,
+  is_anonymous: false,
+  content_safety_on: false,
+  creator_display_name: null,
+  creator_avatar_url: null,
+  distance_m: 5,
+  created_at: new Date().toISOString(),
+  lat: 40.7794,
+  lng: -73.9632,
+  is_low_info: false,
+};
+
+function defaultProps(overrides: Partial<React.ComponentProps<typeof MapScreen>> = {}) {
+  return { onSelectRoute: jest.fn(), onSelectMuseumTour: jest.fn(), onBack: jest.fn(), ...overrides };
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockRequestLocationPermission.mockResolvedValue(true);
@@ -59,7 +85,7 @@ beforeEach(() => {
 
 describe("MapScreen", () => {
   it("fetches nearby events alongside nearby routes once location is available", async () => {
-    render(<MapScreen onSelectRoute={jest.fn()} onBack={jest.fn()} />);
+    render(<MapScreen {...defaultProps()} />);
 
     await waitFor(() => {
       expect(mockGetNearbyEvents).toHaveBeenCalledWith(37.7749, -122.4194);
@@ -69,7 +95,7 @@ describe("MapScreen", () => {
   it("does not blow up when getNearbyEvents fails -- events are a quiet bonus layer", async () => {
     mockGetNearbyEvents.mockRejectedValue(new Error("network down"));
 
-    const { queryByText } = await render(<MapScreen onSelectRoute={jest.fn()} onBack={jest.fn()} />);
+    const { queryByText } = await render(<MapScreen {...defaultProps()} />);
 
     await waitFor(() => expect(mockGetNearbyEvents).toHaveBeenCalled());
     // No toast, no crash -- just quietly renders with zero event pins.
@@ -79,7 +105,7 @@ describe("MapScreen", () => {
   it("opens the event detail sheet when an event pin is pressed", async () => {
     mockGetNearbyEvents.mockResolvedValue([EVENT]);
 
-    const { findByTestId, findByText } = await render(<MapScreen onSelectRoute={jest.fn()} onBack={jest.fn()} />);
+    const { findByTestId, findByText } = await render(<MapScreen {...defaultProps()} />);
 
     await waitFor(() => expect(mockGetNearbyEvents).toHaveBeenCalled());
 
@@ -87,5 +113,31 @@ describe("MapScreen", () => {
     fireEvent(pin, "press");
 
     expect(await findByText("event-sheet-open: Sunset Street Festival")).toBeTruthy();
+  });
+
+  it("fetches nearby museum tours via a dedicated tourType-filtered call", async () => {
+    render(<MapScreen {...defaultProps()} />);
+
+    await waitFor(() => {
+      expect(mockGetNearbyRoutes).toHaveBeenCalledWith(
+        37.7749,
+        -122.4194,
+        expect.objectContaining({ tourType: "museum" })
+      );
+    });
+  });
+
+  it("renders a museum pin and routes its callout tap through onSelectMuseumTour", async () => {
+    mockGetNearbyRoutes.mockImplementation((lat: number, lng: number, opts?: any) =>
+      Promise.resolve(opts?.tourType === "museum" ? [MUSEUM_TOUR] : [])
+    );
+    const onSelectMuseumTour = jest.fn();
+
+    const { findByTestId } = await render(<MapScreen {...defaultProps({ onSelectMuseumTour })} />);
+
+    const pin = await findByTestId("museum-marker-museum-tour-1");
+    fireEvent(pin, "calloutPress");
+
+    expect(onSelectMuseumTour).toHaveBeenCalledWith("museum-tour-1");
   });
 });

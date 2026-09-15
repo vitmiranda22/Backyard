@@ -44,32 +44,39 @@ header.site-header {
   border-bottom: 1px solid var(--field-border);
   background: var(--parchment-bg);
 }
+/* Grid, not flex+matching-widths -- a 3-column grid can never let the
+   nav and logo overlap regardless of how wide either one is, unlike
+   the old flex approach which relied on a spacer div's width manually
+   matching the nav's width to fake centering. */
 header.site-header .header-inner {
   max-width: 1400px;
   margin: 0 auto;
   padding: 16px 40px;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
+  gap: 16px;
 }
 header.site-header .header-spacer {
-  width: 140px;
+  display: none;
 }
 header.site-header img.logo {
+  grid-column: 2;
   width: 360px;
   height: auto;
   display: block;
   margin: 0 auto;
 }
 header.site-header nav.auth-nav {
+  grid-column: 3;
   display: flex;
-  gap: 16px;
+  gap: 22px;
   align-items: center;
   font-family: "Work Sans", sans-serif;
-  font-size: 14px;
+  font-weight: 600;
+  font-size: 19px;
   white-space: nowrap;
-  width: 140px;
-  justify-content: flex-end;
+  justify-self: end;
 }
 header.site-header nav.auth-nav a {
   text-decoration: none;
@@ -78,13 +85,18 @@ header.site-header nav.auth-nav a {
 header.site-header nav.auth-nav a.signup-link {
   background: var(--ink);
   color: var(--parchment-surface);
-  padding: 8px 16px;
-  border-radius: 8px;
+  padding: 12px 22px;
+  border-radius: 10px;
 }
-@media (max-width: 560px) {
-  header.site-header .header-inner { flex-direction: column; gap: 10px; padding: 16px; }
-  header.site-header .header-spacer { display: none; }
-  header.site-header nav.auth-nav { width: auto; }
+@media (max-width: 720px) {
+  header.site-header .header-inner {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 10px;
+    padding: 16px;
+  }
+  header.site-header img.logo { grid-column: 1; width: 220px; }
+  header.site-header nav.auth-nav { grid-column: 1; justify-self: center; flex-wrap: wrap; justify-content: center; }
 }
 
 /* Auth pages (login / signup / account) */

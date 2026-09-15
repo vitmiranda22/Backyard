@@ -14,11 +14,11 @@ Backyard is a mobile app (iOS) in the Travel/Navigation category. It is free to 
 
 ## Pages
 
-- [Home](https://backyard-marketing.onrender.com/): overview, moods, features, screenshots
-- [About](https://backyard-marketing.onrender.com/about.html): why Backyard exists
-- [Events](https://backyard-marketing.onrender.com/events.html): a coming-soon feature, a live map of runs, parades, and festivals worldwide with event-tied narration
-- [FAQ](https://backyard-marketing.onrender.com/faq.html): common questions about narration, moods, pricing, and privacy
-- [Press Kit](https://backyard-marketing.onrender.com/press.html): boilerplate copy, quick facts, logo and screenshot downloads
+- [Home](https://backyardexplorer.org/): overview, moods, features, screenshots
+- [About](https://backyardexplorer.org/about.html): why Backyard exists
+- [Events](https://backyardexplorer.org/events.html): a coming-soon feature, a live map of runs, parades, and festivals worldwide with event-tied narration
+- [FAQ](https://backyardexplorer.org/faq.html): common questions about narration, moods, pricing, and privacy
+- [Press Kit](https://backyardexplorer.org/press.html): boilerplate copy, quick facts, logo and screenshot downloads
 - [Privacy Policy](https://backyard-api.onrender.com/privacy)
 - [Terms of Service](https://backyard-api.onrender.com/terms)
 - [Support](https://backyard-api.onrender.com/support)

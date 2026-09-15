@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /account.html
 
-Sitemap: https://backyard-marketing.onrender.com/sitemap.xml
+Sitemap: https://backyardexplorer.org/sitemap.xml

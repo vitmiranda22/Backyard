@@ -102,6 +102,7 @@ async def generate_narration(
     zone_data: str = None,
     skip_web_search: bool = False,
     is_premium: bool = True,
+    event_context: dict = None,
 ) -> str:
     """
     Generate a narration for a specific location and mood.
@@ -123,6 +124,10 @@ async def generate_narration(
             word length, real cost savings either way. Defaults to True
             so any caller that doesn't pass this explicitly keeps the
             (now-shorter-than-original) premium length.
+        event_context: {"name", "category", "phase", "description"} when
+            this block is inside an active Backyard Events zone, passed
+            straight through to build_prompt() — see narrate.py and
+            app/core/prompts.py's build_event_context_block().
 
     Returns:
         The narration text (120-150 words for premium, 90-115 for free,
@@ -141,6 +146,7 @@ async def generate_narration(
         closer_move=closer_move,
         zone_data=zone_data,
         is_premium=is_premium,
+        event_context=event_context,
     )
 
     duration_phrase = "45-60 seconds" if is_premium else "35-45 seconds"

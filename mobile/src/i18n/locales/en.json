@@ -497,5 +497,22 @@
   "notifications": {
     "unfinishedTourTitle": "Still out there?",
     "unfinishedTourBody": "Come back and finish your walking tour when you're ready."
+  },
+  "events": {
+    "category": {
+      "run": "Run",
+      "parade": "Parade",
+      "festival": "Festival",
+      "market": "Market",
+      "community": "Community",
+      "other": "Event"
+    },
+    "phaseStartsIn": "Starts in {{time}}",
+    "phaseHappeningNow": "Happening now",
+    "phaseEndedAgo": "Ended {{time}} ago",
+    "noDescription": "No description yet for this event.",
+    "distanceAway": "{{distance}} away",
+    "closeA11y": "Close event details",
+    "close": "Close"
   }
 }

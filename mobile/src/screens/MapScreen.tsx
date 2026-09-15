@@ -12,10 +12,16 @@ import {
   requestLocationPermission,
   getCurrentLocation,
 } from "../services/location";
-import { getNearbyRoutes, getTourDetail, NearbyRoute } from "../services/api";
+import { getNearbyRoutes, getTourDetail, getNearbyEvents, NearbyRoute, NearbyEvent } from "../services/api";
 import { colors, font, radius, type } from "../theme";
 import { showToast } from "../services/toast";
 import { MOOD_ICONS, FALLBACK_MOOD_ICON } from "../services/moods";
+import EventDetailSheet from "../components/EventDetailSheet";
+
+// No per-category (run/parade/festival/...) icon art exists yet -- one
+// shared calendar glyph for every event pin, same as fallback_route.png
+// covers every tour pin whose mood icon is missing.
+const EVENT_ICON = require("../../assets/icons/calendar.png");
 
 interface MapScreenProps {
   onSelectRoute: (tourId: string) => void;
@@ -28,6 +34,8 @@ export default function MapScreen({ onSelectRoute, onBack }: MapScreenProps) {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [hasPermission, setHasPermission] = useState(false);
   const [nearbyRoutes, setNearbyRoutes] = useState<NearbyRoute[]>([]);
+  const [nearbyEvents, setNearbyEvents] = useState<NearbyEvent[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<NearbyEvent | null>(null);
 
   // The full walked path of whichever pin was last tapped, drawn directly
   // on this map. Fetched on demand (nearby-route pins only carry a single
@@ -70,6 +78,12 @@ export default function MapScreen({ onSelectRoute, onBack }: MapScreenProps) {
               console.warn("Failed to load nearby routes:", e.message);
               showToast(t("home.couldntLoadRoutes"));
             });
+          // Deliberately quiet on failure, same as tours above but without
+          // even a toast -- event pins are a bonus layer on the map, not
+          // the primary reason someone opened this screen.
+          getNearbyEvents(loc.lat, loc.lng)
+            .then(setNearbyEvents)
+            .catch((e) => console.warn("Failed to load nearby events:", e.message));
         } catch (e) {
           console.error("Failed to get location:", e);
         }
@@ -151,6 +165,37 @@ export default function MapScreen({ onSelectRoute, onBack }: MapScreenProps) {
               />
             </>
           )}
+
+          {/* Backyard Events zones -- rust-accent tint under each pin so
+              an event's real geographic footprint reads on the map, not
+              just a point. Drawn before the pins so it sits underneath. */}
+          {nearbyEvents.map((event) => (
+            <Circle
+              key={`${event.id}-zone`}
+              center={{ latitude: event.center_lat, longitude: event.center_lng }}
+              radius={event.radius_m}
+              fillColor="rgba(255, 107, 74, 0.14)"
+              strokeColor="rgba(255, 107, 74, 0.45)"
+              strokeWidth={1}
+            />
+          ))}
+
+          {nearbyEvents.map((event) => (
+            <Marker
+              key={event.id}
+              testID={`event-marker-${event.id}`}
+              coordinate={{ latitude: event.center_lat, longitude: event.center_lng }}
+              title={event.name}
+              description={t(`events.category.${event.category}`)}
+              onPress={() => setSelectedEvent(event)}
+              onCalloutPress={() => setSelectedEvent(event)}
+              tracksViewChanges={false}
+            >
+              <View style={styles.eventPin}>
+                <Image source={EVENT_ICON} style={styles.eventPinIcon} resizeMode="contain" />
+              </View>
+            </Marker>
+          ))}
         </MapView>
       ) : (
         <View style={styles.mapPlaceholder}>
@@ -168,6 +213,13 @@ export default function MapScreen({ onSelectRoute, onBack }: MapScreenProps) {
       >
         <Text style={styles.backBtnText}>‹ {t("common.back")}</Text>
       </TouchableOpacity>
+
+      <EventDetailSheet
+        event={selectedEvent}
+        visible={selectedEvent !== null}
+        onClose={() => setSelectedEvent(null)}
+        userLocation={location}
+      />
     </View>
   );
 }
@@ -232,6 +284,26 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "800",
     color: "#fff",
+  },
+  eventPin: {
+    width: 36,
+    height: 36,
+    borderRadius: 20,
+    backgroundColor: colors.accent,
+    borderWidth: 2,
+    borderColor: colors.parchmentSurface,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  eventPinIcon: {
+    width: 18,
+    height: 18,
+    tintColor: colors.accentText,
   },
   backBtn: {
     position: "absolute",

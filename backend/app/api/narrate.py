@@ -50,8 +50,10 @@ from app.models.schemas import (
     ZoneDataUsed,
     Mood,
     Voice,
+    EventContextSummary,
 )
 from app.services import geocode, openai_service, tts, r2, supabase_db, streetview
+from app.services.events import compute_event_phase
 from app.services.zone_data import (
     fetch_all_zone_data,
     format_zone_data_for_prompt,
@@ -204,10 +206,29 @@ async def narrate_block(
     # sequential await further down) -- neither has any data dependency on
     # the other, so there's no reason to pay for both round trips back to
     # back instead of concurrently.
-    cached_zone, geo_result = await asyncio.gather(
+    cached_zone, geo_result, active_event = await asyncio.gather(
         supabase_db.get_cached_zone_data(geo_hash),
         geocode.reverse_geocode(request.lat, request.lng),
+        supabase_db.get_active_event_near_point(request.lat, request.lng),
     )
+
+    # Premium fallback (Backyard Events): event-themed narration is a
+    # premium perk. Discarding it here, once, before anything downstream
+    # touches it, means the cache bypass, prompt injection, and response
+    # field below all naturally no-op for a free user standing in an
+    # active event's zone — they just get normal narration, never an
+    # error or a blocked walk.
+    if active_event and not is_premium:
+        active_event = None
+
+    event_context = None
+    if active_event:
+        event_context = {
+            "name": active_event["name"],
+            "category": active_event["category"],
+            "phase": compute_event_phase(active_event),
+            "description": active_event.get("description", ""),
+        }
 
     # Available whenever cached_zone has a row, regardless of whether
     # narration itself is a cache hit or miss below -- suggested_next
@@ -232,12 +253,19 @@ async def narrate_block(
     )
 
     # --- Step 2: Check narration cache ---
+    # Skipped entirely when an event is active (event_context set): that
+    # text is only correct for the event's current phase, so it can never
+    # be read from (or, further below, written into) the shared per-
+    # geohash+mood+safety slot every other walker relies on.
     cache_mood = _cache_mood_key(request.mood.value, is_premium)
-    cached_narration, existing_variant_count = await supabase_db.get_cached_narration(
-        geo_hash=geo_hash,
-        mood=cache_mood,
-        content_safety=request.content_safety,
-    )
+    cached_narration = None
+    existing_variant_count = 0
+    if not event_context:
+        cached_narration, existing_variant_count = await supabase_db.get_cached_narration(
+            geo_hash=geo_hash,
+            mood=cache_mood,
+            content_safety=request.content_safety,
+        )
 
     narration_text = None
     narration_cache_id = None
@@ -352,6 +380,7 @@ async def narrate_block(
             zone_data=zone_data_str,
             skip_web_search=should_skip_web_search(zone_hit_count, zone_eligible_count),
             is_premium=is_premium,
+            event_context=event_context,
         )
 
         if narration_text is None:
@@ -371,17 +400,21 @@ async def narrate_block(
         if is_premium:
             highlights = find_wikipedia_highlights(narration_text, raw_data)
 
-        # Cache the narration as the next free variant slot
-        stored = await supabase_db.store_narration(
-            geo_hash=geo_hash,
-            mood=cache_mood,
-            content_safety=request.content_safety,
-            narration_text=narration_text,
-            highlights=highlights,
-            variant_index=existing_variant_count,
-        )
-        if stored:
-            narration_cache_id = stored["id"]
+        # Cache the narration as the next free variant slot — skipped when
+        # event-themed (event_context set), see the Step 2 comment above:
+        # this text would poison the shared slot for every non-event
+        # walker (and this same zone once the event ends).
+        if not event_context:
+            stored = await supabase_db.store_narration(
+                geo_hash=geo_hash,
+                mood=cache_mood,
+                content_safety=request.content_safety,
+                narration_text=narration_text,
+                highlights=highlights,
+                variant_index=existing_variant_count,
+            )
+            if stored:
+                narration_cache_id = stored["id"]
 
     # --- Step 6.5: Cross-block narrative continuity (only within an active tour) ---
     # The core narration_text above is untouched and stays fully cacheable —
@@ -543,6 +576,11 @@ async def narrate_block(
         cached=was_cached,
         zone_data_used=zone_data_used,
         highlights=highlights,
+        event=EventContextSummary(
+            name=event_context["name"],
+            category=event_context["category"],
+            phase=event_context["phase"],
+        ) if event_context else None,
     )
 
 

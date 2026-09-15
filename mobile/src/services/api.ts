@@ -118,6 +118,11 @@ export interface NarrationResponse {
   // actual wording — empty for free users. See backend's
   // zone_data.find_wikipedia_highlights.
   highlights: NarrationHighlight[];
+  // Set only when this block fell inside an active Backyard Events zone
+  // AND the caller is premium — null for everyone else, including a free
+  // user standing in an active zone (graceful fallback to normal
+  // narration on the backend, not an error). See backend narrate.py.
+  event: { name: string; category: string; phase: "upcoming" | "happening" | "ended" } | null;
 }
 
 export async function narrateBlock(
@@ -441,6 +446,41 @@ export async function getNearbyRoutes(
   if (opts?.mood) params.set("mood", opts.mood);
   if (opts?.tourType) params.set("tour_type", opts.tourType);
   return authFetch(`/routes/nearby?${params.toString()}`);
+}
+
+// =============================================================================
+// Backyard Events — map pins for real-world runs/parades/festivals
+// =============================================================================
+
+export interface NearbyEvent {
+  id: string;
+  name: string;
+  description: string;
+  category: "run" | "parade" | "festival" | "market" | "community" | "other";
+  city: string | null;
+  center_lat: number;
+  center_lng: number;
+  radius_m: number;
+  start_time: string;
+  end_time: string;
+  source_url: string | null;
+  distance_m: number | null;
+  phase: "upcoming" | "happening" | "ended";
+}
+
+export async function getNearbyEvents(
+  lat: number,
+  lng: number,
+  opts?: { radiusM?: number; category?: string; limit?: number }
+): Promise<NearbyEvent[]> {
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lng: String(lng),
+    radius_m: String(opts?.radiusM ?? 5000),
+    limit: String(opts?.limit ?? 50),
+  });
+  if (opts?.category) params.set("category", opts.category);
+  return authFetch(`/events/nearby?${params.toString()}`);
 }
 
 export interface RateTourResponse {

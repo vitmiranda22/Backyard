@@ -108,6 +108,16 @@ class Settings(BaseSettings):
     CENSUS_API_KEY: str = ""
 
     # -------------------------------------------------------------------------
+    # PredictHQ (real-world events: runs, parades, festivals) — powers
+    # backend/scripts/sync_events.py, which populates the `events` table
+    # (see migrations/025_events.sql). Free plan from predicthq.com. Not
+    # read by any request-serving endpoint directly — only the sync script
+    # needs this, narrate.py and the /events endpoints just read the table
+    # the script already populated.
+    # -------------------------------------------------------------------------
+    PREDICTHQ_API_KEY: str = ""
+
+    # -------------------------------------------------------------------------
     # Rate limiting
     # -------------------------------------------------------------------------
     # Tiered by premium status, and now sized to exactly match the real

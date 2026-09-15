@@ -672,6 +672,58 @@ gleeful, tense, gossipy, or opinionated, whichever one applies — not like this
 neutral example.
 """
 
+# =============================================================================
+# Event context section (appended when the block is inside an active
+# Backyard Events zone — see app/services/events.py and narrate.py).
+# Deliberately overrides the normal zone-data framing rather than just
+# adding to it: the whole point of standing in an event's zone is that
+# the event IS the story right now, not the block's ordinary history.
+# =============================================================================
+
+_EVENT_CONTEXT_SECTION = """
+=== ACTIVE EVENT OVERRIDE ===
+The listener is physically inside the zone for a real event: "{event_name}"
+({event_category}), which is {phase_label}. {event_description}
+
+Everything you write for this block MUST be framed around this event —
+override the normal historical/local-color angle entirely. Do not narrate
+this spot's history as if it were an ordinary walk.
+{phase_instruction}
+=== END EVENT OVERRIDE ===
+"""
+
+_EVENT_PHASE_COPY = {
+    "upcoming": (
+        "about to start",
+        "Build anticipation — describe what's about to happen here, not what already happened.",
+    ),
+    "happening": (
+        "happening right now",
+        "Narrate it as unfolding in real time around the listener.",
+    ),
+    "ended": (
+        "recently wrapped up",
+        "Frame this in the immediate afterglow — what just happened here, not history from decades ago.",
+    ),
+}
+
+
+def build_event_context_block(event_name: str, event_category: str, phase: str, description: str = "") -> str:
+    """
+    Render the event-override block for a given event + phase ("upcoming",
+    "happening", or "ended" — see events.compute_event_phase). Falls back
+    to the "happening" framing for any unrecognized phase value rather
+    than raising, since a malformed phase shouldn't take down narration.
+    """
+    phase_label, phase_instruction = _EVENT_PHASE_COPY.get(phase, _EVENT_PHASE_COPY["happening"])
+    return _EVENT_CONTEXT_SECTION.format(
+        event_name=event_name,
+        event_category=event_category,
+        phase_label=phase_label,
+        event_description=description,
+        phase_instruction=phase_instruction,
+    )
+
 
 # =============================================================================
 # Connector — stitches a block onto the tour's running story (cheap, tour-scoped)
@@ -767,6 +819,7 @@ def build_prompt(
     closer_move: str,
     zone_data: str = None,
     is_premium: bool = True,
+    event_context: dict = None,
 ) -> str:
     """
     Build the complete system prompt for the narration model.
@@ -792,6 +845,11 @@ def build_prompt(
             still applies to both, just compressed; defaults to True so
             any caller that doesn't pass this explicitly keeps the
             (now-shorter-than-original) premium length.
+        event_context: {"name", "category", "phase", "description"} when
+            this block is inside an active Backyard Events zone (premium
+            only — see narrate.py's graceful-fallback-for-free-users
+            check), else None. Overrides the normal zone-data framing,
+            not additive to it — see build_event_context_block().
 
     Returns:
         Complete system prompt string.
@@ -831,6 +889,14 @@ def build_prompt(
 
     if zone_data:
         parts.append(_ZONE_DATA_SECTION.format(zone_data=zone_data))
+
+    if event_context:
+        parts.append(build_event_context_block(
+            event_context["name"],
+            event_context["category"],
+            event_context["phase"],
+            event_context.get("description", ""),
+        ))
 
     # The zone-data rules above are dense and accuracy-focused, and they're
     # the last thing before generation — in testing, that recency pulled

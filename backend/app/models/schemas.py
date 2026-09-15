@@ -104,6 +104,18 @@ class WikipediaHighlight(BaseModel):
     url: str
 
 
+class EventContextSummary(BaseModel):
+    """
+    Populated on a NarrateBlockResponse only when the block's coordinates
+    fell inside an active event zone AND the caller is premium (see
+    narrate.py's graceful-fallback-for-free-users behavior) -- lets the
+    mobile client badge event-themed narration without a second lookup.
+    """
+    name: str
+    category: str
+    phase: str
+
+
 class NarrateBlockResponse(BaseModel):
     """Response from /api/narrate-block"""
     street_name: str
@@ -121,6 +133,11 @@ class NarrateBlockResponse(BaseModel):
     zone_data_used: Optional[ZoneDataUsed] = None
     # Premium-only (see narrate.py) — always [] for free users, never null.
     highlights: List[WikipediaHighlight] = Field(default_factory=list)
+    # Premium-only, and only set when the block was inside an active event
+    # zone (see app/services/events.py + narrate.py) — null for everyone
+    # else, including a free user standing in an active zone (graceful
+    # fallback to normal narration, not an error).
+    event: Optional[EventContextSummary] = None
 
 
 class AskQuestionResponse(BaseModel):
@@ -303,6 +320,39 @@ class NearbyRouteSummary(BaseModel):
     lat: float
     lng: float
     is_low_info: bool = False
+
+
+# =============================================================================
+# Events (Backyard Events — real-world runs/parades/festivals)
+# =============================================================================
+
+class NearbyEventSummary(BaseModel):
+    """One entry in GET /api/events/nearby"""
+    id: str
+    name: str
+    # Included on the nearby-list response itself (not just the detail
+    # endpoint) so EventDetailSheet on mobile can render it straight off
+    # a map pin tap without a second round trip.
+    description: str = ""
+    category: str
+    city: Optional[str] = None
+    center_lat: float
+    center_lng: float
+    radius_m: int
+    start_time: str
+    end_time: str
+    source_url: Optional[str] = None
+    # Only set by GET /events/nearby (computed from the caller's lat/lng);
+    # null on GET /events/{id}, which has no caller location to measure from.
+    distance_m: Optional[float] = None
+    # "upcoming" | "happening" | "ended" -- computed server-side from
+    # start_time/end_time at request time, see app/services/events.py
+    phase: str
+
+
+class EventDetail(NearbyEventSummary):
+    """GET /api/events/{event_id}"""
+    source: str
 
 
 class RateTourRequest(BaseModel):

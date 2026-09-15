@@ -46,6 +46,7 @@ def _baseline_mocks(monkeypatch):
     monkeypatch.setattr(supabase_db, "get_cached_audio", _async(None))
     monkeypatch.setattr(supabase_db, "store_audio_file", _async(True))
     monkeypatch.setattr(supabase_db, "store_zone_image", _async(True))
+    monkeypatch.setattr(supabase_db, "get_active_event_near_point", _async(None))
 
     monkeypatch.setattr(geocode, "reverse_geocode", _async(GEO_RESULT))
 
@@ -330,5 +331,92 @@ def test_ordinary_account_still_gets_rate_limited(app, client, auth_as, monkeypa
     resp = client.post("/api/narrate-block", json=_request_body())
 
     assert resp.status_code == 429
+
+
+ACTIVE_EVENT = {
+    "id": "11111111-1111-1111-1111-111111111111",
+    "name": "Sunset Street Festival",
+    "description": "A neighborhood street festival with live music and food stalls.",
+    "category": "festival",
+    "start_time": "2020-01-01T00:00:00+00:00",  # in the past
+    "end_time": "2999-01-01T00:00:00+00:00",  # far future -> always "happening" in tests
+}
+
+
+def test_premium_user_in_active_event_zone_gets_event_themed_narration(app, client, auth_as, monkeypatch):
+    """
+    The core Backyard Events behavior: a premium user standing in an
+    active event's zone gets event_context threaded into generate_narration,
+    the narration cache is bypassed entirely (both read and write), and the
+    response's `event` field reflects the event + its phase.
+    """
+    monkeypatch.setattr(supabase_db, "get_user_premium_status", _async(True))
+    monkeypatch.setattr(supabase_db, "get_active_event_near_point", _async(ACTIVE_EVENT))
+
+    cache_read_called = []
+    async def _track_cache_read(**kwargs):
+        cache_read_called.append(kwargs)
+        return (None, 0)
+    monkeypatch.setattr(supabase_db, "get_cached_narration", _track_cache_read)
+
+    cache_write_called = []
+    async def _track_cache_write(**kwargs):
+        cache_write_called.append(kwargs)
+        return {"id": "should-not-be-stored"}
+    monkeypatch.setattr(supabase_db, "store_narration", _track_cache_write)
+
+    captured = {}
+    async def _track_generate(**kwargs):
+        captured.update(kwargs)
+        return "Event-themed narration text."
+    monkeypatch.setattr(openai_service, "generate_narration", _track_generate)
+
+    auth_as(app, USER_ID)
+    resp = client.post("/api/narrate-block", json=_request_body())
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["narration_text"] == "Event-themed narration text."
+    assert body["event"] == {"name": "Sunset Street Festival", "category": "festival", "phase": "happening"}
+
+    assert cache_read_called == []
+    assert cache_write_called == []
+
+    assert captured["event_context"]["name"] == "Sunset Street Festival"
+    assert captured["event_context"]["phase"] == "happening"
+
+
+def test_free_user_in_active_event_zone_gets_normal_narration_not_error(app, client, auth_as, monkeypatch):
+    """
+    The premium-fallback guarantee: a free user standing in the exact same
+    active event zone gets a smooth, normal walk -- event_context never
+    reaches generate_narration, the narration cache is used as usual, and
+    the response's `event` field is null. Never a 403, never a broken walk.
+    """
+    monkeypatch.setattr(supabase_db, "get_user_premium_status", _async(False))
+    monkeypatch.setattr(supabase_db, "get_active_event_near_point", _async(ACTIVE_EVENT))
+
+    cache_read_called = []
+    async def _track_cache_read(**kwargs):
+        cache_read_called.append(kwargs)
+        return (None, 0)
+    monkeypatch.setattr(supabase_db, "get_cached_narration", _track_cache_read)
+
+    captured = {}
+    async def _track_generate(**kwargs):
+        captured.update(kwargs)
+        return "Generated narration text."
+    monkeypatch.setattr(openai_service, "generate_narration", _track_generate)
+
+    auth_as(app, USER_ID)
+    resp = client.post("/api/narrate-block", json=_request_body())
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["narration_text"] == "Generated narration text."
+    assert body["event"] is None
+
+    assert len(cache_read_called) == 1  # normal cache path, not bypassed
+    assert captured["event_context"] is None
 
 

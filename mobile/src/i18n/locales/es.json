@@ -497,5 +497,22 @@
   "notifications": {
     "unfinishedTourTitle": "¿Sigues por ahí?",
     "unfinishedTourBody": "Vuelve y termina tu recorrido a pie cuando estés listo."
+  },
+  "events": {
+    "category": {
+      "run": "Carrera",
+      "parade": "Desfile",
+      "festival": "Festival",
+      "market": "Mercado",
+      "community": "Comunidad",
+      "other": "Evento"
+    },
+    "phaseStartsIn": "Comienza en {{time}}",
+    "phaseHappeningNow": "Sucediendo ahora",
+    "phaseEndedAgo": "Terminó hace {{time}}",
+    "noDescription": "Todavía no hay descripción para este evento.",
+    "distanceAway": "A {{distance}}",
+    "closeA11y": "Cerrar detalles del evento",
+    "close": "Cerrar"
   }
 }

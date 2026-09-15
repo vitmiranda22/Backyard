@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign In — Backyard</title>
+<meta name="description" content="Sign in to your Backyard account to see your tours and profile.">
+<link rel="icon" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-spacer"></div>
+    <a href="index.html"><img class="logo" src="assets/logo.png" alt="Backyard logo, a wood sign with a compass rose"></a>
+    <nav class="auth-nav">
+      <a href="about.html">About</a>
+      <a href="events.html">Events</a>
+      <a href="login.html">Sign In</a>
+      <a class="signup-link" href="signup.html">Create Account</a>
+    </nav>
+  </div>
+</header>
+
+<section class="auth-section">
+  <div class="wrap-narrow">
+    <h1 class="font-cursive auth-title">Sign In</h1>
+
+    <form id="login-form" class="auth-form">
+      <label for="email">Email</label>
+      <input type="email" id="email" required autocomplete="email">
+
+      <label for="password">Password</label>
+      <input type="password" id="password" required autocomplete="current-password">
+
+      <p id="error" class="auth-error" hidden></p>
+
+      <button type="submit" class="cta-button auth-submit">Sign In</button>
+    </form>
+
+    <p class="auth-footnote">
+      New here? <a href="signup.html">Create an account</a>.
+    </p>
+    <p class="auth-footnote">
+      <a href="#" id="forgot-link">Forgot your password?</a>
+    </p>
+    <p class="auth-footnote auth-small">
+      Sign in with the email and password you used to create your account.
+      If you signed up with Apple or Google in the app, use "Forgot your
+      password?" to set one for the web, or use the app instead.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="https://backyard-api.onrender.com/privacy">Privacy</a>
+    <a href="https://backyard-api.onrender.com/terms">Terms</a>
+    <a href="https://backyard-api.onrender.com/support">Support</a>
+  </nav>
+  © 2026 Vlai
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
+<script src="js/supabase-client.js"></script>
+<script>
+  (async () => {
+    const existing = await backyardGetSession();
+    if (existing) window.location.href = "account.html";
+  })();
+
+  const form = document.getElementById("login-form");
+  const errorEl = document.getElementById("error");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    errorEl.hidden = true;
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    try {
+      await backyardSignIn(email, password);
+      window.location.href = "account.html";
+    } catch (err) {
+      errorEl.textContent = err.message || "Couldn't sign in. Check your email and password.";
+      errorEl.hidden = false;
+    }
+  });
+
+  document.getElementById("forgot-link").addEventListener("click", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("email").value.trim();
+    if (!email) {
+      errorEl.textContent = "Enter your email above first, then click \"Forgot your password?\" again.";
+      errorEl.hidden = false;
+      return;
+    }
+    try {
+      await backyardSupabase.auth.resetPasswordForEmail(email);
+      errorEl.textContent = "If an account exists for that address, a reset link is on its way.";
+      errorEl.hidden = false;
+    } catch (err) {
+      errorEl.textContent = err.message || "Couldn't send the reset email.";
+      errorEl.hidden = false;
+    }
+  });
+</script>
+
+</body>
+</html>

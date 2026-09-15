@@ -1,0 +1,24 @@
+# Backyard
+
+> Backyard turns any walk into a story. Wherever you are, a talking tree guide narrates real, fact-checked history and hidden stories about the exact block you're standing on, triggered automatically as you walk. No planning, no searching, just walk and listen. Pick from five moods to hear the same streets told five different ways, from lighthearted local color to true crime and dark history.
+
+Backyard is a mobile app (iOS) in the Travel/Navigation category. It is free to download, with an optional Backyard Explorer subscription that unlocks additional narration moods, voices, a higher daily story limit, and the ability to ask questions on a walk.
+
+## Key facts
+
+- Five narration moods: Time Machine, Hidden City, Dark Side, Behind the Scenes, Unfiltered
+- Every walk is saved to a journal with distance, duration, and per-stop narration
+- Users can discover and walk routes published by other explorers
+- An Exploration Log tracks tours completed, distance walked, cities visited, and badges earned
+- Narration is generated from real, fact-checked public history and location data
+
+## Pages
+
+- [Home](https://backyardapp.com/): overview, moods, features, screenshots
+- [About](https://backyardapp.com/about.html): why Backyard exists
+- [Events](https://backyardapp.com/events.html): a coming-soon feature, a live map of runs, parades, and festivals worldwide with event-tied narration
+- [FAQ](https://backyardapp.com/faq.html): common questions about narration, moods, pricing, and privacy
+- [Press Kit](https://backyardapp.com/press.html): boilerplate copy, quick facts, logo and screenshot downloads
+- [Privacy Policy](https://backyard-api.onrender.com/privacy)
+- [Terms of Service](https://backyard-api.onrender.com/terms)
+- [Support](https://backyard-api.onrender.com/support)

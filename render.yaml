@@ -1,5 +1,11 @@
 services:
   - type: web
+    name: backyard-marketing
+    runtime: static
+    buildCommand: echo "plain static HTML, no build step"
+    staticPublishPath: ./marketing/site
+
+  - type: web
     name: backyard-api
     runtime: docker
     dockerfilePath: backend/Dockerfile

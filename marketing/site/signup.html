@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Create an Account — Backyard</title>
+<meta name="description" content="Create a Backyard account to start walking, or see your existing tours and profile.">
+<link rel="icon" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-spacer"></div>
+    <a href="index.html"><img class="logo" src="assets/logo.png" alt="Backyard logo, a wood sign with a compass rose"></a>
+    <nav class="auth-nav">
+      <a href="about.html">About</a>
+      <a href="events.html">Events</a>
+      <a href="login.html">Sign In</a>
+      <a class="signup-link" href="signup.html">Create Account</a>
+    </nav>
+  </div>
+</header>
+
+<section class="auth-section">
+  <div class="wrap-narrow">
+    <h1 class="font-cursive auth-title">Create an Account</h1>
+
+    <form id="signup-form" class="auth-form">
+      <label for="fullName">Full name</label>
+      <input type="text" id="fullName" required autocomplete="name">
+
+      <label for="email">Email</label>
+      <input type="email" id="email" required autocomplete="email">
+
+      <label for="dob">Date of birth</label>
+      <input type="date" id="dob" required autocomplete="bday">
+
+      <label for="password">Password</label>
+      <input type="password" id="password" required autocomplete="new-password" minlength="6">
+      <p class="auth-hint">At least 6 characters</p>
+
+      <label for="confirmPassword">Confirm password</label>
+      <input type="password" id="confirmPassword" required autocomplete="new-password">
+
+      <label class="auth-checkbox">
+        <input type="checkbox" id="privacyAgree" required>
+        I agree to the <a href="https://backyard-api.onrender.com/privacy" target="_blank">Privacy Policy</a> and <a href="https://backyard-api.onrender.com/terms" target="_blank">Terms of Service</a>
+      </label>
+
+      <p id="error" class="auth-error" hidden></p>
+      <p id="success" class="auth-success" hidden></p>
+
+      <button type="submit" class="cta-button auth-submit">Create Account</button>
+    </form>
+
+    <p class="auth-footnote">
+      Already have an account? <a href="login.html">Sign in</a>.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="https://backyard-api.onrender.com/privacy">Privacy</a>
+    <a href="https://backyard-api.onrender.com/terms">Terms</a>
+    <a href="https://backyard-api.onrender.com/support">Support</a>
+  </nav>
+  © 2026 Vlai
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
+<script src="js/supabase-client.js"></script>
+<script>
+  (async () => {
+    const existing = await backyardGetSession();
+    if (existing) window.location.href = "account.html";
+  })();
+
+  const form = document.getElementById("signup-form");
+  const errorEl = document.getElementById("error");
+  const successEl = document.getElementById("success");
+
+  function calculateAge(dobStr) {
+    const dob = new Date(dobStr);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+    return age;
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    errorEl.hidden = true;
+    successEl.hidden = true;
+
+    const fullName = document.getElementById("fullName").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const dob = document.getElementById("dob").value;
+    const password = document.getElementById("password").value;
+    const confirmPassword = document.getElementById("confirmPassword").value;
+
+    if (password !== confirmPassword) {
+      errorEl.textContent = "Passwords don't match";
+      errorEl.hidden = false;
+      return;
+    }
+    if (calculateAge(dob) < 13) {
+      errorEl.textContent = "You must be at least 13 years old to create a Backyard account.";
+      errorEl.hidden = false;
+      return;
+    }
+
+    try {
+      const data = await backyardSignUp(email, password, fullName, dob);
+      if (data.session) {
+        window.location.href = "account.html";
+      } else {
+        successEl.textContent = "Account created! Check your email to confirm it, then sign in.";
+        successEl.hidden = false;
+        form.reset();
+      }
+    } catch (err) {
+      errorEl.textContent = err.message || "Sign up failed.";
+      errorEl.hidden = false;
+    }
+  });
+</script>
+
+</body>
+</html>

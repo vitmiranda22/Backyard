@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Account — Backyard</title>
+<meta name="description" content="Your Backyard profile, stats, and tours.">
+<link rel="icon" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html"><img class="logo" src="assets/logo.png" alt="Backyard logo, a wood sign with a compass rose"></a>
+  </div>
+</header>
+
+<section class="hero" style="padding-bottom: 16px;">
+  <div class="wrap">
+    <h1 id="greeting">My Account</h1>
+    <button id="signout" class="cta-button auth-signout">Sign Out</button>
+  </div>
+</section>
+
+<div id="loading" class="wrap" style="text-align:center; padding: 40px 0;">
+  <p class="font-serif-italic">Loading your account...</p>
+</div>
+
+<div id="content" hidden>
+
+<section>
+  <div class="wrap">
+    <h2>Profile</h2>
+    <table class="facts">
+      <tr><td>Name</td><td id="profile-name">—</td></tr>
+      <tr><td>Plan</td><td id="profile-plan">—</td></tr>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Exploration Log</h2>
+    <div class="stats-row">
+      <div class="stat-tile"><span id="stat-tours" class="stat-number">0</span><span class="stat-label">tours</span></div>
+      <div class="stat-tile"><span id="stat-km" class="stat-number">0</span><span class="stat-label">km walked</span></div>
+      <div class="stat-tile"><span id="stat-cities" class="stat-number">0</span><span class="stat-label">cities</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>My Tours</h2>
+    <div id="tours-list"></div>
+    <p id="no-tours" class="font-serif-italic" hidden>Your walks will show up here once you take one in the app.</p>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="https://backyard-api.onrender.com/privacy">Privacy</a>
+    <a href="https://backyard-api.onrender.com/terms">Terms</a>
+    <a href="https://backyard-api.onrender.com/support">Support</a>
+  </nav>
+  © 2026 Vlai
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
+<script src="js/supabase-client.js"></script>
+<script>
+  (async () => {
+    const session = await backyardGetSession();
+    if (!session) {
+      window.location.href = "login.html";
+      return;
+    }
+
+    try {
+      const [settings, stats, tours] = await Promise.all([
+        backyardApiFetch("/user/settings"),
+        backyardApiFetch("/user/stats"),
+        backyardApiFetch("/tours"),
+      ]);
+
+      document.getElementById("greeting").textContent = settings.display_name
+        ? "Welcome back, " + settings.display_name
+        : "My Account";
+      document.getElementById("profile-name").textContent = settings.display_name || "(no display name set)";
+      document.getElementById("profile-plan").textContent = settings.is_premium ? "Backyard Explorer" : "Free";
+
+      document.getElementById("stat-tours").textContent = stats.tours_completed;
+      document.getElementById("stat-km").textContent = (stats.total_distance_m / 1000).toFixed(1);
+      document.getElementById("stat-cities").textContent = stats.cities_visited;
+
+      const list = document.getElementById("tours-list");
+      if (tours.length === 0) {
+        document.getElementById("no-tours").hidden = false;
+      } else {
+        tours.forEach((t) => {
+          const card = document.createElement("div");
+          card.className = "tour-card";
+          const km = t.total_distance_m != null ? (t.total_distance_m / 1000).toFixed(1) + " km" : "";
+          const min = t.duration_sec ? Math.round(t.duration_sec / 60) + " min" : "";
+          const date = new Date(t.created_at).toLocaleDateString();
+          card.innerHTML =
+            "<h3>" + t.title + "</h3>" +
+            "<p class=\"font-sans tour-meta\">" + [t.city, km, min, date].filter(Boolean).join(" · ") + "</p>";
+          list.appendChild(card);
+        });
+      }
+
+      document.getElementById("loading").hidden = true;
+      document.getElementById("content").hidden = false;
+    } catch (err) {
+      document.getElementById("loading").innerHTML =
+        "<p class=\"auth-error\">Couldn't load your account: " + err.message + "</p>";
+    }
+  })();
+
+  document.getElementById("signout").addEventListener("click", async () => {
+    await backyardSignOut();
+    window.location.href = "index.html";
+  });
+</script>
+
+</body>
+</html>

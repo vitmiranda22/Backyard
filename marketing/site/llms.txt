@@ -1,14 +1,18 @@
 # Backyard
 
-> Backyard turns any walk into a story. Wherever you are, a talking tree guide narrates real, fact-checked history and hidden stories about the exact block you're standing on, triggered automatically as you walk. No planning, no searching, just walk and listen. Pick from five moods to hear the same streets told five different ways, from lighthearted local color to true crime and dark history.
+> Backyard turns any walk into a story. Wherever you are, a talking tree guide narrates real, fact-checked history and hidden stories about the exact block you're standing on, triggered automatically as you walk. No planning, no searching, just walk and listen. Pick from five moods to hear the same streets told five different ways, from lighthearted local color to true crime and dark history. The map itself starts hidden and only reveals the ground you've actually walked, and other explorers' published routes stay invisible until you've discovered that spot yourself.
 
 Backyard is a mobile app (iOS) in the Travel/Navigation category. It is free to download, with an optional Backyard Explorer subscription that unlocks additional narration moods, voices, a higher daily story limit, and the ability to ask questions on a walk.
 
 ## Key facts
 
 - Five narration moods: Time Machine, Hidden City, Dark Side, Behind the Scenes, Unfiltered
+- The map is a fog-of-war: it starts completely dark, and walking with the app open (or on an active tour) permanently reveals it, one real block at a time
+- Other explorers' published routes are invisible on the map until you've personally walked and revealed that location yourself
 - Every walk is saved to a journal with distance, duration, and per-stop narration
-- Users can discover and walk routes published by other explorers
+- Users can discover and walk routes published by other explorers, or publish their own
+- Backyard Events ties narration to real-world runs, parades, and festivals happening right now, sourced from live public event data
+- Museum Tours are fixed, tap-to-advance narrated tours through a real museum's own collection (starting with The Metropolitan Museum of Art), for when GPS can't be trusted indoors
 - An Exploration Log tracks tours completed, distance walked, cities visited, and badges earned
 - Narration is generated from real, fact-checked public history and location data
 
@@ -16,8 +20,8 @@ Backyard is a mobile app (iOS) in the Travel/Navigation category. It is free to 
 
 - [Home](https://backyardexplorer.org/): overview, moods, features, screenshots
 - [About](https://backyardexplorer.org/about.html): why Backyard exists
-- [Events](https://backyardexplorer.org/events.html): a coming-soon feature, a live map of runs, parades, and festivals worldwide with event-tied narration
-- [FAQ](https://backyardexplorer.org/faq.html): common questions about narration, moods, pricing, and privacy
+- [Events](https://backyardexplorer.org/events.html): live real-world runs, parades, and festivals worldwide, with event-tied narration and a map of the biggest events happening right now
+- [FAQ](https://backyardexplorer.org/faq.html): common questions about narration, moods, pricing, privacy, Events, Museum Tours, and the fog-of-war map
 - [Press Kit](https://backyardexplorer.org/press.html): boilerplate copy, quick facts, logo and screenshot downloads
 - [Privacy Policy](https://backyard-api.onrender.com/privacy)
 - [Terms of Service](https://backyard-api.onrender.com/terms)

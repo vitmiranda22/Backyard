@@ -13,6 +13,7 @@ so re-running just refreshes existing rows and adds new ones.
 import sys
 import argparse
 import asyncio
+import datetime
 
 sys.path.insert(0, ".")
 
@@ -25,12 +26,20 @@ PREDICTHQ_BASE_URL = "https://api.predicthq.com/v1/events/"
 PAGE_LIMIT = 100
 DEFAULT_RADIUS_M = 300  # PredictHQ gives a point, not an event footprint — see events.py
 
-# Runs/parades/festivals/markets/community gatherings are the content this
-# feature is built for (see the Backyard Events plan) — PredictHQ's
-# "sports" category also covers city-wide participatory runs (5Ks,
-# marathons), not just spectator sports, so it's included and later
-# narrowed by _map_category() below rather than trusted as-is.
-PREDICTHQ_CATEGORIES = "festivals,community,sports"
+# Runs/parades/festivals are the content this feature is built for (see
+# the Backyard Events plan) — PredictHQ's "sports" category also covers
+# city-wide participatory runs (5Ks, marathons), not just spectator
+# sports, so it's included and later narrowed by _map_category() below
+# rather than trusted as-is.
+#
+# Deliberately excludes PredictHQ's "community" category -- confirmed
+# live this session that it's far broader than street fairs/civic
+# events: a real sync against San Francisco returned mostly ticketed
+# concerts and comedy shows tagged "community" (e.g. "Pink Martini &
+# San Francisco Symphony", "Brad Williams"), not walkable public events.
+# "concerts"/"performing-arts" are PredictHQ's own separate categories
+# for that content, and were never requested here.
+PREDICTHQ_CATEGORIES = "festivals,sports"
 
 # PredictHQ's own categories are broader than ours — this maps a raw
 # PredictHQ event (by category + title keywords) down to the events
@@ -72,7 +81,10 @@ async def fetch_from_predicthq(lat: float, lng: float, radius_km: float) -> list
                 params={
                     "within": f"{radius_km}km@{lat},{lng}",
                     "category": PREDICTHQ_CATEGORIES,
-                    "active.gte": "now",
+                    # PredictHQ rejects the literal string "now" here (confirmed
+                    # live: "Invalid date value for 'now'") -- it needs a real
+                    # RFC 3339 timestamp, not a keyword.
+                    "active.gte": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     "limit": PAGE_LIMIT,
                     "offset": offset,
                 },

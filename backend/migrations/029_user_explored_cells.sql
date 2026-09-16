@@ -18,3 +18,21 @@ CREATE TABLE IF NOT EXISTS public.user_explored_cells (
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_explored_cells_user_id ON public.user_explored_cells(user_id);
+
+-- Strictly private per user -- someone's real-world walking history is
+-- personal data, and the rest of this schema already treats RLS as
+-- mandatory (see tours/tour_blocks in 001_initial_schema.sql). The
+-- backend itself always goes through the service-role key (bypasses
+-- RLS regardless), so this is defense in depth against the anon/
+-- authenticated keys, not something the app's own endpoints depend on.
+-- No UPDATE/DELETE policy -- nothing in the app ever does either; a
+-- cell, once explored, is permanent.
+ALTER TABLE public.user_explored_cells ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "explored_cells_select_own" ON public.user_explored_cells;
+CREATE POLICY "explored_cells_select_own" ON public.user_explored_cells
+    FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "explored_cells_insert_own" ON public.user_explored_cells;
+CREATE POLICY "explored_cells_insert_own" ON public.user_explored_cells
+    FOR INSERT WITH CHECK (auth.uid() = user_id);

@@ -22,6 +22,7 @@ Backyard is a mobile app (iOS) in the Travel/Navigation category. It is free to 
 - [About](https://backyardexplorer.org/about.html): why Backyard exists
 - [Events](https://backyardexplorer.org/events.html): live real-world runs, parades, and festivals worldwide, with event-tied narration and a map of the biggest events happening right now
 - [FAQ](https://backyardexplorer.org/faq.html): common questions about narration, moods, pricing, privacy, Events, Museum Tours, and the fog-of-war map
+- [Compare](https://backyardexplorer.org/compare.html): how Backyard differs from GPSmyCity, VoiceMap, and Detour, and when one of those might be a better fit instead
 - [Press Kit](https://backyardexplorer.org/press.html): boilerplate copy, quick facts, logo and screenshot downloads
 - [Privacy Policy](https://backyard-api.onrender.com/privacy)
 - [Terms of Service](https://backyard-api.onrender.com/terms)

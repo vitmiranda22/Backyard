@@ -143,7 +143,7 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
         </View>
       </BoscoHero>
 
-      <View style={styles.content} pointerEvents="box-none">
+      <View style={styles.content}>
         <View style={styles.card}>
           {/* This card stacks 9 elements (title, 2 inputs, checkbox, CTA,
               divider, 2 social buttons, 2 links) -- tall enough on real
@@ -203,29 +203,37 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
                 <View style={styles.dividerLine} />
               </View>
 
-              <View style={styles.socialRow}>
-                {appleAvailable && (
+              {appleAvailable ? (
+                <View style={styles.socialRow}>
                   <AppleAuthentication.AppleAuthenticationButton
                     testID="apple-auth-button"
                     buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
                     buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
                     cornerRadius={radius.md}
-                    style={styles.appleBtn}
+                    style={styles.appleBtnHalf}
                     onPress={() => handleSocialSignIn("apple")}
                   />
-                )}
-
+                  <TouchableOpacity
+                    style={styles.googleBtnHalf}
+                    onPress={() => handleSocialSignIn("google")}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("login.continueWithGoogle")}
+                  >
+                    <Text style={styles.googleBtnText} numberOfLines={1} adjustsFontSizeToFit>
+                      {t("login.continueWithGoogle")}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
                 <TouchableOpacity
-                  style={[styles.googleBtn, appleAvailable && styles.googleBtnHalf]}
+                  style={styles.googleBtn}
                   onPress={() => handleSocialSignIn("google")}
                   accessibilityRole="button"
                   accessibilityLabel={t("login.continueWithGoogle")}
                 >
-                  <Text style={styles.googleBtnText} numberOfLines={1} adjustsFontSizeToFit>
-                    {t("login.continueWithGoogle")}
-                  </Text>
+                  <Text style={styles.googleBtnText}>{t("login.continueWithGoogle")}</Text>
                 </TouchableOpacity>
-              </View>
+              )}
 
               <TouchableOpacity
                 style={styles.forgotBtn}
@@ -254,6 +262,7 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: "flex-end",
     backgroundColor: colors.ink,
   },
   topContent: {
@@ -295,11 +304,14 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6,
   },
+  // A normal flex child (not position:"absolute") is required here --
+  // KeyboardAvoidingView's behavior="padding" only pushes normal-flow
+  // children above the keyboard; an absolutely-positioned card was
+  // completely ignoring that padding and staying put under the keyboard.
+  // The height cap plus the parent's justifyContent:"flex-end" (see
+  // styles.container) is what keeps this pinned to the bottom edge with
+  // the fixed hero band above it, same as before, just flow-based now.
   content: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
     height: CARD_AREA_HEIGHT,
     padding: spacing.lg,
     paddingBottom: 40,
@@ -397,8 +409,12 @@ const styles = StyleSheet.create({
     color: colors.fieldMuted,
   },
   // Apple/Google side by side (rather than stacked) to save vertical
-  // space, per direct feedback -- Google alone (no Apple on this device)
-  // still gets the full row width via googleBtnHalf being conditional.
+  // space, per direct feedback -- only rendered at all when Apple is
+  // actually available (see the ternary above). A width:"100%" button as
+  // the SOLE child of a flexDirection:"row" wrapper (the previous
+  // approach here) rendered with a visible gap in its border on device --
+  // solo Google now renders as its own standalone full-width button
+  // completely outside any row, avoiding that combination entirely.
   socialRow: {
     flexDirection: "row",
     gap: 10,
@@ -408,7 +424,7 @@ const styles = StyleSheet.create({
   // own style prop (those go through buttonStyle/cornerRadius instead, see
   // where this is used) -- height is required or the button renders with
   // zero size; flex:1 splits it evenly with Google in socialRow.
-  appleBtn: {
+  appleBtnHalf: {
     flex: 1,
     height: 42,
   },
@@ -422,8 +438,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   googleBtnHalf: {
-    width: undefined,
     flex: 1,
+    backgroundColor: colors.parchmentSurface,
+    borderWidth: 1.3,
+    borderColor: colors.ink,
+    padding: 10,
+    borderRadius: radius.md,
+    justifyContent: "center",
   },
   googleBtnText: {
     fontFamily: font.cursiveBold,

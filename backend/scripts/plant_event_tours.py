@@ -31,6 +31,10 @@ still in the top 6.
 
 import sys, asyncio, math
 sys.path.insert(0, ".")
+# Event waypoints can reverse-geocode to non-Latin street/neighborhood names
+# (e.g. Tokyo) -- Windows' default console codepage (cp1252) can't encode
+# those and crashes mid-run on a plain print(), so force UTF-8 stdout.
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 import geohash2, httpx
 from app.services import supabase_db, zone_data, openai_service, tts, r2, streetview, geocode
 from app.services.zone_data import format_zone_data_for_prompt, should_skip_web_search

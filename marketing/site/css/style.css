@@ -69,13 +69,26 @@ header.site-header img.logo {
 }
 header.site-header nav.auth-nav {
   grid-column: 3;
+  /* Without this, nav's white-space:nowrap content gives this grid
+     track an implicit min-width equal to its full un-wrapped width --
+     since the empty header-spacer column (grid-column 1) has nothing
+     forcing a minimum of its own, the two "equal" 1fr tracks stop
+     being equal at exactly the viewport widths where nav's real
+     content is wider than a fair 1fr share. The grid then keeps nav at
+     its full width and shrinks the empty spacer column instead,
+     shoving the (perfectly centered by design) logo off to the left.
+     min-width:0 plus letting nav wrap (below) keeps both 1fr tracks
+     genuinely equal at every width, so the logo always centers on the
+     same axis as the page's own .wrap content. */
+  min-width: 0;
   display: flex;
+  flex-wrap: wrap;
   gap: 22px;
   align-items: center;
+  justify-content: flex-end;
   font-family: "Work Sans", sans-serif;
   font-weight: 600;
   font-size: 19px;
-  white-space: nowrap;
   justify-self: end;
 }
 header.site-header nav.auth-nav a {

@@ -117,9 +117,26 @@ header.site-header nav.auth-nav a.signup-link {
     gap: 10px;
     padding: 16px;
   }
-  header.site-header .header-inner > a { grid-column: 1; }
+  /* The desktop rule above (line 74-77) pins BOTH `> a` and bare
+     `> img.logo` to column 2 with no width guard -- index.html's logo is
+     a bare img (no wrapping <a>), so resetting only `> a` here left it
+     still explicitly placed in column 2 on a single-column (1fr) mobile
+     grid. That forced an implicit second column sized to the logo's own
+     width, squeezing nav's real column down to a sliver (confirmed live:
+     nav wrapped one link per line, "Create Account" wrapped mid-word).
+     Both selectors must be reset together, same as the desktop rule. */
+  header.site-header .header-inner > a,
+  header.site-header .header-inner > img.logo { grid-column: 1; }
   header.site-header img.logo { width: 220px; }
-  header.site-header nav.auth-nav { grid-column: 1; justify-self: center; flex-wrap: wrap; justify-content: center; }
+  /* justify-self: stretch (not center) -- the grid container's own
+     justify-items: center above sizes any centered grid item to its
+     fit-content width, not the row's real width. A flex-wrap row sized
+     that way computes its wrapping against that narrow fit-content
+     guess instead of the actual screen width, so nav's 4 links wrapped
+     one-per-line on real phones (confirmed live: About/Events on one
+     line, Sign In alone, Create Account blown up onto its own line)
+     even though all 4 fit across two clean centered rows at real width. */
+  header.site-header nav.auth-nav { grid-column: 1; justify-self: stretch; width: 100%; flex-wrap: wrap; justify-content: center; }
 }
 
 /* Auth pages (login / signup / account) */

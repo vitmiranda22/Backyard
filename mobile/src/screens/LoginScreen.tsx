@@ -275,21 +275,25 @@ const styles = StyleSheet.create({
   },
   // Real content aspect ratio is ~2.28:1 (source file is a square canvas
   // with a lot of transparent padding around the actual wood-sign art) --
-  // sized off height, not width, so it actually reads as big. +20% over
-  // the original 220x96 per direct feedback that it read too small.
+  // sized off height, not width, so it actually reads as big. Bumped
+  // again per direct feedback (220x96 -> 264x115 -> 330x144, same ratio).
   logo: {
     alignSelf: "center",
-    width: 264,
-    height: 115,
+    width: 330,
+    height: 144,
     marginBottom: 6,
   },
+  // Cursive (Caveat), matching the app's own signature font used
+  // everywhere else -- title, buttons, this quote's own attribution line
+  // below -- rather than the serif italic it had before, which read as a
+  // mismatched, unrelated typeface next to everything around it.
   quote: {
-    fontFamily: font.serifItalic,
-    fontSize: type.title,
-    lineHeight: 26,
+    fontFamily: font.cursiveBold,
+    fontSize: 24,
+    lineHeight: 30,
     color: "#fff",
     textAlign: "center",
-    marginBottom: 6,
+    marginBottom: 4,
     textShadowColor: "rgba(0,0,0,0.55)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 8,

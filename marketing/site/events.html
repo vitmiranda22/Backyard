@@ -57,16 +57,6 @@
     </form>
     <p class="location-error" id="location-error" hidden></p>
 
-    <div class="city-tabs" id="city-tabs">
-      <button class="city-tab active" data-city="">&#127760; Worldwide</button>
-      <button class="city-tab" data-city="San Francisco">San Francisco</button>
-      <button class="city-tab" data-city="New York">New York</button>
-      <button class="city-tab" data-city="London">London</button>
-      <button class="city-tab" data-city="Paris">Paris</button>
-      <button class="city-tab" data-city="Tokyo">Tokyo</button>
-      <button class="city-tab" data-city="Sydney">Sydney</button>
-    </div>
-
     <div id="events-map"></div>
     <p class="map-hint">Real zones, sized to scale &mdash; click a pin to see the event and the exact area where its narration takes over.</p>
 
@@ -126,7 +116,6 @@
   const searchInput = document.getElementById("location-input");
   const searchBtn = document.getElementById("location-submit");
   const errorEl = document.getElementById("location-error");
-  const tabsEl = document.getElementById("city-tabs");
   const headingEl = document.getElementById("cards-heading");
   const subEl = document.getElementById("cards-sub");
   const cardsEl = document.getElementById("cards");
@@ -207,16 +196,9 @@
     map.fitBounds(bounds, { padding: [30, 30], maxZoom: 13 });
   }
 
-  function setActiveTab(cityTyped) {
-    tabsEl.querySelectorAll(".city-tab").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.city.toLowerCase() === (cityTyped || "").toLowerCase());
-    });
-  }
-
   async function loadGlobalTop() {
     errorEl.hidden = true;
     searchInput.value = "";
-    setActiveTab("");
     try {
       const resp = await fetch(`${API_URL}/public/events/top`);
       if (!resp.ok) throw new Error(`Request failed: ${resp.status}`);
@@ -249,7 +231,6 @@
       const data = await resp.json();
 
       searchInput.value = data.city;
-      setActiveTab(data.city);
       headingEl.textContent = `Biggest Events Near ${data.city}`;
       subEl.textContent = "Ranked by real-world impact · sourced live from PredictHQ";
       renderCards(data.events);
@@ -268,14 +249,6 @@
     evt.preventDefault();
     const typed = searchInput.value.trim();
     if (typed) loadCity(typed);
-  });
-
-  tabsEl.querySelectorAll(".city-tab").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const city = btn.dataset.city;
-      if (city) loadCity(city);
-      else loadGlobalTop();
-    });
   });
 
   loadGlobalTop();

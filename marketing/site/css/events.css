@@ -57,30 +57,6 @@
   margin: 4px 0 0;
 }
 
-.city-tabs {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin: 20px 0 26px;
-  flex-wrap: wrap;
-}
-.city-tab {
-  font-family: "Work Sans", sans-serif;
-  font-weight: 600;
-  font-size: 15px;
-  padding: 10px 20px;
-  border-radius: 999px;
-  border: 1.5px solid var(--field-border);
-  background: var(--parchment-surface);
-  color: var(--field-muted);
-  cursor: pointer;
-}
-.city-tab.active {
-  background: var(--ink);
-  color: var(--parchment-surface);
-  border-color: var(--ink);
-}
-
 .map-hint {
   text-align: center;
   font-family: "Work Sans", sans-serif;

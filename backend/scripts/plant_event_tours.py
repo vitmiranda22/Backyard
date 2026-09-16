@@ -116,7 +116,7 @@ async def already_published(title: str) -> bool:
         client.table("tours")
         .select("id")
         .eq("title", title)
-        .eq("is_published", True)
+        .eq("is_public", True)
         .limit(1)
         .execute()
     )

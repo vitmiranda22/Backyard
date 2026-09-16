@@ -24,6 +24,11 @@ interface NarrationCardProps {
   error: string | null;
   streetName: string | null;
   narrationText: string | null;
+  // A short transition line generated in the background AFTER narrationText
+  // was already shown (see narrate.py's _generate_connector_in_background),
+  // picked up by ActiveTourScreen's poll and passed in here once ready.
+  // Rendered underlined ahead of narrationText so it visibly reads as new.
+  transitionPrefix?: string | null;
   audioUrl: string | null;
   imageUrl?: string | null;
   // Premium-only, real-Wikipedia-article links matched against this exact
@@ -82,11 +87,24 @@ const narrationLinkStyle = {
   textDecorationLine: "underline" as const,
 };
 
+const transitionPrefixStyle = {
+  textDecorationLine: "underline" as const,
+};
+
+// Renders the background-generated transition line (if any) as an
+// underlined leading span, with a trailing space so it reads as one
+// sentence flowing into narrationText right after it.
+function renderTransitionPrefix(transitionPrefix: string | null | undefined) {
+  if (!transitionPrefix) return null;
+  return <Text style={transitionPrefixStyle}>{transitionPrefix} </Text>;
+}
+
 export default function NarrationCard({
   isLoading,
   error,
   streetName,
   narrationText,
+  transitionPrefix,
   audioUrl,
   imageUrl,
   highlights,
@@ -154,6 +172,7 @@ export default function NarrationCard({
             accessibilityLabel={t("narrationCard.readFullStoryA11y")}
           >
             <Text style={styles.narrationText} numberOfLines={5} ellipsizeMode="tail">
+              {renderTransitionPrefix(transitionPrefix)}
               {narrationText}
             </Text>
             <Text style={styles.expandHint}>{t("narrationCard.swipeUpHint")}</Text>
@@ -191,7 +210,10 @@ export default function NarrationCard({
               <Text style={styles.modalStreetName}>{streetName}</Text>
             </View>
             <ScrollView style={styles.modalScroll}>
-              <Text style={styles.modalText}>{renderWithHighlights(narrationText, highlights)}</Text>
+              <Text style={styles.modalText}>
+                {renderTransitionPrefix(transitionPrefix)}
+                {renderWithHighlights(narrationText, highlights)}
+              </Text>
             </ScrollView>
             <TouchableOpacity
               style={styles.modalCloseBtn}

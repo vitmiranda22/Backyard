@@ -36,13 +36,14 @@ import logging
 import uuid
 import geohash2
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File, Form
 
 from app.api.auth import AuthenticatedUser
 from app.config import settings, PREMIUM_MOODS, PREMIUM_VOICES, UNLIMITED_TEST_ACCOUNT_IDS
 from app.models.schemas import (
     NarrateBlockRequest,
     NarrateBlockResponse,
+    PendingTransitionResponse,
     PrefetchZoneRequest,
     PrefetchZoneResponse,
     AskQuestionResponse,
@@ -66,6 +67,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 GEOHASH_PRECISION = 7  # ~153m x 153m zones (must match tours.py and mobile/src/config.ts)
+
+# Transition text generated in the background for an active tour's block,
+# waiting to be picked up by a client poll — keyed "{tour_id}:{geo_hash}".
+# Modeled on public_events.py's _ip_request_log: a plain in-memory dict is
+# fine here because the deployment is single-instance, entries are popped
+# (not just read) on a successful poll so they never accumulate, and a
+# process restart losing a few seconds of in-flight transitions is harmless
+# (the tour's narrative_summary is still persisted to the DB regardless).
+_pending_transitions: dict[str, str] = {}
 
 
 def _cache_mood_key(mood: str, is_premium: bool) -> str:
@@ -129,6 +139,7 @@ async def _resolve_zone_photo(geo_hash: str, lat: float, lng: float, existing_im
 async def narrate_block(
     request: NarrateBlockRequest,
     user_id: AuthenticatedUser,
+    background_tasks: BackgroundTasks,
 ):
     # --- Step 0: Rate limit ---
     # Fetched once, up front — needed both to size today's daily quota by
@@ -384,143 +395,88 @@ async def narrate_block(
             narration_cache_id = stored["id"]
 
     # --- Step 6.5: Cross-block narrative continuity (only within an active tour) ---
-    # The core narration_text above is untouched and stays fully cacheable —
-    # continuity is a thin layer added on top, keyed off the tour, not the
-    # geohash. A request with no tour_id (older client, or a one-off request
-    # outside a tour) skips this entirely and behaves exactly as before.
+    # The core narration_text above is untouched and stays fully cacheable.
+    # Continuity used to be stitched into this same response by awaiting a
+    # second LLM call (generate_connector) right here — but that meant every
+    # block after the first in a tour paid for two full LLM round-trips back
+    # to back before the walker heard anything. Now this response always
+    # returns narration_text as-is, immediately; the connector keeps
+    # generating in the background (scheduled below) and the client polls
+    # GET /narrate-block/transition to pick it up and splice it in client-side
+    # if it's still looking at this block when it finishes.
     final_narration_text = narration_text
-    connector_added = False
 
     if request.tour_id:
-        tour = await supabase_db.get_tour(request.tour_id)
-        # A tour_id that doesn't belong to this user (foreign, stale, or
-        # guessed) is treated the same as no tour_id at all — narration
-        # still succeeds, it just isn't stitched into anyone else's story.
-        # Without this check, any authenticated user could pass another
-        # user's tour_id to read fragments of their narrative back in the
-        # connector text, overwrite that tour's running summary, or cause
-        # audio to be generated under the victim's tour-scoped storage key.
-        owns_tour = bool(tour) and tour.get("creator_id") == user_id
-
-        if owns_tour:
-            prior_summary = tour.get("narrative_summary")
-            used_openers = tour.get("used_connector_openers") or []
-            new_used_openers = used_openers
-            last_transition = tour.get("last_connector_transition")
-
-            if prior_summary:
-                connector_text, updated_summary, new_used_openers = await openai_service.generate_connector(
-                    prior_summary=prior_summary,
-                    mood=request.mood.value,
-                    current_narration=narration_text,
-                    used_openers=used_openers,
-                    last_transition=last_transition,
-                )
-                if connector_text:
-                    final_narration_text = f"{connector_text} {narration_text}"
-                    connector_added = True
-                    # Persist THIS transition so the next block's connector
-                    # can avoid repeating its sentence shape too — see
-                    # migration 012.
-                    last_transition = connector_text
-            else:
-                # First block of this tour — nothing to connect to yet. Seed
-                # the summary from this block's own text so block 2 has
-                # something to build on.
-                updated_summary = narration_text[:200]
-
-            await supabase_db.update_tour_narrative_summary(
-                request.tour_id,
-                updated_summary,
-                used_connector_openers=new_used_openers,
-                last_connector_transition=last_transition,
-            )
+        background_tasks.add_task(
+            _generate_connector_in_background,
+            request.tour_id,
+            geo_hash,
+            user_id,
+            request.mood.value,
+            narration_text,
+        )
 
     # --- Step 7-8: Handle audio ---
+    # Always the shared geohash+mood+safety+voice cache path now — no more
+    # tour-scoped audio/R2 keys, since a block's audio is never stitched
+    # with a connector before TTS runs.
     audio_url = None
     audio_duration_ms = None
 
-    if connector_added:
-        # This block's audio is stitched with a tour-specific transition, so
-        # it can never be shared across tours at the same geohash — always
-        # synthesize fresh and store it under a tour-scoped key instead of
-        # the shared narration_cache/audio_files path. No cache-key tier
-        # disambiguation needed here (unlike the shared path below) since
-        # this key is already unique per tour, and one tour belongs to one
-        # user/tier.
-        r2_key = r2.build_tour_r2_key(
-            tour_id=request.tour_id,
-            geo_hash=geo_hash,
-            content_safety=request.content_safety,
-            voice=request.voice.value,
+    # This audio is cached and shared across every user who hits this
+    # geohash+mood+safety+voice — "neutral" is reachable by both free
+    # and premium requests, so the cache identity has to fold in tier
+    # too (tts.cache_voice_key), or whichever tier generates it first
+    # would silently serve its audio quality to the other tier.
+    cache_voice = tts.cache_voice_key(request.voice.value, is_premium)
+
+    r2_key = r2.build_r2_key(
+        geo_hash=geo_hash,
+        mood=request.mood.value,
+        content_safety=request.content_safety,
+        voice=cache_voice,
+    )
+
+    # Only reuse R2 audio when the DB confirms it was generated for THIS
+    # exact cached narration (get_cached_audio is keyed by narration_cache_id,
+    # not just geo_hash/mood/voice). Raw R2 existence alone isn't proof the
+    # audio matches the current text — R2 objects never expire on their own,
+    # so a narration_cache reset or expiry can produce different text while
+    # older, unrelated audio silently keeps getting served for the same
+    # geohash+mood+safety+voice path.
+    cached_audio = None
+    if narration_cache_id:
+        cached_audio = await supabase_db.get_cached_audio(narration_cache_id, cache_voice)
+
+    if cached_audio:
+        audio_url = r2.generate_signed_url(r2_key)
+        audio_duration_ms = cached_audio.get("duration_ms") or tts.estimate_duration_ms(
+            final_narration_text, request.voice.value
         )
+    else:
         audio_bytes = await tts.synthesize_speech(
             text=final_narration_text,
             voice=request.voice.value,
             is_premium=is_premium,
         )
+
         if audio_bytes:
             upload_ok = await r2.upload_audio(audio_bytes, r2_key)
             if upload_ok:
                 audio_url = r2.generate_signed_url(r2_key)
                 audio_duration_ms = tts.estimate_duration_ms(final_narration_text, request.voice.value)
+
+                if narration_cache_id:
+                    await supabase_db.store_audio_file(
+                        narration_cache_id=narration_cache_id,
+                        voice=cache_voice,
+                        r2_key=r2_key,
+                        file_size_bytes=len(audio_bytes),
+                        duration_ms=audio_duration_ms,
+                        tts_provider="google",
+                    )
         else:
             logger.warning("TTS failed — returning text-only response")
-    else:
-        # This audio is cached and shared across every user who hits this
-        # geohash+mood+safety+voice — "neutral" is reachable by both free
-        # and premium requests, so the cache identity has to fold in tier
-        # too (tts.cache_voice_key), or whichever tier generates it first
-        # would silently serve its audio quality to the other tier.
-        cache_voice = tts.cache_voice_key(request.voice.value, is_premium)
-
-        r2_key = r2.build_r2_key(
-            geo_hash=geo_hash,
-            mood=request.mood.value,
-            content_safety=request.content_safety,
-            voice=cache_voice,
-        )
-
-        # Only reuse R2 audio when the DB confirms it was generated for THIS
-        # exact cached narration (get_cached_audio is keyed by narration_cache_id,
-        # not just geo_hash/mood/voice). Raw R2 existence alone isn't proof the
-        # audio matches the current text — R2 objects never expire on their own,
-        # so a narration_cache reset or expiry can produce different text while
-        # older, unrelated audio silently keeps getting served for the same
-        # geohash+mood+safety+voice path.
-        cached_audio = None
-        if narration_cache_id:
-            cached_audio = await supabase_db.get_cached_audio(narration_cache_id, cache_voice)
-
-        if cached_audio:
-            audio_url = r2.generate_signed_url(r2_key)
-            audio_duration_ms = cached_audio.get("duration_ms") or tts.estimate_duration_ms(
-                final_narration_text, request.voice.value
-            )
-        else:
-            audio_bytes = await tts.synthesize_speech(
-                text=final_narration_text,
-                voice=request.voice.value,
-                is_premium=is_premium,
-            )
-
-            if audio_bytes:
-                upload_ok = await r2.upload_audio(audio_bytes, r2_key)
-                if upload_ok:
-                    audio_url = r2.generate_signed_url(r2_key)
-                    audio_duration_ms = tts.estimate_duration_ms(final_narration_text, request.voice.value)
-
-                    if narration_cache_id:
-                        await supabase_db.store_audio_file(
-                            narration_cache_id=narration_cache_id,
-                            voice=cache_voice,
-                            r2_key=r2_key,
-                            file_size_bytes=len(audio_bytes),
-                            duration_ms=audio_duration_ms,
-                            tts_provider="google",
-                        )
-            else:
-                logger.warning("TTS failed — returning text-only response")
 
     # --- Step 9: Return ---
     # Join the concurrent zone-photo task — by this point the narration
@@ -544,6 +500,88 @@ async def narrate_block(
         zone_data_used=zone_data_used,
         highlights=highlights,
     )
+
+
+async def _generate_connector_in_background(
+    tour_id: str,
+    geo_hash: str,
+    user_id: str,
+    mood: str,
+    narration_text: str,
+) -> None:
+    """
+    Scheduled via BackgroundTasks from narrate_block — runs after the
+    response has already been sent, so nothing here can slow down what the
+    walker sees/hears. Exceptions are swallowed (logged only): a background
+    task's failure must never surface anywhere a caller could observe it.
+    """
+    try:
+        tour = await supabase_db.get_tour(tour_id)
+        # Same IDOR guard the old synchronous code had — re-checked here
+        # since this now runs decoupled from the request's own auth context.
+        # Without it, any authenticated user could pass another user's
+        # tour_id to read fragments of their narrative into a connector, or
+        # overwrite that tour's running summary.
+        if not tour or tour.get("creator_id") != user_id:
+            return
+
+        prior_summary = tour.get("narrative_summary")
+        used_openers = tour.get("used_connector_openers") or []
+        new_used_openers = used_openers
+        last_transition = tour.get("last_connector_transition")
+
+        if prior_summary:
+            connector_text, updated_summary, new_used_openers = await openai_service.generate_connector(
+                prior_summary=prior_summary,
+                mood=mood,
+                current_narration=narration_text,
+                used_openers=used_openers,
+                last_transition=last_transition,
+            )
+            if connector_text:
+                last_transition = connector_text
+                _pending_transitions[f"{tour_id}:{geo_hash}"] = connector_text
+        else:
+            # First block of this tour — nothing to connect to yet. Seed
+            # the summary from this block's own text so block 2 has
+            # something to build on.
+            updated_summary = narration_text[:200]
+
+        await supabase_db.update_tour_narrative_summary(
+            tour_id,
+            updated_summary,
+            used_connector_openers=new_used_openers,
+            last_connector_transition=last_transition,
+        )
+    except Exception:
+        logger.exception(f"Background connector generation failed for tour={tour_id[:8]}...")
+
+
+@router.get(
+    "/narrate-block/transition",
+    response_model=PendingTransitionResponse,
+    summary="Poll for a background-generated connector transition for a tour block",
+)
+async def get_pending_transition(tour_id: str, geo_hash: str, user_id: AuthenticatedUser):
+    """
+    ActiveTourScreen polls this for a few seconds after a tour block is
+    displayed, to pick up the transition line generate_connector produces
+    in the background (see _generate_connector_in_background above). Popped
+    (not just read) on a hit, so it's served exactly once — a second poll
+    for the same block always reports not-ready, same as if it never
+    finished in time.
+
+    Same ownership check as the background generator: a tour_id the caller
+    doesn't own just never has anything ready for them, rather than letting
+    any authenticated user poll for (and pop) another user's transition text.
+    """
+    tour = await supabase_db.get_tour(tour_id)
+    if not tour or tour.get("creator_id") != user_id:
+        return PendingTransitionResponse(ready=False, transition_text=None)
+
+    key = f"{tour_id}:{geo_hash}"
+    transition_text = _pending_transitions.pop(key, None)
+    return PendingTransitionResponse(ready=transition_text is not None, transition_text=transition_text)
 
 
 @router.post(

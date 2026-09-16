@@ -156,6 +156,23 @@ export async function prefetchZone(lat: number, lng: number): Promise<void> {
   });
 }
 
+export interface PendingTransitionResponse {
+  ready: boolean;
+  transition_text: string | null;
+}
+
+// Polled by ActiveTourScreen for a few seconds after a tour block goes on
+// screen, to pick up the connector line the backend generates in the
+// background (see narrate.py's _generate_connector_in_background) without
+// making narrateBlock() itself wait on it.
+export async function getPendingTransition(
+  tourId: string,
+  geoHash: string
+): Promise<PendingTransitionResponse> {
+  const params = new URLSearchParams({ tour_id: tourId, geo_hash: geoHash });
+  return authFetch(`/narrate-block/transition?${params.toString()}`);
+}
+
 export interface AskQuestionResponse {
   question_text: string;
   answer_text: string;

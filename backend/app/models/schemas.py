@@ -123,6 +123,16 @@ class NarrateBlockResponse(BaseModel):
     highlights: List[WikipediaHighlight] = Field(default_factory=list)
 
 
+class PendingTransitionResponse(BaseModel):
+    """
+    Response from GET /api/narrate-block/transition — polled by
+    ActiveTourScreen to pick up a connector line generate_connector
+    produced in the background after narrate-block already returned.
+    """
+    ready: bool
+    transition_text: Optional[str] = None
+
+
 class AskQuestionResponse(BaseModel):
     """Response from /api/ask-question"""
     question_text: str

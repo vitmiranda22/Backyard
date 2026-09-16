@@ -11,8 +11,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import MapView from "react-native-maps";
 import { Audio } from "expo-av";
+import ngeohash from "ngeohash";
 import RoutePolyline from "../components/RoutePolyline";
 import { useZoneTracker } from "../hooks/useZoneTracker";
+import { GEOHASH_PRECISION } from "../config";
 import {
   watchPosition,
   watchHeading,
@@ -22,7 +24,7 @@ import {
   compassLabel,
   snapSegmentToRoad,
 } from "../services/location";
-import { narrateBlock, prefetchZone, saveBlock, startTour, askQuestion, endTour, EndTourResponse, NarrationHighlight, ApiError } from "../services/api";
+import { narrateBlock, prefetchZone, getPendingTransition, saveBlock, startTour, askQuestion, endTour, EndTourResponse, NarrationHighlight, ApiError } from "../services/api";
 import { reportIfNewCell } from "../services/exploration";
 import * as Sentry from "@sentry/react-native";
 import { destinationPoint } from "../utils/geo";
@@ -129,6 +131,11 @@ export default function ActiveTourScreen({
   const [error, setError] = useState<string | null>(null);
   const [streetName, setStreetName] = useState<string | null>(null);
   const [narrationText, setNarrationText] = useState<string | null>(null);
+  // A short transition line, generated in the background AFTER narrationText
+  // above already returned (see narrate.py's _generate_connector_in_background),
+  // picked up by a short poll and spliced in front of narrationText with an
+  // underline -- see pollForTransition below and NarrationCard's rendering.
+  const [transitionPrefix, setTransitionPrefix] = useState<string | null>(null);
   const [highlights, setHighlights] = useState<NarrationHighlight[]>([]);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -418,6 +425,7 @@ export default function ActiveTourScreen({
     lastTriggerTime.current = Date.now();
     setIsLoading(true);
     setError(null);
+    setTransitionPrefix(null);
 
     try {
       const result = await narrateBlock(
@@ -446,6 +454,14 @@ export default function ActiveTourScreen({
       sequenceRef.current += 1;
       setBlocksVisited(sequenceRef.current);
       const thisSequence = sequenceRef.current;
+
+      // Pick up the connector transition generate_connector produces in the
+      // background (narrate.py never waits on it before responding). Never
+      // awaited here -- if the walker has already moved to another block by
+      // the time it resolves, pollForTransition just drops the result.
+      if (tourIdRef.current) {
+        pollForTransition(tourIdRef.current, lat, lng, thisSequence);
+      }
 
       // Cache this block's audio to disk once it's done loading, so a
       // signal drop mid-playback has something to fall back to (see
@@ -535,6 +551,39 @@ export default function ActiveTourScreen({
 
     isLoadingRef.current = false;
     setIsLoading(false);
+  }
+
+  const TRANSITION_POLL_INTERVAL_MS = 2000;
+  const TRANSITION_POLL_MAX_ATTEMPTS = 5;
+
+  // Polls GET /narrate-block/transition for a few seconds after a block goes
+  // on screen. `sequence` is this block's own sequenceRef value at the time
+  // it was triggered -- comparing it against the live sequenceRef.current on
+  // every wake-up (same staleness check cacheAudio's thisSequence already
+  // uses above) is what lets this stay silent once the walker has moved on,
+  // instead of ever overwriting a later block's text with an old one's
+  // transition.
+  async function pollForTransition(tourId: string, lat: number, lng: number, sequence: number) {
+    const geoHash = ngeohash.encode(lat, lng, GEOHASH_PRECISION);
+
+    for (let attempt = 0; attempt < TRANSITION_POLL_MAX_ATTEMPTS; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, TRANSITION_POLL_INTERVAL_MS));
+
+      if (sequenceRef.current !== sequence) return; // walker already moved on
+
+      try {
+        const result = await getPendingTransition(tourId, geoHash);
+        if (sequenceRef.current !== sequence) return; // moved on while the request was in flight
+        if (result.ready && result.transition_text) {
+          setTransitionPrefix(result.transition_text);
+          return;
+        }
+      } catch (e) {
+        // A failed poll just means no underlined transition this time --
+        // never worth surfacing to the walker.
+        return;
+      }
+    }
   }
 
   // Playback failed (e.g. the remote stream dropped mid-narration) — retry
@@ -748,6 +797,7 @@ export default function ActiveTourScreen({
         error={error}
         streetName={streetName}
         narrationText={narrationText}
+        transitionPrefix={transitionPrefix}
         highlights={highlights}
         audioUrl={audioUrl}
         imageUrl={imageUrl}
@@ -765,6 +815,7 @@ export default function ActiveTourScreen({
         onSkip={() => {
           hasActiveAudioRef.current = false;
           setNarrationText(null);
+          setTransitionPrefix(null);
           setHighlights([]);
           setAudioUrl(null);
           setImageUrl(null);

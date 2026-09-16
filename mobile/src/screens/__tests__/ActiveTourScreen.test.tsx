@@ -1,6 +1,8 @@
 import React from "react";
 import { Alert } from "react-native";
 import { render, fireEvent, waitFor, act } from "@testing-library/react-native";
+import ngeohash from "ngeohash";
+import { GEOHASH_PRECISION } from "../../config";
 
 // bearingBetween/distanceMeters/compassLabel are pure math — keep them
 // real via requireActual, only mock the async/native calls.
@@ -40,6 +42,7 @@ jest.mock("../../services/api", () => {
     startTour: jest.fn(),
     narrateBlock: jest.fn(),
     prefetchZone: jest.fn().mockResolvedValue(undefined),
+    getPendingTransition: jest.fn().mockResolvedValue({ ready: false, transition_text: null }),
     saveBlock: jest.fn(),
     askQuestion: jest.fn(),
     endTour: jest.fn(),
@@ -84,6 +87,7 @@ jest.mock("../../components/NarrationCard", () => {
         {props.isLoading && <Text>narration-loading</Text>}
         {props.error && <Text>{props.error}</Text>}
         {props.streetName && <Text>{props.streetName}</Text>}
+        {props.transitionPrefix && <Text>transition:{props.transitionPrefix}</Text>}
         <TouchableOpacity onPress={props.onAudioFinished}><Text>finish-audio</Text></TouchableOpacity>
         <TouchableOpacity onPress={props.onSkip}><Text>skip-narration</Text></TouchableOpacity>
         <TouchableOpacity onPress={props.onRetry}><Text>retry-narration</Text></TouchableOpacity>
@@ -95,13 +99,14 @@ jest.mock("../../components/WaypointCompass", () => () => null);
 jest.mock("../../components/AudioPlayer", () => () => null);
 
 import ActiveTourScreen from "../ActiveTourScreen";
-import { startTour, narrateBlock, saveBlock, askQuestion, endTour, ApiError } from "../../services/api";
+import { startTour, narrateBlock, getPendingTransition, saveBlock, askQuestion, endTour, ApiError } from "../../services/api";
 import * as Sentry from "@sentry/react-native";
 import { watchPosition, watchHeading, getCurrentLocation, snapSegmentToRoad } from "../../services/location";
 import { startRecording, stopRecording } from "../../services/recording";
 
 const mockStartTour = startTour as jest.Mock;
 const mockNarrateBlock = narrateBlock as jest.Mock;
+const mockGetPendingTransition = getPendingTransition as jest.Mock;
 const mockSaveBlock = saveBlock as jest.Mock;
 const mockAskQuestion = askQuestion as jest.Mock;
 const mockEndTour = endTour as jest.Mock;
@@ -586,5 +591,77 @@ describe("ActiveTourScreen", () => {
     expect(mockNarrateBlock).toHaveBeenCalled();
 
     jest.useRealTimers();
+  });
+
+  describe("background connector transition poll", () => {
+    // Matches the real pollForTransition constants (2s interval, 5 attempts)
+    // in ActiveTourScreen.tsx -- kept in sync manually since they aren't exported.
+    const POLL_INTERVAL_MS = 2000;
+
+    it("picks up a connector transition once the background poll reports it ready, and shows it underlined", async () => {
+      jest.useFakeTimers({ advanceTimers: true });
+      mockGetPendingTransition
+        .mockResolvedValueOnce({ ready: false, transition_text: null })
+        .mockResolvedValueOnce({ ready: true, transition_text: "Meanwhile," });
+
+      const { findByText } = await renderStarted();
+
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 2 + 100);
+      });
+
+      expect(await findByText("transition:Meanwhile,")).toBeTruthy();
+      expect(mockGetPendingTransition).toHaveBeenCalledWith("tour-1", expect.any(String));
+
+      jest.useRealTimers();
+    });
+
+    it("drops a late-arriving transition once the walker has advanced to a new block", async () => {
+      jest.useFakeTimers({ advanceTimers: true });
+      let clock = 1_700_000_000_000;
+      jest.spyOn(Date, "now").mockImplementation(() => clock);
+
+      let positionCallback: (lat: number, lng: number) => void = () => {};
+      mockWatchPosition.mockImplementation(async (cb: any) => {
+        positionCallback = cb;
+        return { remove: removeSpy };
+      });
+      mockCheckZone.mockReturnValue({ isNewZone: true, geoHash: "zone2" });
+      // Keyed by geohash (matching what pollForTransition itself computes
+      // from lat/lng) rather than a plain call sequence, so this stays
+      // correct regardless of which block's poll loop happens to fire
+      // first once both are running concurrently: only block 1's geohash
+      // ever reports ready=true, and it must still never surface, since by
+      // then sequenceRef has already moved to block 2.
+      const block1Hash = ngeohash.encode(37.77, -122.41, GEOHASH_PRECISION);
+      mockGetPendingTransition.mockImplementation((_tourId: string, geoHash: string) =>
+        Promise.resolve(
+          geoHash === block1Hash
+            ? { ready: true, transition_text: "Stale transition." }
+            : { ready: false, transition_text: null }
+        )
+      );
+
+      const { findByText, queryByText } = await renderStarted();
+      expect(mockNarrateBlock).toHaveBeenCalledTimes(1);
+
+      await fireEvent.press(await findByText("finish-audio"));
+
+      mockNarrateBlock.mockResolvedValue(narration({ street_name: "Valencia St" }));
+      clock += 11_000;
+      await act(async () => {
+        positionCallback(37.78, -122.42);
+      });
+      await waitFor(() => expect(mockNarrateBlock).toHaveBeenCalledTimes(2));
+      await findByText("Valencia St");
+
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 5 + 500);
+      });
+
+      expect(queryByText(/transition:/)).toBeNull();
+
+      jest.useRealTimers();
+    });
   });
 });

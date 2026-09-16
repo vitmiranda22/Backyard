@@ -10,7 +10,13 @@ services:
     runtime: docker
     dockerfilePath: backend/Dockerfile
     dockerContext: backend
-    plan: free
+    # Starter, not free -- Render Blueprints reconcile the live service to
+    # match this file on every deploy, so a manual dashboard upgrade with
+    # this left at "free" gets silently reverted on the next push (this
+    # is exactly what happened: a real 32s cold start was measured live
+    # on 2026-09-15 despite the service having been upgraded in the
+    # dashboard, because this file still said "free").
+    plan: starter
     healthCheckPath: /health
     envVars:
       - key: SUPABASE_URL

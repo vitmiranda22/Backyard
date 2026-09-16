@@ -6,7 +6,7 @@ this layer is raising the floor in undocumented places, not just adding
 convenience in already-rich ones.
 
 19 sources:
-- Wikipedia Geosearch: articles about places within 200m
+- Wikipedia Geosearch: articles about places within 100m
 - Wikivoyage Geosearch: travel-guide entries near these coordinates —
   local-color/"what to notice" voice, distinct from Wikipedia's tone
 - Wikimedia Commons: historical photos near coordinates
@@ -70,12 +70,20 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 TIMEOUT = 5.0
-RADIUS_METERS = 200
+# Was 200m -- tightened to better match the zone photo's own search radius
+# (Street View Static API's metadata/image lookup defaults to ~50m when no
+# radius is specified, see streetview.py). At 200m, a real nearby fact
+# (e.g. a landmark two blocks over) could get narrated while the photo
+# shown was Street View's nearest panorama to the walker's exact GPS
+# point -- a real fact, a real photo, just not the same building. Still
+# wider than Street View's own default so this doesn't over-narrow the
+# real facts available in an area with few nearby points of interest.
+RADIUS_METERS = 100
 
 
 async def fetch_wikipedia(lat: float, lng: float, client: httpx.AsyncClient) -> list:
     """
-    Wikipedia Geosearch — find articles about places within 200m.
+    Wikipedia Geosearch — find articles about places within 100m.
     Returns article titles and short extracts, plus each article's real
     lat/lng (used by zone_data.pick_suggested_next for the map's
     suggested-waypoint marker, not just narration text).

@@ -60,8 +60,22 @@ header.site-header .header-inner {
 header.site-header .header-spacer {
   display: none;
 }
-header.site-header img.logo {
+/* grid-column only affects direct children of the grid container --
+   most pages wrap the logo in `<a href="index.html">`, making the <a>
+   the real grid item (img.logo is a grandchild, and grid-column on it
+   was a complete no-op there); index.html alone has no wrapping <a>, so
+   img.logo IS the direct child on that one page. Targeting both
+   covers every page regardless of which markup shape it uses. Without
+   this, the un-positioned anchor/image fell into grid auto-placement's
+   first open slot (column 1, since the display:none spacer doesn't
+   occupy one) instead of the intended centered column 2 -- every
+   previous "centering" fix here was tuning nav's width while the logo
+   was never even in the right column to begin with. */
+header.site-header .header-inner > a,
+header.site-header .header-inner > img.logo {
   grid-column: 2;
+}
+header.site-header img.logo {
   width: 360px;
   height: auto;
   display: block;
@@ -103,7 +117,8 @@ header.site-header nav.auth-nav a.signup-link {
     gap: 10px;
     padding: 16px;
   }
-  header.site-header img.logo { grid-column: 1; width: 220px; }
+  header.site-header .header-inner > a { grid-column: 1; }
+  header.site-header img.logo { width: 220px; }
   header.site-header nav.auth-nav { grid-column: 1; justify-self: center; flex-wrap: wrap; justify-content: center; }
 }
 

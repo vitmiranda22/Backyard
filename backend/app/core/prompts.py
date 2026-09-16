@@ -751,6 +751,10 @@ _CONNECTOR_PROMPT = """
 You are writing ONE short transition line for a walking-tour narrator, in
 the same {mood} voice as the rest of the tour.
 
+ALWAYS write in English, regardless of what language "SO FAR ON THIS
+TOUR" or "THE NEXT THING" below are written in — translate first if
+needed, never output a sentence, or part of one, in another language.
+
 SO FAR ON THIS TOUR: {prior_summary}
 
 THE NEXT THING THE NARRATOR IS ABOUT TO SAY: {current_narration}

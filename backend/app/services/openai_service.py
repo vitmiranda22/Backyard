@@ -410,7 +410,7 @@ async def generate_connector(
                         if getattr(part, "text", None):
                             text_parts.append(part.text)
             if text_parts:
-                text = "".join(text_parts)
+                text = " ".join(text_parts)
 
         text = text or ""
         transition = None
@@ -432,6 +432,15 @@ async def generate_connector(
         if not transition:
             logger.warning("Connector generation returned no parseable TRANSITION line")
             return None, summary or fallback_summary, new_used_openers
+
+        # Spoken aloud via TTS immediately after this returns — strip any
+        # citation-style artifact the same way every other generation
+        # function in this file already does (narration/museum narration/
+        # question answers). summary never plays as audio (it's only fed
+        # back as future prompt context), but stripping it too costs
+        # nothing and keeps stored state clean.
+        transition = _strip_citations(transition)
+        summary = _strip_citations(summary) if summary else summary
 
         return transition, summary or fallback_summary, new_used_openers
 

@@ -16,6 +16,8 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  Dimensions,
 } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { useTranslation } from "react-i18next";
@@ -29,6 +31,15 @@ import BoscoHero from "../components/BoscoHero";
 // narrate mood-specific blocks once a tour is underway. Send-off pose,
 // shared with Signup's method step and Onboarding card 4.
 const MASCOT_IMAGE = require("../../assets/bosco-sendoff.jpg");
+
+// The sign-in card stacks enough fields/buttons to grow taller than a
+// comfortable share of the screen on real devices (see styles.content),
+// which was swallowing the hero above it -- Bosco's face, the logo, the
+// quote all disappeared behind it. Capped to a fixed proportion of the
+// actual screen height (not a flex-based split) so the hero always keeps
+// a guaranteed visible band no matter how tall the card's own content is.
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+const CARD_AREA_HEIGHT = SCREEN_HEIGHT * 0.6;
 
 // One line per named guide persona (GUIDE_PERSONAS in backend/app/api/tours.py),
 // written in that persona's established voice — picked once per app open
@@ -132,8 +143,18 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
         </View>
       </BoscoHero>
 
-      <View style={styles.content}>
+      <View style={styles.content} pointerEvents="box-none">
         <View style={styles.card}>
+          {/* This card stacks 9 elements (title, 2 inputs, checkbox, CTA,
+              divider, 2 social buttons, 2 links) -- tall enough on real
+              devices to grow past a comfortable share of the screen and
+              swallow the hero above it entirely (Bosco's face, the logo,
+              the quote). Capped via styles.content's maxHeight instead;
+              this ScrollView is what lets the card's own content overflow
+              WITHIN that cap and scroll, rather than forcing the cap
+              itself taller -- same fix Signup's own details step uses for
+              the same "too much content for one screen" problem. */}
+          <ScrollView style={styles.cardScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <Text style={styles.cardTitle}>{t("login.signInHeading")}</Text>
 
           <TextInput
@@ -219,6 +240,7 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
               </TouchableOpacity>
             </>
           )}
+          </ScrollView>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -269,15 +291,22 @@ const styles = StyleSheet.create({
     textShadowRadius: 6,
   },
   content: {
-    flex: 1,
-    justifyContent: "flex-end",
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: CARD_AREA_HEIGHT,
     padding: spacing.lg,
     paddingBottom: 40,
   },
   card: {
+    flex: 1,
     backgroundColor: colors.parchmentSurface,
     borderRadius: radius.lg,
     padding: 22,
+  },
+  cardScroll: {
+    flex: 1,
   },
   cardTitle: {
     fontFamily: font.cursiveBold,

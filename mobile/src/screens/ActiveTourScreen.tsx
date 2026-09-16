@@ -23,6 +23,7 @@ import {
   snapSegmentToRoad,
 } from "../services/location";
 import { narrateBlock, prefetchZone, saveBlock, startTour, askQuestion, endTour, EndTourResponse, NarrationHighlight, ApiError } from "../services/api";
+import { reportIfNewCell } from "../services/exploration";
 import * as Sentry from "@sentry/react-native";
 import { destinationPoint } from "../utils/geo";
 import { startRecording, stopRecording, cancelRecording } from "../services/recording";
@@ -172,6 +173,11 @@ export default function ActiveTourScreen({
   const lastRawRef = useRef<{ lat: number; lng: number } | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
+  // Terra Incognita fog-of-war: session-local, separate from useZoneTracker's
+  // own visitedZones -- reporting discovery is independent of (and never
+  // gated by) the narration debounce/loading guards further below.
+  const exploredCellsRef = useRef<Set<string>>(new Set());
+
   // Reentrancy guard for handleEndTour -- see its own comment.
   const endingRef = useRef(false);
 
@@ -301,6 +307,11 @@ export default function ActiveTourScreen({
         // Start watching position for zone changes
         const sub = await watchPosition((lat, lng) => {
           setLocation({ lat, lng });
+
+          // Terra Incognita fog-of-war reveal -- fires on every new cell
+          // regardless of the narration guards below, since it's just a
+          // quiet background report, not a user-facing trigger.
+          reportIfNewCell(lat, lng, exploredCellsRef.current);
 
           // Snapped separately, not awaited here -- zone-crossing/narration
           // logic below always uses the walker's real raw GPS position;

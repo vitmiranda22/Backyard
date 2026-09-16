@@ -784,6 +784,16 @@ async def nearby_routes(
             return False
         return zone_data.is_low_info(hit, eligible)
 
+    # Terra Incognita fog-of-war: a tour is invisible on the map until
+    # the caller has personally walked through its own cell (a tour has
+    # its own creator among everyone who could ever have explored that
+    # cell, so a creator's own tours pass this for free -- no special
+    # case needed, since making a tour requires having walked its start).
+    # Checked only against this page's own candidate geohashes, not the
+    # caller's whole history -- see get_explored_cells_among's docstring.
+    discovered_hashes = await supabase_db.get_explored_cells_among(user_id, list(row_geohashes.values()))
+    rows = [r for r in rows if row_geohashes.get(r["id"]) in discovered_hashes]
+
     return [
         NearbyRouteSummary(
             tour_id=r["id"],

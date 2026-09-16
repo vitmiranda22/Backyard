@@ -1,23 +1,29 @@
 import React from "react";
+import { AppState } from "react-native";
 import { render, waitFor, fireEvent } from "@testing-library/react-native";
 
 jest.mock("../../services/location", () => ({
   requestLocationPermission: jest.fn(),
   getCurrentLocation: jest.fn(),
+  watchPosition: jest.fn(),
 }));
 jest.mock("../../services/api", () => ({
   getNearbyRoutes: jest.fn(),
   getTourDetail: jest.fn(),
+  getExploredCells: jest.fn(),
+  reportExploredCell: jest.fn(),
 }));
 jest.mock("../../services/toast", () => ({ showToast: jest.fn() }));
 
 import MapScreen from "../MapScreen";
-import { requestLocationPermission, getCurrentLocation } from "../../services/location";
-import { getNearbyRoutes } from "../../services/api";
+import { requestLocationPermission, getCurrentLocation, watchPosition } from "../../services/location";
+import { getNearbyRoutes, getExploredCells } from "../../services/api";
 
 const mockRequestLocationPermission = requestLocationPermission as jest.Mock;
 const mockGetCurrentLocation = getCurrentLocation as jest.Mock;
 const mockGetNearbyRoutes = getNearbyRoutes as jest.Mock;
+const mockWatchPosition = watchPosition as jest.Mock;
+const mockGetExploredCells = getExploredCells as jest.Mock;
 
 const MUSEUM_TOUR = {
   tour_id: "museum-tour-1",
@@ -50,6 +56,12 @@ beforeEach(() => {
   mockRequestLocationPermission.mockResolvedValue(true);
   mockGetCurrentLocation.mockResolvedValue({ lat: 37.7749, lng: -122.4194 });
   mockGetNearbyRoutes.mockResolvedValue([]);
+  mockGetExploredCells.mockResolvedValue({ geo_hashes: [] });
+  mockWatchPosition.mockResolvedValue({ remove: jest.fn() });
+  // The RN jest mock ships AppState.currentState as an unconfigured
+  // jest.fn(), not the real string property -- force it foreground for
+  // these tests, matching what a real running app would have.
+  (AppState as any).currentState = "active";
 });
 
 describe("MapScreen", () => {
@@ -108,5 +120,37 @@ describe("MapScreen", () => {
     const walkingPins = await findAllByTestId(/^route-marker-walk-/);
     expect(walkingPins).toHaveLength(10);
     expect(queryAllByTestId(/^route-marker-museum-/)).toHaveLength(0);
+  });
+
+  describe("Terra Incognita fog-of-war tracking", () => {
+    it("hydrates the caller's explored history and starts foreground tracking once mounted", async () => {
+      mockGetExploredCells.mockResolvedValue({ geo_hashes: ["9q8yyk8"] });
+
+      render(<MapScreen {...defaultProps()} />);
+
+      await waitFor(() => {
+        expect(mockGetExploredCells).toHaveBeenCalled();
+        expect(mockWatchPosition).toHaveBeenCalled();
+      });
+    });
+
+    it("stops tracking when the app backgrounds, and resumes when it returns to active", async () => {
+      const removeSpy = jest.fn();
+      mockWatchPosition.mockResolvedValue({ remove: removeSpy });
+      const addEventListenerSpy = jest.spyOn(AppState, "addEventListener");
+
+      render(<MapScreen {...defaultProps()} />);
+
+      await waitFor(() => expect(mockWatchPosition).toHaveBeenCalledTimes(1));
+
+      const onChange = addEventListenerSpy.mock.calls.find(([event]) => event === "change")?.[1];
+      expect(onChange).toBeDefined();
+
+      onChange!("background");
+      await waitFor(() => expect(removeSpy).toHaveBeenCalledTimes(1));
+
+      onChange!("active");
+      await waitFor(() => expect(mockWatchPosition).toHaveBeenCalledTimes(2));
+    });
   });
 });

@@ -2,17 +2,20 @@
 // used to be this screen directly) so Home is free to be the journal-cover
 // landing page instead of a map; reached from Home's "Map" FAB.
 
-import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Image } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, AppState } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MapView, { Marker, Circle } from "react-native-maps";
 import RoutePolyline from "../components/RoutePolyline";
+import FogOverlay, { MapRegion } from "../components/FogOverlay";
 import {
   requestLocationPermission,
   getCurrentLocation,
+  watchPosition,
 } from "../services/location";
-import { getNearbyRoutes, getTourDetail, NearbyRoute } from "../services/api";
+import { getNearbyRoutes, getTourDetail, getExploredCells, NearbyRoute } from "../services/api";
+import { reportIfNewCell } from "../services/exploration";
 import { colors, font, radius, type } from "../theme";
 import { showToast } from "../services/toast";
 import { MOOD_ICONS, FALLBACK_MOOD_ICON } from "../services/moods";
@@ -35,12 +38,39 @@ export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }:
   const [nearbyRoutes, setNearbyRoutes] = useState<NearbyRoute[]>([]);
   const [museumTours, setMuseumTours] = useState<NearbyRoute[]>([]);
 
+  // Terra Incognita fog-of-war: exploredCells drives both FogOverlay's
+  // holes and reportIfNewCell's dedupe (kept in sync via the ref -- state
+  // triggers the re-render FogOverlay needs, the ref is what the
+  // watchPosition callback's closure actually reads/mutates).
+  const [exploredCells, setExploredCells] = useState<Set<string>>(new Set());
+  const exploredCellsRef = useRef<Set<string>>(new Set());
+  const [region, setRegion] = useState<MapRegion | null>(null);
+  const watchSubRef = useRef<{ remove: () => void } | null>(null);
+
   // The full walked path of whichever pin was last tapped, drawn directly
   // on this map. Fetched on demand (nearby-route pins only carry a single
   // point, not the full block-by-block path) rather than up front for
   // every pin, since most of them will never get tapped.
   const [selectedPath, setSelectedPath] = useState<{ latitude: number; longitude: number }[]>([]);
   const [selectedTourId, setSelectedTourId] = useState<string | null>(null);
+
+  // Terra Incognita: continuous foreground-only GPS tracking, separate
+  // from ActiveTourScreen's own -- this is what makes the fog clear while
+  // just browsing the map, not only during an active tour. No-op if
+  // already running.
+  async function startFogTracking() {
+    if (watchSubRef.current) return;
+    const sub = await watchPosition((lat, lng) => {
+      const newHash = reportIfNewCell(lat, lng, exploredCellsRef.current);
+      if (newHash) setExploredCells(new Set(exploredCellsRef.current));
+    });
+    watchSubRef.current = sub;
+  }
+
+  function stopFogTracking() {
+    watchSubRef.current?.remove();
+    watchSubRef.current = null;
+  }
 
   async function handlePinPress(route: NearbyRoute) {
     if (selectedTourId === route.tour_id) return;
@@ -70,6 +100,19 @@ export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }:
         try {
           const loc = await getCurrentLocation();
           setLocation(loc);
+          setRegion({ latitude: loc.lat, longitude: loc.lng, latitudeDelta: 0.01, longitudeDelta: 0.01 });
+
+          // Terra Incognita: hydrate this user's whole fog-of-war history
+          // once, so already-explored ground (including anything backfilled
+          // from their own past tours) starts revealed rather than fogged.
+          getExploredCells()
+            .then(({ geo_hashes }) => {
+              const seeded = new Set(geo_hashes);
+              exploredCellsRef.current = seeded;
+              setExploredCells(new Set(seeded));
+            })
+            .catch((e) => console.warn("Failed to load explored cells:", e.message));
+
           // Fetches more than the 10 walking pins actually shown, then
           // drops museum tours (fetched separately below) and slices back
           // to 10 -- otherwise a highly-rated museum tour occupying a slot
@@ -98,6 +141,32 @@ export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }:
     init();
   }, []);
 
+  // Terra Incognita: only ever tracks while this screen is mounted AND the
+  // app is actually foregrounded on screen -- not "resting" backgrounded,
+  // which is why this needs AppState rather than just the mount lifecycle
+  // above. Gated on hasPermission so it never starts before the user has
+  // actually granted location access.
+  useEffect(() => {
+    if (!hasPermission) return;
+
+    if (AppState.currentState === "active") {
+      startFogTracking();
+    }
+
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        startFogTracking();
+      } else {
+        stopFogTracking();
+      }
+    });
+
+    return () => {
+      sub.remove();
+      stopFogTracking();
+    };
+  }, [hasPermission]);
+
   return (
     <View style={styles.container}>
       {location ? (
@@ -109,8 +178,16 @@ export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }:
             latitudeDelta: 0.01,
             longitudeDelta: 0.01,
           }}
+          onRegionChangeComplete={setRegion}
           showsUserLocation
         >
+          {/* Terra Incognita fog-of-war -- drawn first so it sits under
+              every pin/circle below. Every pin the map ever receives is
+              already something the backend has confirmed is discovered
+              (see GET /routes/nearby's discovery filter), so this is only
+              ever hiding the map itself, never an actual undiscovered pin. */}
+          {region && <FogOverlay exploredGeoHashes={exploredCells} region={region} />}
+
           {/* "Low info" zone glow — Uber-surge-style warm tint under any
               pin whose starting zone came back thin the last time it was
               narrated (an automatic signal, not a user report). Rendered

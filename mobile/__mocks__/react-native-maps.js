@@ -19,6 +19,7 @@ module.exports = {
   default: MapView,
   Marker: makeStub("Marker"),
   Circle: makeStub("Circle"),
+  Polygon: makeStub("Polygon"),
   Polyline: makeStub("Polyline"),
   Callout: makeStub("Callout"),
   PROVIDER_GOOGLE: "google",

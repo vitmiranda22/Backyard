@@ -352,6 +352,26 @@ class PublicEventsByCityResponse(BaseModel):
     events: List[NearbyEventSummary]
 
 
+class ExploredCellRequest(BaseModel):
+    """POST /api/explored-cells -- the caller's current real GPS position."""
+    lat: float = Field(..., ge=-90, le=90)
+    lng: float = Field(..., ge=-180, le=180)
+
+
+class ExploredCellResponse(BaseModel):
+    """
+    The geo_hash the reported point fell into, so the client can add it
+    to its local fog-reveal set immediately without a round trip back to
+    GET /explored-cells.
+    """
+    geo_hash: str
+
+
+class ExploredCellsListResponse(BaseModel):
+    """GET /api/explored-cells -- this user's entire fog-of-war history."""
+    geo_hashes: List[str]
+
+
 class RateTourRequest(BaseModel):
     """POST /api/rate-tour"""
     tour_id: str

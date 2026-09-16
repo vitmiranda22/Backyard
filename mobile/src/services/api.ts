@@ -443,6 +443,21 @@ export async function getNearbyRoutes(
   return authFetch(`/routes/nearby?${params.toString()}`);
 }
 
+// =============================================================================
+// Terra Incognita -- fog-of-war map discovery
+// =============================================================================
+
+export async function reportExploredCell(lat: number, lng: number): Promise<{ geo_hash: string }> {
+  return authFetch("/explored-cells", {
+    method: "POST",
+    body: JSON.stringify({ lat, lng }),
+  });
+}
+
+export async function getExploredCells(): Promise<{ geo_hashes: string[] }> {
+  return authFetch("/explored-cells");
+}
+
 export interface RateTourResponse {
   tour_id: string;
   score: number;

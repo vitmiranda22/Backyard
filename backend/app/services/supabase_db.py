@@ -403,6 +403,76 @@ async def get_zone_richness_batch(geo_hashes: list) -> dict:
         return {}
 
 
+async def mark_cells_explored(user_id: str, geo_hashes: list) -> None:
+    """
+    Record that this user has physically been in these geohash cells —
+    powers the Map tab's fog-of-war reveal (see migrations/029_user_explored_cells.sql).
+    Permanent: a cell, once explored, is never un-marked.
+
+    on_conflict="user_id,geo_hash" is required for the same reason
+    store_zone_data's on_conflict="geo_hash" is — the table's PRIMARY KEY
+    is a separate `id` UUID, not the (user_id, geo_hash) UNIQUE pair, so
+    omitting it would let PostgREST's upsert silently degrade to a plain
+    INSERT and fail outright on any real conflict (e.g. re-reporting a
+    cell you've already explored).
+    """
+    if not geo_hashes:
+        return
+    try:
+        client = _get_client()
+        client.table("user_explored_cells").upsert(
+            [{"user_id": user_id, "geo_hash": h} for h in set(geo_hashes)],
+            on_conflict="user_id,geo_hash",
+        ).execute()
+    except Exception as e:
+        logger.error(f"Failed to mark cells explored: {e}")
+
+
+async def get_explored_geohashes(user_id: str) -> list:
+    """
+    A user's entire explored history, unbounded — used once by the Map
+    screen on mount to hydrate which fog holes are already permanently
+    open. Deliberately not paginated: even a very active user's history
+    is a few thousand short geo_hash strings, cheap to return whole.
+    """
+    try:
+        client = _get_client()
+        result = (
+            client.table("user_explored_cells")
+            .select("geo_hash")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        return [row["geo_hash"] for row in (result.data or [])]
+    except Exception as e:
+        logger.error(f"Failed to fetch explored geohashes: {e}")
+        return []
+
+
+async def get_explored_cells_among(user_id: str, geo_hashes: list) -> set:
+    """
+    Which of these specific candidate geohashes has this user already
+    explored — used by GET /routes/nearby to hide undiscovered tours,
+    checking only the small handful of candidate pins in the current
+    result page rather than fetching the user's whole history per request.
+    """
+    if not geo_hashes:
+        return set()
+    try:
+        client = _get_client()
+        result = (
+            client.table("user_explored_cells")
+            .select("geo_hash")
+            .eq("user_id", user_id)
+            .in_("geo_hash", list(set(geo_hashes)))
+            .execute()
+        )
+        return {row["geo_hash"] for row in (result.data or [])}
+    except Exception as e:
+        logger.error(f"Failed to batch-check explored cells: {e}")
+        return set()
+
+
 async def store_zone_image(geo_hash: str, image_r2_key: str):
     """
     Persist a zone's cached street-view photo key.

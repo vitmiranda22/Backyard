@@ -43,6 +43,7 @@ jest.mock("../../services/api", () => {
     saveBlock: jest.fn(),
     askQuestion: jest.fn(),
     endTour: jest.fn(),
+    reportExploredCell: jest.fn().mockResolvedValue({ geo_hash: "u0" }),
   };
 });
 jest.mock("../../services/recording", () => ({

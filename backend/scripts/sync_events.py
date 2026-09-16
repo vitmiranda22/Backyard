@@ -126,6 +126,27 @@ def _clean_description(raw_description: str) -> str:
     return _SOURCE_ATTRIBUTION_PREFIX.sub("", raw_description or "").strip()
 
 
+def _has_specific_location(raw: dict) -> bool:
+    """
+    Every PredictHQ event carries a lat/lng point, but for a citywide
+    "umbrella" entry (e.g. the "EFG London Jazz Festival" entry for the
+    whole multi-week festival, as opposed to one specific concert within
+    it) that point is a generic city-center anchor -- confirmed live:
+    these umbrella entries have no postcode and no venue entity, while a
+    real walkable event (a specific concert, a block party, a parade
+    route) always has one or the other, per PredictHQ's own geo.address
+    and entities fields. Filtering these out is what keeps every synced
+    event a genuine, walkable spot -- a square, a street, a real venue --
+    instead of an abstract "somewhere in this city" placeholder that
+    multiple unrelated big-name events would otherwise all collapse onto.
+    """
+    address = (raw.get("geo") or {}).get("address") or {}
+    if address.get("postcode"):
+        return True
+    entities = raw.get("entities") or []
+    return any(entity.get("type") == "venue" for entity in entities)
+
+
 def normalize(raw: dict, fallback_city: str) -> dict | None:
     geo = raw.get("geo") or {}
     geometry = geo.get("geometry") or {}
@@ -137,6 +158,9 @@ def normalize(raw: dict, fallback_city: str) -> dict | None:
     if not coords or len(coords) != 2:
         return None
     lng, lat = coords
+
+    if not _has_specific_location(raw):
+        return None
 
     start_time = raw.get("start")
     end_time = raw.get("end")
@@ -187,7 +211,7 @@ async def main():
 
     rows = [row for raw in raw_events if (row := normalize(raw, args.city))]
     skipped = len(raw_events) - len(rows)
-    print(f"  -> {len(rows)} normalized (skipped {skipped}: no point geometry, bad time window, or no title)")
+    print(f"  -> {len(rows)} normalized (skipped {skipped}: no point geometry, bad time window, no title, or no specific venue/address)")
 
     if not rows:
         print("Nothing to upsert.")

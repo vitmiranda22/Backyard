@@ -52,22 +52,27 @@
 <section id="event-browser">
   <div class="wrap-wide">
     <form class="location-search" id="location-search">
-      <input type="text" id="location-input" placeholder="Type a city to find events there&hellip;" autocomplete="off" value="San Francisco">
+      <input type="text" id="location-input" placeholder="Type a city to find events there&hellip;" autocomplete="off">
       <button type="submit" id="location-submit">Find Events</button>
     </form>
     <p class="location-error" id="location-error" hidden></p>
     <p class="location-hint">Or pick a city we already have a running start on:</p>
 
     <div class="city-tabs" id="city-tabs">
+      <button class="city-tab active" data-city="">&#127760; Worldwide</button>
       <button class="city-tab" data-city="San Francisco">San Francisco</button>
       <button class="city-tab" data-city="New York">New York</button>
+      <button class="city-tab" data-city="London">London</button>
+      <button class="city-tab" data-city="Paris">Paris</button>
+      <button class="city-tab" data-city="Tokyo">Tokyo</button>
+      <button class="city-tab" data-city="Sydney">Sydney</button>
     </div>
 
     <div id="events-map"></div>
     <p class="map-hint">Real zones, sized to scale &mdash; click a pin to see the event and the exact area where its narration takes over.</p>
 
-    <h2 class="cards-heading" id="cards-heading">Real events near San Francisco</h2>
-    <p class="cards-sub">Sourced live from PredictHQ &middot; updates as new events are added</p>
+    <h2 class="cards-heading" id="cards-heading">Biggest Events Right Now</h2>
+    <p class="cards-sub" id="cards-sub">The most significant real events happening worldwide, ranked by real-world impact</p>
     <div class="cards" id="cards"></div>
   </div>
 </section>
@@ -124,6 +129,7 @@
   const errorEl = document.getElementById("location-error");
   const tabsEl = document.getElementById("city-tabs");
   const headingEl = document.getElementById("cards-heading");
+  const subEl = document.getElementById("cards-sub");
   const cardsEl = document.getElementById("cards");
 
   let map, markersLayer, activeCircle;
@@ -170,9 +176,9 @@
     }).join("");
   }
 
-  function renderMap(events, centerLat, centerLng) {
+  function renderMap(events) {
     if (!map) {
-      map = L.map("events-map", { scrollWheelZoom: false });
+      map = L.map("events-map", { scrollWheelZoom: false }).setView([20, 0], 2);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 18,
@@ -182,10 +188,7 @@
     markersLayer.clearLayers();
     if (activeCircle) { map.removeLayer(activeCircle); activeCircle = null; }
 
-    if (!events.length) {
-      map.setView([centerLat, centerLng], 11);
-      return;
-    }
+    if (!events.length) return;
 
     const bounds = [];
     events.forEach((e) => {
@@ -199,13 +202,36 @@
         marker.bindPopup(`<b>${escapeHtml(e.name)}</b><br>${e.radius_m}m zone`).openPopup();
       });
     });
-    map.fitBounds(bounds, { padding: [30, 30] });
+    // A single-event result (a small city) zoomed to its own zone reads
+    // oddly wide with fitBounds' default padding -- cap how far in a
+    // one-marker bounds box is allowed to zoom.
+    map.fitBounds(bounds, { padding: [30, 30], maxZoom: 13 });
   }
 
   function setActiveTab(cityTyped) {
     tabsEl.querySelectorAll(".city-tab").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.city.toLowerCase() === cityTyped.toLowerCase());
+      btn.classList.toggle("active", btn.dataset.city.toLowerCase() === (cityTyped || "").toLowerCase());
     });
+  }
+
+  async function loadGlobalTop() {
+    errorEl.hidden = true;
+    searchInput.value = "";
+    setActiveTab("");
+    try {
+      const resp = await fetch(`${API_URL}/public/events/top`);
+      if (!resp.ok) throw new Error(`Request failed: ${resp.status}`);
+      const events = await resp.json();
+
+      headingEl.textContent = "Biggest Events Right Now";
+      subEl.textContent = "The most significant real events happening worldwide, ranked by real-world impact";
+      renderCards(events);
+      renderMap(events);
+    } catch (e) {
+      errorEl.textContent = "Something went wrong loading events. Try again in a moment.";
+      errorEl.hidden = false;
+      console.warn("Failed to load top events:", e);
+    }
   }
 
   async function loadCity(cityName) {
@@ -225,9 +251,10 @@
 
       searchInput.value = data.city;
       setActiveTab(data.city);
-      headingEl.textContent = `Real events near ${data.city}`;
+      headingEl.textContent = `Biggest Events Near ${data.city}`;
+      subEl.textContent = "Ranked by real-world impact · sourced live from PredictHQ";
       renderCards(data.events);
-      renderMap(data.events, data.lat, data.lng);
+      renderMap(data.events);
     } catch (e) {
       errorEl.textContent = "Something went wrong loading events. Try again in a moment.";
       errorEl.hidden = false;
@@ -245,10 +272,14 @@
   });
 
   tabsEl.querySelectorAll(".city-tab").forEach((btn) => {
-    btn.addEventListener("click", () => loadCity(btn.dataset.city));
+    btn.addEventListener("click", () => {
+      const city = btn.dataset.city;
+      if (city) loadCity(city);
+      else loadGlobalTop();
+    });
   });
 
-  loadCity("San Francisco");
+  loadGlobalTop();
 </script>
 
 </body>

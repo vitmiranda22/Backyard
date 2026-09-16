@@ -164,6 +164,12 @@ def normalize(raw: dict, fallback_city: str) -> dict | None:
         "source_event_id": raw["id"],
         "source_url": None,
         "is_active": True,
+        # PredictHQ's own 0-100 real-world impact score -- confirmed
+        # live this session that an unranked event list is dominated by
+        # small private parties/club nights, not the public/cultural/
+        # city-scale events this feature is for. Powers
+        # supabase_db.MIN_PUBLIC_EVENT_RANK filtering.
+        "rank": raw.get("rank"),
     }
 
 

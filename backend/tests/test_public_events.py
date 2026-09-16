@@ -1,7 +1,9 @@
 """
-Tests for GET /api/public/events — the unauthenticated events lookup
-that powers the marketing site. No auth_as fixture needed here: the
-whole point of this endpoint is that it works with no logged-in user.
+Tests for the public (unauthenticated) events endpoints that power the
+marketing site: GET /api/public/events/top (global) and
+GET /api/public/events?city=... (by place name). No auth_as fixture
+needed anywhere here: the whole point of these endpoints is that they
+work with no logged-in user.
 """
 
 from app.services import geocode, supabase_db
@@ -19,7 +21,14 @@ RAW_EVENT_ROW = {
     "end_time": "2999-01-01T00:00:00+00:00",
     "source_url": None,
     "distance_m": 42.5,
+    "rank": 75,
 }
+
+
+def _event(**overrides):
+    row = dict(RAW_EVENT_ROW)
+    row.update(overrides)
+    return row
 
 
 class _FakeGeocodeResult:
@@ -35,9 +44,34 @@ def _async(value):
     return _fn
 
 
+# --- GET /public/events/top -------------------------------------------------
+
+def test_top_events_returns_the_ranked_global_list(client, monkeypatch):
+    monkeypatch.setattr(supabase_db, "get_top_events_globally", _async([_event()]))
+
+    resp = client.get("/api/public/events/top")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) == 1
+    assert body[0]["name"] == "Sunset Street Festival"
+    assert body[0]["distance_m"] is None  # no center point for a worldwide query
+
+
+def test_top_events_works_with_no_query_params_at_all(client, monkeypatch):
+    monkeypatch.setattr(supabase_db, "get_top_events_globally", _async([]))
+
+    resp = client.get("/api/public/events/top")
+
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+# --- GET /public/events?city=... --------------------------------------------
+
 def test_returns_events_for_a_geocodable_city_with_no_auth(client, monkeypatch):
     monkeypatch.setattr(geocode, "forward_geocode", _async(_FakeGeocodeResult(37.7749, -122.4194, "San Francisco")))
-    monkeypatch.setattr(supabase_db, "get_nearby_events", _async([RAW_EVENT_ROW]))
+    monkeypatch.setattr(supabase_db, "get_nearby_events", _async([_event()]))
 
     resp = client.get("/api/public/events", params={"city": "San Francisco"})
 
@@ -49,6 +83,36 @@ def test_returns_events_for_a_geocodable_city_with_no_auth(client, monkeypatch):
     assert len(body["events"]) == 1
     assert body["events"][0]["name"] == "Sunset Street Festival"
     assert body["events"][0]["phase"] == "happening"
+
+
+def test_filters_out_low_rank_events_like_small_private_parties(client, monkeypatch):
+    # A real regression this session: an unranked list was dominated by
+    # small private parties/club nights, not public/cultural events.
+    monkeypatch.setattr(geocode, "forward_geocode", _async(_FakeGeocodeResult(37.7749, -122.4194, "San Francisco")))
+    monkeypatch.setattr(supabase_db, "get_nearby_events", _async([
+        _event(id="a", name="City Cultural Festival", rank=80),
+        _event(id="b", name="Someone's Birthday Party", rank=5),
+        _event(id="c", name="No Rank At All", rank=None),
+    ]))
+
+    resp = client.get("/api/public/events", params={"city": "San Francisco"})
+
+    body = resp.json()
+    names = [e["name"] for e in body["events"]]
+    assert names == ["City Cultural Festival"]
+
+
+def test_caps_results_at_the_top_events_limit_sorted_by_rank(client, monkeypatch):
+    monkeypatch.setattr(geocode, "forward_geocode", _async(_FakeGeocodeResult(37.7749, -122.4194, "San Francisco")))
+    rows = [_event(id=str(i), name=f"Event {i}", rank=r) for i, r in enumerate([50, 90, 60, 100, 70, 55, 99])]
+    monkeypatch.setattr(supabase_db, "get_nearby_events", _async(rows))
+
+    resp = client.get("/api/public/events", params={"city": "San Francisco"})
+
+    body = resp.json()
+    assert len(body["events"]) == 6  # 7 qualify, capped to 6
+    ranks_in_order = [rows[int(e["id"])]["rank"] for e in body["events"]]
+    assert ranks_in_order == sorted(ranks_in_order, reverse=True)
 
 
 def test_returns_404_for_a_place_nominatim_cant_find(client, monkeypatch):

@@ -808,6 +808,40 @@ async def get_nearby_events(
         return []
 
 
+# Below this, an event's PredictHQ rank reads as a small private
+# gathering rather than a genuinely public/city-scale happening --
+# confirmed against real synced data (see migrations/027_events_rank.sql's
+# header comment). Not a hard science, a starting calibration to revisit
+# once more real rank data has been observed across more cities.
+MIN_PUBLIC_EVENT_RANK = 40
+
+
+async def get_top_events_globally(limit_count: int = 6):
+    """
+    Real events, active/upcoming, ranked by PredictHQ's own real-world
+    impact score (0-100) -- no city/location filter, powers the
+    marketing site's global "biggest events" default view. Plain table
+    query, not the nearby_events() RPC -- there's no center point to
+    measure distance from for a worldwide query.
+    """
+    try:
+        client = _get_client()
+        result = (
+            client.table("events")
+            .select("*")
+            .eq("is_active", True)
+            .gt("end_time", datetime.now(timezone.utc).isoformat())
+            .gte("rank", MIN_PUBLIC_EVENT_RANK)
+            .order("rank", desc=True)
+            .limit(limit_count)
+            .execute()
+        )
+        return result.data if result.data else []
+    except Exception as e:
+        logger.error(f"Failed to get top global events: {e}")
+        return []
+
+
 async def get_event(event_id: str):
     """Get one event by ID. Returns the event dict or None."""
     try:

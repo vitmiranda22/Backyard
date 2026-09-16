@@ -160,9 +160,7 @@ describe("RouteDetailScreen", () => {
     await findByText("Mission Murals");
 
     await fireEvent.press(await findByText("report.tourLink"));
-    const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
-    const spamButton = buttons.find((b: any) => b.text === "report.reasonSpam");
-    await spamButton.onPress();
+    await fireEvent.press(await findByText("report.reasonSpam"));
 
     expect(mockReportTour).toHaveBeenCalledWith("tour-1", "spam");
     await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("report.submitted"));
@@ -178,9 +176,7 @@ describe("RouteDetailScreen", () => {
     await findByText("Mission Murals");
 
     await fireEvent.press(await findByText("report.tourLink"));
-    const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
-    const otherButton = buttons.find((b: any) => b.text === "report.reasonOther");
-    await otherButton.onPress();
+    await fireEvent.press(await findByText("report.reasonOther"));
 
     await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("report.couldntSubmit"));
   });

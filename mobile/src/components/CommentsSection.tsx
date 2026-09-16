@@ -1,12 +1,13 @@
 // Comments — list + post, for a route's detail screen.
 
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { useTranslation } from "react-i18next";
 import { getComments, postComment, reportComment, Comment, ReportReason } from "../services/api";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
 import { colors, font, radius, type, spacing } from "../theme";
+import ReportModal from "./ReportModal";
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -22,6 +23,10 @@ export default function CommentsSection({ tourId }: CommentsSectionProps) {
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [body, setBody] = useState("");
   const [posting, setPosting] = useState(false);
+  // The comment currently being reported -- null hides ReportModal. Only
+  // one report flow can be open at a time, so a single id (not per-comment
+  // state) is enough.
+  const [reportingCommentId, setReportingCommentId] = useState<string | null>(null);
 
   useEffect(() => {
     getComments(tourId)
@@ -48,7 +53,10 @@ export default function CommentsSection({ tourId }: CommentsSectionProps) {
     setPosting(false);
   }
 
-  async function submitReport(commentId: string, reason: ReportReason) {
+  async function submitReport(reason: ReportReason) {
+    const commentId = reportingCommentId;
+    setReportingCommentId(null);
+    if (!commentId) return;
     try {
       await reportComment(tourId, commentId, reason);
       showToast(t("report.submitted"));
@@ -59,13 +67,7 @@ export default function CommentsSection({ tourId }: CommentsSectionProps) {
   }
 
   function handleReport(commentId: string) {
-    Alert.alert(t("report.title"), t("report.body"), [
-      { text: t("report.reasonInaccurate"), onPress: () => submitReport(commentId, "inaccurate") },
-      { text: t("report.reasonOffensive"), onPress: () => submitReport(commentId, "offensive") },
-      { text: t("report.reasonSpam"), onPress: () => submitReport(commentId, "spam") },
-      { text: t("report.reasonOther"), onPress: () => submitReport(commentId, "other") },
-      { text: t("common.cancel"), style: "cancel" },
-    ]);
+    setReportingCommentId(commentId);
   }
 
   return (
@@ -118,6 +120,12 @@ export default function CommentsSection({ tourId }: CommentsSectionProps) {
           <Text style={styles.postBtnText}>{posting ? "..." : t("comments.post")}</Text>
         </TouchableOpacity>
       </View>
+
+      <ReportModal
+        visible={reportingCommentId !== null}
+        onCancel={() => setReportingCommentId(null)}
+        onSelectReason={submitReport}
+      />
     </View>
   );
 }

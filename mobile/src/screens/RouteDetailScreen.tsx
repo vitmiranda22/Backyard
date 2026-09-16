@@ -11,6 +11,7 @@ import StarRating from "../components/StarRating";
 import ZonePhoto from "../components/ZonePhoto";
 import CommentsSection from "../components/CommentsSection";
 import EmptyState from "../components/EmptyState";
+import ReportModal from "../components/ReportModal";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
 import { colors, font, radius, type, spacing } from "../theme";
@@ -52,6 +53,7 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
 
   const loadTour = useCallback(() => {
     setError(null);
@@ -127,6 +129,7 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
   }
 
   async function submitReport(reason: ReportReason) {
+    setReportModalVisible(false);
     try {
       await reportTour(tourId, reason);
       showToast(t("report.submitted"));
@@ -157,13 +160,7 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
   }
 
   function handleReport() {
-    Alert.alert(t("report.title"), t("report.body"), [
-      { text: t("report.reasonInaccurate"), onPress: () => submitReport("inaccurate") },
-      { text: t("report.reasonOffensive"), onPress: () => submitReport("offensive") },
-      { text: t("report.reasonSpam"), onPress: () => submitReport("spam") },
-      { text: t("report.reasonOther"), onPress: () => submitReport("other") },
-      { text: t("common.cancel"), style: "cancel" },
-    ]);
+    setReportModalVisible(true);
   }
 
   return (
@@ -315,6 +312,12 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
           </TouchableOpacity>
         )}
       </View>
+
+      <ReportModal
+        visible={reportModalVisible}
+        onCancel={() => setReportModalVisible(false)}
+        onSelectReason={submitReport}
+      />
     </KeyboardAvoidingView>
   );
 }

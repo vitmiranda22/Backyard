@@ -1,5 +1,4 @@
 import React from "react";
-import { Alert } from "react-native";
 import { render, fireEvent, waitFor } from "@testing-library/react-native";
 
 jest.mock("../../services/api", () => ({
@@ -33,7 +32,6 @@ function comment(overrides = {}) {
 describe("CommentsSection", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.spyOn(Alert, "alert").mockImplementation(() => {});
   });
 
   it("submits a comment report with the chosen reason and shows a confirmation toast", async () => {
@@ -44,9 +42,7 @@ describe("CommentsSection", () => {
     await findByText("Great walk!");
 
     await fireEvent.press(await findByText("comments.reportLink"));
-    const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
-    const offensiveButton = buttons.find((b: any) => b.text === "report.reasonOffensive");
-    await offensiveButton.onPress();
+    await fireEvent.press(await findByText("report.reasonOffensive"));
 
     expect(mockReportComment).toHaveBeenCalledWith("tour-1", "c1", "offensive");
     await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("report.submitted"));
@@ -60,9 +56,7 @@ describe("CommentsSection", () => {
     await findByText("Great walk!");
 
     await fireEvent.press(await findByText("comments.reportLink"));
-    const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
-    const spamButton = buttons.find((b: any) => b.text === "report.reasonSpam");
-    await spamButton.onPress();
+    await fireEvent.press(await findByText("report.reasonSpam"));
 
     await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("report.couldntSubmit"));
   });

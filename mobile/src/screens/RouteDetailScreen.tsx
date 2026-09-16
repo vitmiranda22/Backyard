@@ -266,9 +266,16 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
           </Text>
         )}
 
-        {tour.is_own_tour && tour.blocks.length > 0 && (
+        {tour.blocks.length > 0 && (
           <View style={styles.logSection}>
-            <Text style={styles.logHeader}>{t("routeDetail.yourWalkLog")}</Text>
+            {/* Previously gated behind is_own_tour -- but a route's block
+                text is the only way to preview (or read at all, if audio
+                failed) a tour you didn't create, since ReplayScreen only
+                reveals each block's narration once you're physically
+                within range of that block's GPS coordinate. */}
+            <Text style={styles.logHeader}>
+              {tour.is_own_tour ? t("routeDetail.yourWalkLog") : t("routeDetail.tourScript")}
+            </Text>
             {tour.blocks.map((block, i) => (
               <View key={block.block_id} style={styles.logCard}>
                 {block.image_url && (

@@ -141,13 +141,28 @@ describe("RouteDetailScreen", () => {
     expect(onStartReplay).toHaveBeenCalledWith(tour);
   });
 
-  it("shows the walk log only for your own tour, not someone else's", async () => {
+  it("shows the block script under a neutral header for someone else's tour", async () => {
+    // The block list is the only way to preview (or read at all, if audio
+    // failed) a tour you didn't create -- ReplayScreen only reveals each
+    // block's text once you're physically at that block's GPS location.
     mockGetTourDetail.mockResolvedValue(baseTour({ is_own_tour: false }));
     const { findByText, queryByText } = await render(
       <RouteDetailScreen tourId="tour-1" onStartReplay={jest.fn()} onBack={jest.fn()} />
     );
     await findByText("Mission Murals");
     expect(queryByText("routeDetail.yourWalkLog")).toBeNull();
+    expect(await findByText("routeDetail.tourScript")).toBeTruthy();
+    expect(await findByText("Some history.")).toBeTruthy();
+  });
+
+  it("shows the walk log under the personal header for your own tour", async () => {
+    mockGetTourDetail.mockResolvedValue(baseTour({ is_own_tour: true }));
+    const { findByText, queryByText } = await render(
+      <RouteDetailScreen tourId="tour-1" onStartReplay={jest.fn()} onBack={jest.fn()} />
+    );
+    await findByText("Mission Murals");
+    expect(await findByText("routeDetail.yourWalkLog")).toBeTruthy();
+    expect(queryByText("routeDetail.tourScript")).toBeNull();
   });
 
   it("submits a report with the chosen reason and shows a confirmation toast", async () => {

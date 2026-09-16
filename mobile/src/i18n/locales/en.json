@@ -380,6 +380,7 @@
     "minAbbr": "min",
     "audioUnavailable": "This route's audio isn't available right now, but you can still walk it and read the narration text.",
     "yourWalkLog": "Your walk log",
+    "tourScript": "Tour script",
     "shareMessage": "Check out \"{{title}}\" on Backyard: backyard://route/{{tourId}}",
     "shareA11y": "Share this route",
     "startReplay": "Start Replay",

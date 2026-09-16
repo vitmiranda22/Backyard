@@ -380,6 +380,7 @@
     "minAbbr": "min",
     "audioUnavailable": "El audio de esta ruta no está disponible en este momento, pero aún puedes caminarla y leer el texto de la narración.",
     "yourWalkLog": "Tu registro de caminata",
+    "tourScript": "Guion del recorrido",
     "shareMessage": "Mira \"{{title}}\" en Backyard: backyard://route/{{tourId}}",
     "shareA11y": "Compartir esta ruta",
     "startReplay": "Iniciar Repetición",

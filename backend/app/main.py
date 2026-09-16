@@ -24,7 +24,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 
-from app.api import health, narrate, tours, settings as settings_api, webhooks, admin, events, public_events
+from app.api import health, narrate, tours, settings as settings_api, webhooks, admin, public_events
 from app.config import settings
 
 # Crash reporting — sentry_sdk.init() with a blank DSN is a harmless no-op,
@@ -153,9 +153,6 @@ app.include_router(tours.router, prefix="/api", tags=["Tours"])
 
 # User settings — requires auth
 app.include_router(settings_api.router, prefix="/api", tags=["Settings"])
-
-# Backyard Events (map pins for real-world runs/parades/festivals) — requires auth
-app.include_router(events.router, prefix="/api", tags=["Events"])
 
 # Public events lookup for the marketing site — no auth (event listings
 # aren't sensitive data; the marketing page has no logged-in user to gate

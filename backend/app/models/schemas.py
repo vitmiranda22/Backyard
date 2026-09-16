@@ -104,18 +104,6 @@ class WikipediaHighlight(BaseModel):
     url: str
 
 
-class EventContextSummary(BaseModel):
-    """
-    Populated on a NarrateBlockResponse only when the block's coordinates
-    fell inside an active event zone AND the caller is premium (see
-    narrate.py's graceful-fallback-for-free-users behavior) -- lets the
-    mobile client badge event-themed narration without a second lookup.
-    """
-    name: str
-    category: str
-    phase: str
-
-
 class NarrateBlockResponse(BaseModel):
     """Response from /api/narrate-block"""
     street_name: str
@@ -133,11 +121,6 @@ class NarrateBlockResponse(BaseModel):
     zone_data_used: Optional[ZoneDataUsed] = None
     # Premium-only (see narrate.py) — always [] for free users, never null.
     highlights: List[WikipediaHighlight] = Field(default_factory=list)
-    # Premium-only, and only set when the block was inside an active event
-    # zone (see app/services/events.py + narrate.py) — null for everyone
-    # else, including a free user standing in an active zone (graceful
-    # fallback to normal narration, not an error).
-    event: Optional[EventContextSummary] = None
 
 
 class AskQuestionResponse(BaseModel):

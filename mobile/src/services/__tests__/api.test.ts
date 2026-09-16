@@ -7,7 +7,7 @@ jest.mock("../auth", () => ({
   refreshToken: jest.fn(),
 }));
 
-import { narrateBlock, getNearbyEvents, ApiError } from "../api";
+import { narrateBlock, ApiError } from "../api";
 import { getToken, refreshToken } from "../auth";
 
 const mockGetToken = getToken as jest.Mock;
@@ -194,60 +194,5 @@ describe("authFetch (via narrateBlock)", () => {
     jest.advanceTimersByTime(45000);
     await expect(pending).rejects.toThrow("too long to respond");
     jest.useRealTimers();
-  });
-});
-
-describe("getNearbyEvents", () => {
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
-  it("builds the request URL with lat/lng and default radius/limit", async () => {
-    mockGetToken.mockReturnValue("valid-token");
-    global.fetch = jest.fn().mockResolvedValue({
-      status: 200,
-      ok: true,
-      json: async () => [],
-    }) as any;
-
-    await getNearbyEvents(37.7749, -122.4194);
-
-    const [url] = (global.fetch as jest.Mock).mock.calls[0];
-    expect(url).toContain("/events/nearby?");
-    expect(url).toContain("lat=37.7749");
-    expect(url).toContain("lng=-122.4194");
-    expect(url).toContain("radius_m=5000");
-    expect(url).toContain("limit=50");
-    expect(url).not.toContain("category=");
-  });
-
-  it("includes category only when explicitly passed", async () => {
-    mockGetToken.mockReturnValue("valid-token");
-    global.fetch = jest.fn().mockResolvedValue({
-      status: 200,
-      ok: true,
-      json: async () => [],
-    }) as any;
-
-    await getNearbyEvents(37.7749, -122.4194, { category: "festival", radiusM: 1000, limit: 10 });
-
-    const [url] = (global.fetch as jest.Mock).mock.calls[0];
-    expect(url).toContain("category=festival");
-    expect(url).toContain("radius_m=1000");
-    expect(url).toContain("limit=10");
-  });
-
-  it("returns the parsed event list", async () => {
-    mockGetToken.mockReturnValue("valid-token");
-    const events = [{ id: "1", name: "Sunset Festival", phase: "happening" }];
-    global.fetch = jest.fn().mockResolvedValue({
-      status: 200,
-      ok: true,
-      json: async () => events,
-    }) as any;
-
-    const result = await getNearbyEvents(37.7749, -122.4194);
-
-    expect(result).toEqual(events);
   });
 });

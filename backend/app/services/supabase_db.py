@@ -842,46 +842,6 @@ async def get_top_events_globally(limit_count: int = 6):
         return []
 
 
-async def get_event(event_id: str):
-    """Get one event by ID. Returns the event dict or None."""
-    try:
-        client = _get_client()
-        result = (
-            client.table("events")
-            .select("*")
-            .eq("id", event_id)
-            .limit(1)
-            .execute()
-        )
-        if result.data and len(result.data) > 0:
-            return result.data[0]
-        return None
-    except Exception as e:
-        logger.error(f"Failed to get event: {e}")
-        return None
-
-
-async def get_active_event_near_point(lat: float, lng: float):
-    """
-    Find the one active event (if any) whose zone contains this point right
-    now, via the active_event_at_point() SQL function (migrations/025_events.sql).
-    Called on every narrate-block request — returns None (not an error) far
-    more often than not, since most walks aren't near an active event.
-    """
-    try:
-        client = _get_client()
-        result = client.rpc("active_event_at_point", {
-            "p_lat": lat,
-            "p_lng": lng,
-        }).execute()
-        if result.data and len(result.data) > 0:
-            return result.data[0]
-        return None
-    except Exception as e:
-        logger.error(f"Failed to check active event: {e}")
-        return None
-
-
 async def rate_tour(tour_id: str, user_id: str, score: int):
     """
     Upsert a 1-5 rating for a tour. The on_rating_change trigger (see

@@ -39,7 +39,7 @@ const MASCOT_IMAGE = require("../../assets/bosco-sendoff.jpg");
 // actual screen height (not a flex-based split) so the hero always keeps
 // a guaranteed visible band no matter how tall the card's own content is.
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-const CARD_AREA_HEIGHT = SCREEN_HEIGHT * 0.6;
+const CARD_AREA_HEIGHT = SCREEN_HEIGHT * 0.48;
 
 // One line per named guide persona (GUIDE_PERSONAS in backend/app/api/tours.py),
 // written in that persona's established voice — picked once per app open
@@ -203,25 +203,29 @@ export default function LoginScreen({ onLogin, onCreateAccount, onForgotPassword
                 <View style={styles.dividerLine} />
               </View>
 
-              {appleAvailable && (
-                <AppleAuthentication.AppleAuthenticationButton
-                  testID="apple-auth-button"
-                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                  cornerRadius={radius.md}
-                  style={styles.appleBtn}
-                  onPress={() => handleSocialSignIn("apple")}
-                />
-              )}
+              <View style={styles.socialRow}>
+                {appleAvailable && (
+                  <AppleAuthentication.AppleAuthenticationButton
+                    testID="apple-auth-button"
+                    buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                    buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                    cornerRadius={radius.md}
+                    style={styles.appleBtn}
+                    onPress={() => handleSocialSignIn("apple")}
+                  />
+                )}
 
-              <TouchableOpacity
-                style={styles.googleBtn}
-                onPress={() => handleSocialSignIn("google")}
-                accessibilityRole="button"
-                accessibilityLabel={t("login.continueWithGoogle")}
-              >
-                <Text style={styles.googleBtnText}>{t("login.continueWithGoogle")}</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.googleBtn, appleAvailable && styles.googleBtnHalf]}
+                  onPress={() => handleSocialSignIn("google")}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("login.continueWithGoogle")}
+                >
+                  <Text style={styles.googleBtnText} numberOfLines={1} adjustsFontSizeToFit>
+                    {t("login.continueWithGoogle")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
               <TouchableOpacity
                 style={styles.forgotBtn}
@@ -262,12 +266,13 @@ const styles = StyleSheet.create({
   },
   // Real content aspect ratio is ~2.28:1 (source file is a square canvas
   // with a lot of transparent padding around the actual wood-sign art) --
-  // sized off height, not width, so it actually reads as big.
+  // sized off height, not width, so it actually reads as big. +20% over
+  // the original 220x96 per direct feedback that it read too small.
   logo: {
     alignSelf: "center",
-    width: 220,
-    height: 96,
-    marginBottom: 10,
+    width: 264,
+    height: 115,
+    marginBottom: 6,
   },
   quote: {
     fontFamily: font.serifItalic,
@@ -303,18 +308,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.parchmentSurface,
     borderRadius: radius.lg,
-    padding: 22,
+    padding: 18,
   },
   cardScroll: {
     flex: 1,
   },
   cardTitle: {
     fontFamily: font.cursiveBold,
-    fontSize: 31,
-    lineHeight: 41,
+    fontSize: 26,
+    lineHeight: 34,
     color: colors.ink,
     textAlign: "center",
-    marginBottom: spacing.md,
+    marginBottom: 10,
   },
   // Deliberately NOT cursive -- this is live user-typed text (email/
   // password), not UI chrome, so it stays in a plain legible face like
@@ -324,9 +329,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.fieldBorder,
     color: colors.ink,
-    padding: 14,
+    padding: 11,
     borderRadius: radius.md,
-    marginBottom: 12,
+    marginBottom: 9,
     fontFamily: font.sans,
     fontSize: type.body,
   },
@@ -334,7 +339,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 9,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   checkboxBox: {
     width: 21,
@@ -362,7 +367,7 @@ const styles = StyleSheet.create({
   },
   signInBtn: {
     backgroundColor: colors.ink,
-    padding: spacing.md,
+    padding: 12,
     borderRadius: radius.md,
     marginTop: spacing.xs,
   },
@@ -370,14 +375,14 @@ const styles = StyleSheet.create({
     fontFamily: font.cursiveBold,
     color: colors.parchmentSurface,
     textAlign: "center",
-    fontSize: 23,
-    lineHeight: 32,
+    fontSize: 19,
+    lineHeight: 26,
   },
   dividerRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: spacing.md,
-    marginBottom: 12,
+    marginTop: 8,
+    marginBottom: 9,
     gap: 10,
   },
   dividerLine: {
@@ -387,54 +392,65 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     fontFamily: font.cursiveBold,
-    fontSize: 15,
-    lineHeight: 21,
+    fontSize: 14,
+    lineHeight: 19,
     color: colors.fieldMuted,
+  },
+  // Apple/Google side by side (rather than stacked) to save vertical
+  // space, per direct feedback -- Google alone (no Apple on this device)
+  // still gets the full row width via googleBtnHalf being conditional.
+  socialRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 9,
   },
   // AppleAuthenticationButton forbids backgroundColor/borderRadius in its
   // own style prop (those go through buttonStyle/cornerRadius instead, see
   // where this is used) -- height is required or the button renders with
-  // zero size, width matches the other auth buttons on this card.
+  // zero size; flex:1 splits it evenly with Google in socialRow.
   appleBtn: {
-    width: "100%",
-    height: 48,
-    marginBottom: 10,
+    flex: 1,
+    height: 42,
   },
   googleBtn: {
+    width: "100%",
     backgroundColor: colors.parchmentSurface,
     borderWidth: 1.3,
     borderColor: colors.ink,
-    padding: 14,
+    padding: 10,
     borderRadius: radius.md,
-    marginBottom: spacing.xs,
+    justifyContent: "center",
+  },
+  googleBtnHalf: {
+    width: undefined,
+    flex: 1,
   },
   googleBtnText: {
     fontFamily: font.cursiveBold,
     color: colors.ink,
     textAlign: "center",
-    fontSize: 20,
-    lineHeight: 26,
+    fontSize: 16,
+    lineHeight: 21,
   },
   forgotBtn: {
-    padding: 10,
-    marginTop: 6,
+    padding: 7,
+    marginTop: 2,
   },
   forgotText: {
     fontFamily: font.cursiveBold,
     color: colors.fieldMuted,
     textAlign: "center",
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 19,
   },
   newHereBtn: {
-    padding: 14,
-    marginTop: spacing.xs,
+    padding: 10,
   },
   newHereText: {
     fontFamily: font.cursiveBold,
     color: colors.fieldGreen,
     textAlign: "center",
-    fontSize: 20,
-    lineHeight: 26,
+    fontSize: 17,
+    lineHeight: 22,
   },
 });

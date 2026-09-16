@@ -112,6 +112,20 @@ async def fetch_from_predicthq(lat: float, lng: float, radius_km: float) -> list
     return events
 
 
+_SOURCE_ATTRIBUTION_PREFIX = re.compile(r"^\s*Sourced from predicthq\.com\s*-?\s*", re.IGNORECASE)
+
+
+def _clean_description(raw_description: str) -> str:
+    """
+    PredictHQ prefixes every description with "Sourced from predicthq.com"
+    (confirmed live: sometimes followed by a real sentence, often by
+    nothing at all) -- stripped so a real description reads cleanly and
+    an event with nothing real behind it ends up with an empty string
+    instead of that boilerplate rendering as if it were content.
+    """
+    return _SOURCE_ATTRIBUTION_PREFIX.sub("", raw_description or "").strip()
+
+
 def normalize(raw: dict, fallback_city: str) -> dict | None:
     geo = raw.get("geo") or {}
     geometry = geo.get("geometry") or {}
@@ -137,7 +151,7 @@ def normalize(raw: dict, fallback_city: str) -> dict | None:
 
     return {
         "name": title,
-        "description": (raw.get("description") or "")[:2000],
+        "description": _clean_description(raw.get("description"))[:2000],
         "category": _map_category(raw.get("category", ""), title),
         "city": (geo.get("address") or {}).get("locality") or fallback_city,
         "center_lat": lat,

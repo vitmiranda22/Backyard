@@ -1,0 +1,209 @@
+/* Events page — real event browser (search, city tabs, live map, cards).
+   Page-specific, kept out of the shared style.css since no other page
+   uses these components. Reuses style.css's own tokens (--ink,
+   --parchment-surface, --field-border, --field-muted, --accent-rust). */
+
+.wrap-wide {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.location-search {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 8px auto 0;
+  max-width: 480px;
+  flex-wrap: wrap;
+}
+.location-search input {
+  flex: 1;
+  min-width: 200px;
+  font-family: "Work Sans", sans-serif;
+  font-size: 15px;
+  padding: 11px 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--field-border);
+  background: var(--parchment-surface);
+  color: var(--ink);
+}
+.location-search input::placeholder { color: var(--field-muted); }
+.location-search button {
+  font-family: "Work Sans", sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 11px 22px;
+  border-radius: 999px;
+  border: none;
+  background: var(--ink);
+  color: var(--parchment-surface);
+  cursor: pointer;
+}
+.location-search button:disabled { opacity: 0.6; cursor: default; }
+.location-hint {
+  text-align: center;
+  font-family: "Work Sans", sans-serif;
+  font-size: 12.5px;
+  color: var(--field-muted);
+  margin: 12px 0 0;
+}
+.location-error {
+  text-align: center;
+  font-family: "Libre Baskerville", Georgia, serif;
+  font-style: italic;
+  font-size: 14px;
+  color: var(--accent-rust);
+  margin: 4px 0 0;
+}
+
+.city-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 20px 0 26px;
+  flex-wrap: wrap;
+}
+.city-tab {
+  font-family: "Work Sans", sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: 1.5px solid var(--field-border);
+  background: var(--parchment-surface);
+  color: var(--field-muted);
+  cursor: pointer;
+}
+.city-tab.active {
+  background: var(--ink);
+  color: var(--parchment-surface);
+  border-color: var(--ink);
+}
+
+.map-hint {
+  text-align: center;
+  font-family: "Work Sans", sans-serif;
+  font-size: 13px;
+  color: var(--field-muted);
+  margin: 0 0 40px;
+}
+
+.cards-heading {
+  font-family: "Caveat", cursive;
+  font-weight: 700;
+  font-size: 28px;
+  text-align: center;
+  margin: 0 0 6px;
+}
+.cards-sub {
+  text-align: center;
+  font-family: "Work Sans", sans-serif;
+  font-size: 13px;
+  color: var(--field-muted);
+  margin: 0 0 28px;
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
+  margin-bottom: 56px;
+}
+.event-card {
+  background: var(--parchment-surface);
+  border: 1px solid var(--field-border);
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.event-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cat-badge {
+  font-family: "Work Sans", sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.cat-badge.festival { background: var(--accent-rust); }
+.cat-badge.market { background: var(--field-green); }
+.cat-badge.parade { background: #A6752E; }
+.cat-badge.run { background: #5C3A21; }
+.cat-badge.community,
+.cat-badge.other { background: var(--field-muted); }
+
+.phase-badge {
+  font-family: "Work Sans", sans-serif;
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--field-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.phase-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--field-border); }
+.phase-badge.happening .phase-dot { background: #3C8C4A; box-shadow: 0 0 0 3px rgba(60,140,74,0.25); }
+.phase-badge.happening { color: #2D6B38; }
+
+.event-card-name {
+  font-family: "Caveat", cursive;
+  font-weight: 700;
+  font-size: 23px;
+  line-height: 1.2;
+  margin: 0;
+}
+.event-card-place {
+  font-family: "Work Sans", sans-serif;
+  font-size: 12.5px;
+  color: var(--field-muted);
+  margin-top: -6px;
+}
+.event-card-desc {
+  font-family: "Libre Baskerville", Georgia, serif;
+  font-style: italic;
+  font-size: 14.5px;
+  color: var(--ink);
+  line-height: 1.5;
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.event-card-desc.empty { color: var(--field-muted); font-style: normal; }
+.event-card-bottom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--field-border);
+  font-family: "Work Sans", sans-serif;
+  font-size: 12.5px;
+  color: var(--field-muted);
+}
+.zone-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(140,61,34,0.28) 0%, rgba(140,61,34,0.28) 60%, transparent 62%);
+  border: 1.5px solid rgba(140,61,34,0.55);
+  flex-shrink: 0;
+}
+
+.cards-empty {
+  text-align: center;
+  font-family: "Libre Baskerville", Georgia, serif;
+  font-style: italic;
+  color: var(--field-muted);
+  padding: 30px 20px;
+  margin-bottom: 40px;
+}

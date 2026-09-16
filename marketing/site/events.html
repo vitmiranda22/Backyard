@@ -25,6 +25,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="css/events.css">
 </head>
 <body>
 
@@ -48,17 +49,26 @@
   </div>
 </section>
 
-<section id="map-outline">
-  <div class="wrap">
-    <h2>How Event Zones Work</h2>
-    <p class="font-serif-italic" style="text-align:center; max-width:560px; margin: -10px auto 24px;">A few well-known festivals shown here as a worked example. Real event zones, sourced live from real events happening near you, are already on the map inside the app. Click a pin to see how a zone shows up.</p>
-    <div id="events-map"></div>
-    <div id="event-summary" class="event-summary-panel" hidden>
-      <span class="soon-badge" style="margin-bottom:10px;">EXAMPLE</span>
-      <h3 id="event-summary-title"></h3>
-      <p id="event-summary-meta" class="font-sans" style="color:var(--field-muted); margin-bottom:8px;"></p>
-      <p id="event-summary-desc" class="font-serif"></p>
+<section id="event-browser">
+  <div class="wrap-wide">
+    <form class="location-search" id="location-search">
+      <input type="text" id="location-input" placeholder="Type a city to find events there&hellip;" autocomplete="off" value="San Francisco">
+      <button type="submit" id="location-submit">Find Events</button>
+    </form>
+    <p class="location-error" id="location-error" hidden></p>
+    <p class="location-hint">Or pick a city we already have a running start on:</p>
+
+    <div class="city-tabs" id="city-tabs">
+      <button class="city-tab" data-city="San Francisco">San Francisco</button>
+      <button class="city-tab" data-city="New York">New York</button>
     </div>
+
+    <div id="events-map"></div>
+    <p class="map-hint">Real zones, sized to scale &mdash; click a pin to see the event and the exact area where its narration takes over.</p>
+
+    <h2 class="cards-heading" id="cards-heading">Real events near San Francisco</h2>
+    <p class="cards-sub">Sourced live from PredictHQ &middot; updates as new events are added</p>
+    <div class="cards" id="cards"></div>
   </div>
 </section>
 
@@ -105,83 +115,140 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  // Illustrative examples only -- real, well-known recurring festivals used
-  // to demonstrate the concept, not a live event feed (no backend data
-  // source for this exists yet, see events.html's own "Not Live Yet"
-  // section). zoneRadiusM is a made-up illustrative radius, not derived
-  // from any real event footprint data.
-  const EXAMPLE_EVENTS = [
-    {
-      name: "Rio Carnival",
-      lat: -22.9068, lng: -43.1729,
-      meta: "Rio de Janeiro, Brazil — typically February or March",
-      desc: "One of the world's largest carnival celebrations, with samba parades, street parties, and music filling the city for days. A Backyard event zone here would narrate the parade route's history and what's happening at each stage as the celebration moves through it.",
-      zoneRadiusM: 1500,
-    },
-    {
-      name: "Oktoberfest",
-      lat: 48.1351, lng: 11.5820,
-      meta: "Munich, Germany — mid-September to early October",
-      desc: "The world's largest beer festival, held on the Theresienwiese fairground. An event zone here would cover the fairground's own history alongside what's happening at the festival that day.",
-      zoneRadiusM: 900,
-    },
-    {
-      name: "TCS New York City Marathon",
-      lat: 40.6015, lng: -74.0827,
-      meta: "New York City, USA — early November",
-      desc: "One of the world's largest marathons, running through all five boroughs. An event zone along the course could narrate both the neighborhood you're passing through and the race happening on it that day.",
-      zoneRadiusM: 1200,
-    },
-    {
-      name: "La Tomatina",
-      lat: 39.4267, lng: -0.7975,
-      meta: "Buñol, Spain — last Wednesday of August",
-      desc: "A festival built entirely around a massive, good-natured tomato fight in the streets of a small Spanish town. A tightly scoped event zone here would cover the town square where it happens.",
-      zoneRadiusM: 400,
-    },
-    {
-      name: "Songkran (Thai New Year)",
-      lat: 18.7883, lng: 98.9853,
-      meta: "Chiang Mai, Thailand — April 13-15",
-      desc: "Thailand's water festival, marking the traditional new year with citywide water fights and street celebrations. An event zone here would cover the old city's moat area, where celebrations concentrate.",
-      zoneRadiusM: 1000,
-    },
-  ];
+  const API_URL = "https://backyard-api.onrender.com/api";
+  const CATEGORY_LABEL = { festival: "Festival", market: "Market", parade: "Parade", run: "Run", community: "Community", other: "Event" };
 
-  const map = L.map("events-map", { scrollWheelZoom: false }).setView([20, 10], 2);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 18,
-  }).addTo(map);
+  const searchForm = document.getElementById("location-search");
+  const searchInput = document.getElementById("location-input");
+  const searchBtn = document.getElementById("location-submit");
+  const errorEl = document.getElementById("location-error");
+  const tabsEl = document.getElementById("city-tabs");
+  const headingEl = document.getElementById("cards-heading");
+  const cardsEl = document.getElementById("cards");
 
-  let activeZoneCircle = null;
+  let map, markersLayer, activeCircle;
 
-  const summaryPanel = document.getElementById("event-summary");
-  const titleEl = document.getElementById("event-summary-title");
-  const metaEl = document.getElementById("event-summary-meta");
-  const descEl = document.getElementById("event-summary-desc");
+  function formatDate(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " · " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  }
 
-  EXAMPLE_EVENTS.forEach((ev) => {
-    const marker = L.marker([ev.lat, ev.lng]).addTo(map);
-    marker.on("click", () => {
-      if (activeZoneCircle) map.removeLayer(activeZoneCircle);
-      activeZoneCircle = L.circle([ev.lat, ev.lng], {
-        radius: ev.zoneRadiusM,
-        color: "#8C3D22",
-        fillColor: "#8C3D22",
-        fillOpacity: 0.15,
-        weight: 2,
+  // Event name/description/city come from PredictHQ, an external source
+  // this app doesn't control the content of -- escaped before going into
+  // innerHTML so a malicious or malformed listing can't inject markup or
+  // script into this public page.
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str == null ? "" : String(str);
+    return div.innerHTML;
+  }
+
+  function renderCards(events) {
+    if (!events.length) {
+      cardsEl.innerHTML = `<p class="cards-empty">No events synced here yet &mdash; check back soon, or try a nearby major city.</p>`;
+      return;
+    }
+    cardsEl.innerHTML = events.map((e) => {
+      const label = CATEGORY_LABEL[e.category] || "Event";
+      const hasRealDesc = Boolean(e.description && e.description.trim());
+      const desc = hasRealDesc ? e.description : "No description available for this event yet.";
+      const phaseClass = e.phase === "happening" ? "happening" : "";
+      const phaseText = e.phase === "happening" ? "Happening now" : e.phase === "ended" ? "Ended" : "Upcoming";
+      return `
+        <div class="event-card">
+          <div class="event-card-top">
+            <span class="cat-badge ${e.category}">${label}</span>
+            <span class="phase-badge ${phaseClass}"><span class="phase-dot"></span>${phaseText}</span>
+          </div>
+          <h3 class="event-card-name">${escapeHtml(e.name)}</h3>
+          <div class="event-card-place">${escapeHtml(e.city || "")} &middot; ${formatDate(e.start_time)}</div>
+          <p class="event-card-desc ${hasRealDesc ? "" : "empty"}">${escapeHtml(desc)}</p>
+          <div class="event-card-bottom">
+            <div class="zone-dot"></div> ${e.radius_m}m zone
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  function renderMap(events, centerLat, centerLng) {
+    if (!map) {
+      map = L.map("events-map", { scrollWheelZoom: false });
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 18,
       }).addTo(map);
+      markersLayer = L.layerGroup().addTo(map);
+    }
+    markersLayer.clearLayers();
+    if (activeCircle) { map.removeLayer(activeCircle); activeCircle = null; }
 
-      titleEl.textContent = ev.name;
-      metaEl.textContent = ev.meta;
-      descEl.textContent = ev.desc;
-      summaryPanel.hidden = false;
-      summaryPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (!events.length) {
+      map.setView([centerLat, centerLng], 11);
+      return;
+    }
 
-      map.flyTo([ev.lat, ev.lng], 12, { duration: 0.8 });
+    const bounds = [];
+    events.forEach((e) => {
+      const marker = L.marker([e.center_lat, e.center_lng]).addTo(markersLayer);
+      bounds.push([e.center_lat, e.center_lng]);
+      marker.on("click", () => {
+        if (activeCircle) map.removeLayer(activeCircle);
+        activeCircle = L.circle([e.center_lat, e.center_lng], {
+          radius: e.radius_m, color: "#8C3D22", fillColor: "#8C3D22", fillOpacity: 0.18, weight: 2,
+        }).addTo(map);
+        marker.bindPopup(`<b>${escapeHtml(e.name)}</b><br>${e.radius_m}m zone`).openPopup();
+      });
     });
+    map.fitBounds(bounds, { padding: [30, 30] });
+  }
+
+  function setActiveTab(cityTyped) {
+    tabsEl.querySelectorAll(".city-tab").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.city.toLowerCase() === cityTyped.toLowerCase());
+    });
+  }
+
+  async function loadCity(cityName) {
+    errorEl.hidden = true;
+    searchBtn.disabled = true;
+    searchBtn.textContent = "Searching…";
+    try {
+      const resp = await fetch(`${API_URL}/public/events?city=${encodeURIComponent(cityName)}`);
+      if (resp.status === 404) {
+        const body = await resp.json().catch(() => ({}));
+        errorEl.textContent = body?.detail?.error || `Couldn't find "${cityName}".`;
+        errorEl.hidden = false;
+        return;
+      }
+      if (!resp.ok) throw new Error(`Request failed: ${resp.status}`);
+      const data = await resp.json();
+
+      searchInput.value = data.city;
+      setActiveTab(data.city);
+      headingEl.textContent = `Real events near ${data.city}`;
+      renderCards(data.events);
+      renderMap(data.events, data.lat, data.lng);
+    } catch (e) {
+      errorEl.textContent = "Something went wrong loading events. Try again in a moment.";
+      errorEl.hidden = false;
+      console.warn("Failed to load events:", e);
+    } finally {
+      searchBtn.disabled = false;
+      searchBtn.textContent = "Find Events";
+    }
+  }
+
+  searchForm.addEventListener("submit", (evt) => {
+    evt.preventDefault();
+    const typed = searchInput.value.trim();
+    if (typed) loadCity(typed);
   });
+
+  tabsEl.querySelectorAll(".city-tab").forEach((btn) => {
+    btn.addEventListener("click", () => loadCity(btn.dataset.city));
+  });
+
+  loadCity("San Francisco");
 </script>
 
 </body>

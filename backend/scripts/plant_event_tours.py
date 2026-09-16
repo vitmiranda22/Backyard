@@ -114,9 +114,19 @@ async def build_walked_path(points):
     return full
 
 
-async def already_published(title: str) -> bool:
+async def already_published(title: str, center_lat: float, center_lng: float) -> bool:
+    """
+    Checks both the event's title AND its real-world location against
+    already-published tours -- title alone misses the case where
+    PredictHQ renames/normalizes the same real-world event's title
+    between syncs, which would otherwise let a rerun publish a genuine
+    duplicate tour for it. A false positive here (skipping a build
+    because an unrelated tour happens to sit nearby) is a safe failure
+    -- it just misses one event tour -- so this errs toward the wider
+    check rather than the narrower, exact-duplicate-risking one.
+    """
     client = supabase_db._get_client()
-    result = (
+    by_title = (
         client.table("tours")
         .select("id")
         .eq("title", title)
@@ -124,14 +134,31 @@ async def already_published(title: str) -> bool:
         .limit(1)
         .execute()
     )
-    return bool(result.data)
+    if by_title.data:
+        return True
+
+    # Same real-world spot, different title -- a small bounding box
+    # (~100m) around the event's own point, roughly one geohash-7 cell.
+    delta = 0.0009
+    by_location = (
+        client.table("tours")
+        .select("id")
+        .eq("is_public", True)
+        .gte("center_lat", center_lat - delta)
+        .lte("center_lat", center_lat + delta)
+        .gte("center_lng", center_lng - delta)
+        .lte("center_lng", center_lng + delta)
+        .limit(1)
+        .execute()
+    )
+    return bool(by_location.data)
 
 
 async def build_tour(event: dict):
     title = event["name"]
     print(f"\n=== Building '{title}' (rank {event.get('rank')}, {event.get('category')}) ===")
 
-    if await already_published(title):
+    if await already_published(title, event["center_lat"], event["center_lng"]):
         print("    already has a published tour -- skipping")
         return None
 
@@ -147,6 +174,9 @@ async def build_tour(event: dict):
     tour = await supabase_db.create_tour(
         creator_id=UID, mood=MOOD, voice=VOICE, tour_type="walking", content_safety=False,
     )
+    if not tour:
+        print("    !! create_tour failed (DB error) -- skipping this event, rerun will retry it")
+        return None
     tour_id = tour["id"]
     print("tour_id:", tour_id)
 

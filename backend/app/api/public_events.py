@@ -14,15 +14,54 @@ dominated by small private parties/club nights, not the public/cultural/
 city-scale events this page is meant to showcase.
 """
 
+import time
 from typing import List
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.models.schemas import NearbyEventSummary, PublicEventsByCityResponse, ErrorResponse
 from app.services import supabase_db, geocode
 from app.services.events import compute_event_phase
 
 router = APIRouter()
+
+# GET /public/events?city= is the one endpoint here that calls
+# geocode.forward_geocode(), which shares reverse_geocode()'s single
+# process-wide Nominatim throttle/lock -- the same lock the real,
+# billed narration pipeline depends on for every walking tour. This
+# endpoint is fully unauthenticated (the marketing site has no logged-
+# in user), so with no guard at all a tight loop of garbage city
+# queries (each one a guaranteed cache miss, since a failed lookup is
+# never cached) queues up on that shared lock and can stall narration
+# for every real user on this single-instance deployment. In-memory,
+# not DB-backed -- this is a low-stakes public marketing endpoint, not
+# worth a database round trip per pageview, and matches admin.py's own
+# in-memory abuse-tracking pattern for the same reason.
+_IP_RATE_LIMIT_WINDOW_SEC = 60
+_IP_RATE_LIMIT_MAX_REQUESTS = 10
+_ip_request_log: dict = {}
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _enforce_ip_rate_limit(request: Request):
+    ip = _client_ip(request)
+    now = time.time()
+    cutoff = now - _IP_RATE_LIMIT_WINDOW_SEC
+    log = _ip_request_log.setdefault(ip, [])
+    while log and log[0] < cutoff:
+        log.pop(0)
+    if len(log) >= _IP_RATE_LIMIT_MAX_REQUESTS:
+        raise HTTPException(
+            status_code=429,
+            detail={"error": "Too many requests — try again in a moment.", "code": "rate_limited", "retry": True},
+        )
+    log.append(now)
 
 # A metro-area-sized radius, not user-configurable -- matches the radius
 # used when seeding this data (scripts/sync_events.py), so "events near
@@ -76,8 +115,11 @@ async def public_top_events():
     summary="The biggest real events near a place name, for the public marketing site",
 )
 async def public_events_by_city(
+    request: Request,
     city: str = Query(..., min_length=1, max_length=100),
 ):
+    _enforce_ip_rate_limit(request)
+
     place = await geocode.forward_geocode(city)
     if not place:
         raise HTTPException(

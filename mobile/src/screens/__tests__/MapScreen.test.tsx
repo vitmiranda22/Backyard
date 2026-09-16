@@ -152,5 +152,28 @@ describe("MapScreen", () => {
       onChange!("active");
       await waitFor(() => expect(mockWatchPosition).toHaveBeenCalledTimes(2));
     });
+
+    it("removes the subscription instead of leaking it if the screen unmounts before watchPosition resolves", async () => {
+      // Regression test: watchPosition's underlying GPS/provider startup
+      // isn't instant -- if the screen unmounts while that await is still
+      // pending, the effect's cleanup used to run before watchSubRef.current
+      // was ever set, so stopFogTracking found nothing to remove, and the
+      // subscription that landed afterward was stored with nothing left to
+      // ever clean it up again (a leaked live GPS listener).
+      const removeSpy = jest.fn();
+      let resolveWatch: (sub: { remove: () => void }) => void;
+      mockWatchPosition.mockReturnValue(
+        new Promise((resolve) => {
+          resolveWatch = resolve;
+        })
+      );
+
+      const { unmount } = await render(<MapScreen {...defaultProps()} />);
+      await waitFor(() => expect(mockWatchPosition).toHaveBeenCalledTimes(1));
+
+      unmount();
+      resolveWatch!({ remove: removeSpy });
+      await waitFor(() => expect(removeSpy).toHaveBeenCalledTimes(1));
+    });
   });
 });

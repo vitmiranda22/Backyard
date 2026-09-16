@@ -753,14 +753,29 @@ async def nearby_routes(
     offset: int = Query(0, ge=0),
     sort_by: str = Query("distance", pattern="^(distance|rating)$"),
 ):
+    # Terra Incognita fog-of-war means most callers have only explored a
+    # small fraction of nearby cells, so fetching just `limit` candidates
+    # from the RPC and filtering afterward routinely returns far fewer
+    # than requested -- a client using the common "fewer than limit means
+    # end of list" heuristic stops paging prematurely and permanently
+    # misses tours the caller HAS actually discovered. Over-fetch a flat,
+    # generous candidate pool (ignoring the caller's own limit/offset for
+    # this RPC call), filter for discovery below, THEN apply the caller's
+    # real limit/offset over the filtered result, not before it.
+    # _CANDIDATE_POOL_SIZE only needs to exceed the total number of
+    # public tours within any real radius_m -- true at this app's
+    # current scale (low hundreds of tours total). If that stops
+    # holding, this filter needs to move into the nearby_tours() SQL
+    # function itself instead of staying a Python-side post-filter.
+    _CANDIDATE_POOL_SIZE = 200
     rows = await supabase_db.get_nearby_tours(
         user_lat=lat,
         user_lng=lng,
         radius_m=radius_m,
         mood_filter=mood,
         tour_type_filter=tour_type,
-        limit_count=limit,
-        offset_count=offset,
+        limit_count=_CANDIDATE_POOL_SIZE,
+        offset_count=0,
         sort_by=sort_by,
     )
 
@@ -772,7 +787,24 @@ async def nearby_routes(
         r["id"]: geohash2.encode(r.get("lat", 0.0), r.get("lng", 0.0), precision=GEOHASH_PRECISION)
         for r in rows
     }
-    richness_by_hash = await supabase_db.get_zone_richness_batch(list(row_geohashes.values()))
+
+    # Terra Incognita fog-of-war: a tour is invisible on the map until
+    # the caller has personally walked through its own cell (a tour has
+    # its own creator among everyone who could ever have explored that
+    # cell, so a creator's own tours pass this for free -- no special
+    # case needed, since making a tour requires having walked its start).
+    # Checked against this whole candidate pool's geohashes, not the
+    # caller's whole history -- see get_explored_cells_among's docstring.
+    discovered_hashes = await supabase_db.get_explored_cells_among(user_id, list(row_geohashes.values()))
+    rows = [r for r in rows if row_geohashes.get(r["id"]) in discovered_hashes]
+
+    # NOW apply the caller's real pagination -- after both the fog-of-war
+    # filter above, not before it.
+    rows = rows[offset:offset + limit]
+
+    richness_by_hash = await supabase_db.get_zone_richness_batch(
+        [row_geohashes[r["id"]] for r in rows]
+    )
 
     def _is_low_info(tour_id: str) -> bool:
         richness = richness_by_hash.get(row_geohashes.get(tour_id))
@@ -783,16 +815,6 @@ async def nearby_routes(
         if hit is None or eligible is None:
             return False
         return zone_data.is_low_info(hit, eligible)
-
-    # Terra Incognita fog-of-war: a tour is invisible on the map until
-    # the caller has personally walked through its own cell (a tour has
-    # its own creator among everyone who could ever have explored that
-    # cell, so a creator's own tours pass this for free -- no special
-    # case needed, since making a tour requires having walked its start).
-    # Checked only against this page's own candidate geohashes, not the
-    # caller's whole history -- see get_explored_cells_among's docstring.
-    discovered_hashes = await supabase_db.get_explored_cells_among(user_id, list(row_geohashes.values()))
-    rows = [r for r in rows if row_geohashes.get(r["id"]) in discovered_hashes]
 
     return [
         NearbyRouteSummary(

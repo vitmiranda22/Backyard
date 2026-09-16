@@ -15,16 +15,63 @@ GET /routes/nearby (tours.py), not here -- these two endpoints only
 read/write the discovery record itself.
 """
 
+import logging
+import math
+from datetime import datetime, timezone
+
 import geohash2
 from fastapi import APIRouter
 
 from app.api.auth import AuthenticatedUser
+from app.api.tours import _enforce_minute_rate_limit
 from app.models.schemas import ExploredCellRequest, ExploredCellResponse, ExploredCellsListResponse
 from app.services import supabase_db
+
+logger = logging.getLogger(__name__)
 
 GEOHASH_PRECISION = 7  # must match backend/app/api/narrate.py
 
 router = APIRouter()
+
+# Generous on purpose -- explored.py's whole contract is "a real GPS
+# reading while the app is open," not "walking pace." Someone riding as
+# a passenger through a new city, or flying with the app open, is a
+# legitimate way to reveal fog here (unlike end_tour's much stricter
+# _is_speed_implausible, which is specifically about ONE recorded WALK).
+# This threshold only needs to catch an obviously spoofed instant jump
+# between two arbitrary points -- comfortably above the fastest real
+# commercial flight (~290 m/s), never a real mode of travel.
+_IMPLAUSIBLE_TELEPORT_MPS = 400.0
+
+
+async def _is_teleport_implausible(user_id: str, lat: float, lng: float) -> bool:
+    """
+    Compares this report against the user's own single most-recently
+    explored cell -- if the implied speed to get here from there is
+    beyond anything real travel could produce, this is almost certainly
+    a spoofed/scripted report, not a real walk (or flight, or car ride).
+    Fails open (returns False) on any error or on a user's first-ever
+    report, since there's nothing to compare against yet.
+    """
+    try:
+        prior = await supabase_db.get_most_recently_explored_cell(user_id)
+        if not prior:
+            return False
+        prior_lat, prior_lng, _, _ = geohash2.decode_exactly(prior["geo_hash"])
+        prior_at = datetime.fromisoformat(prior["first_explored_at"].replace("Z", "+00:00"))
+        elapsed_sec = (datetime.now(timezone.utc) - prior_at).total_seconds()
+        if elapsed_sec <= 0:
+            return False
+        r = 6371000
+        phi1, phi2 = math.radians(prior_lat), math.radians(lat)
+        d_phi = math.radians(lat - prior_lat)
+        d_lambda = math.radians(lng - prior_lng)
+        a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
+        distance_m = r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        return (distance_m / elapsed_sec) > _IMPLAUSIBLE_TELEPORT_MPS
+    except Exception as e:
+        logger.error(f"Teleport-plausibility check failed, failing open: {e}")
+        return False
 
 
 @router.post(
@@ -33,7 +80,21 @@ router = APIRouter()
     summary="Report the caller's real position as explored",
 )
 async def report_explored_cell(request: ExploredCellRequest, user_id: AuthenticatedUser):
+    await _enforce_minute_rate_limit(user_id)
+
     geo_hash = geohash2.encode(request.lat, request.lng, precision=GEOHASH_PRECISION)
+
+    # Silently skip persisting an implausible jump rather than erroring --
+    # the client already updates its local fog optimistically regardless
+    # of this response (see mobile's reportIfNewCell), and GET /routes/
+    # nearby's discovery filter is the real, server-side source of truth
+    # either way, so a rejected report here just never becomes real
+    # discovery, without needing to surface a confusing error to a caller
+    # that's almost certainly not the one deciding whether to spoof.
+    if await _is_teleport_implausible(user_id, request.lat, request.lng):
+        logger.warning(f"Rejected implausible explored-cell jump for user={user_id[:8]}...")
+        return ExploredCellResponse(geo_hash=geo_hash)
+
     await supabase_db.mark_cells_explored(user_id, [geo_hash])
     return ExploredCellResponse(geo_hash=geo_hash)
 

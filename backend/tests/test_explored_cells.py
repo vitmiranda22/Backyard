@@ -136,3 +136,77 @@ def test_shows_only_the_explored_tour_among_several_candidates(client, auth_as, 
 
     body = resp.json()
     assert [r["tour_id"] for r in body] == ["discovered-1"]
+
+
+# --- POST /explored-cells: abuse guards --------------------------------------
+
+def test_rate_limited_caller_gets_429(client, auth_as, app, monkeypatch):
+    auth_as(app, USER_ID)
+    monkeypatch.setattr(supabase_db, "check_minute_rate_limit", _async((False, "minute_limit_exceeded")))
+
+    resp = client.post("/api/explored-cells", json={"lat": 37.7749, "lng": -122.4194})
+
+    assert resp.status_code == 429
+
+
+def test_an_implausible_jump_is_not_persisted(client, auth_as, app, monkeypatch):
+    """
+    The caller's last explored cell was San Francisco 5 seconds ago; this
+    report claims New York -- physically impossible, so it should be
+    silently dropped (still 200, still returns the geo_hash, but never
+    reaches mark_cells_explored).
+    """
+    import datetime
+    auth_as(app, USER_ID)
+    sf_hash = geohash2.encode(37.7749, -122.4194, precision=GEOHASH_PRECISION)
+    monkeypatch.setattr(supabase_db, "get_most_recently_explored_cell", _async({
+        "geo_hash": sf_hash,
+        "first_explored_at": (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=5)).isoformat(),
+    }))
+
+    called = []
+    async def _track_mark(*args, **kwargs):
+        called.append((args, kwargs))
+    monkeypatch.setattr(supabase_db, "mark_cells_explored", _track_mark)
+
+    resp = client.post("/api/explored-cells", json={"lat": 40.7128, "lng": -74.0060})  # New York
+
+    assert resp.status_code == 200
+    assert called == []
+
+
+def test_a_plausible_report_with_no_prior_history_is_persisted(client, auth_as, app, monkeypatch):
+    auth_as(app, USER_ID)
+    monkeypatch.setattr(supabase_db, "get_most_recently_explored_cell", _async(None))
+
+    called = []
+    async def _track_mark(user_id, geo_hashes):
+        called.append((user_id, geo_hashes))
+    monkeypatch.setattr(supabase_db, "mark_cells_explored", _track_mark)
+
+    resp = client.post("/api/explored-cells", json={"lat": 37.7749, "lng": -122.4194})
+
+    assert resp.status_code == 200
+    assert len(called) == 1
+    assert called[0][0] == USER_ID
+
+
+def test_a_plausible_nearby_report_is_persisted(client, auth_as, app, monkeypatch):
+    """A few real blocks away, a minute later -- an ordinary walking pace, must still be recorded."""
+    import datetime
+    auth_as(app, USER_ID)
+    prior_hash = geohash2.encode(37.7749, -122.4194, precision=GEOHASH_PRECISION)
+    monkeypatch.setattr(supabase_db, "get_most_recently_explored_cell", _async({
+        "geo_hash": prior_hash,
+        "first_explored_at": (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=1)).isoformat(),
+    }))
+
+    called = []
+    async def _track_mark(user_id, geo_hashes):
+        called.append((user_id, geo_hashes))
+    monkeypatch.setattr(supabase_db, "mark_cells_explored", _track_mark)
+
+    resp = client.post("/api/explored-cells", json={"lat": 37.7760, "lng": -122.4194})
+
+    assert resp.status_code == 200
+    assert len(called) == 1

@@ -155,3 +155,24 @@ def test_rejects_an_empty_city_query(client):
     resp = client.get("/api/public/events", params={"city": ""})
 
     assert resp.status_code == 422
+
+
+# --- IP rate limit -----------------------------------------------------------
+# This endpoint is fully unauthenticated and shares a process-wide Nominatim
+# throttle/lock with the real narration pipeline's reverse-geocoding -- a
+# tight loop of requests here can stall narration for every real user.
+
+def test_ip_rate_limit_kicks_in_after_repeated_requests(client, monkeypatch):
+    from app.api import public_events
+    public_events._ip_request_log.clear()  # isolate from any earlier test in this file
+
+    monkeypatch.setattr(geocode, "forward_geocode", _async(_FakeGeocodeResult(37.7749, -122.4194, "San Francisco")))
+    monkeypatch.setattr(supabase_db, "get_nearby_events", _async([]))
+
+    statuses = [
+        client.get("/api/public/events", params={"city": "San Francisco"}).status_code
+        for _ in range(public_events._IP_RATE_LIMIT_MAX_REQUESTS + 3)
+    ]
+
+    assert statuses[:public_events._IP_RATE_LIMIT_MAX_REQUESTS] == [200] * public_events._IP_RATE_LIMIT_MAX_REQUESTS
+    assert all(s == 429 for s in statuses[public_events._IP_RATE_LIMIT_MAX_REQUESTS:])

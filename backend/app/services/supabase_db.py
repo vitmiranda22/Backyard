@@ -449,6 +449,32 @@ async def get_explored_geohashes(user_id: str) -> list:
         return []
 
 
+async def get_most_recently_explored_cell(user_id: str):
+    """
+    The single most recent cell this user reported explored, or None if
+    they have no history yet. Used by explored.py's teleport-plausibility
+    check on POST /explored-cells -- comparing a new report's real-world
+    distance/elapsed-time against this one prior point is enough to catch
+    an obvious spoofed jump without needing a full location history.
+    """
+    try:
+        client = _get_client()
+        result = (
+            client.table("user_explored_cells")
+            .select("geo_hash, first_explored_at")
+            .eq("user_id", user_id)
+            .order("first_explored_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if result.data:
+            return result.data[0]
+        return None
+    except Exception as e:
+        logger.error(f"Failed to fetch most recent explored cell: {e}")
+        return None
+
+
 async def get_explored_cells_among(user_id: str, geo_hashes: list) -> set:
     """
     Which of these specific candidate geohashes has this user already

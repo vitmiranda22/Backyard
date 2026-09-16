@@ -46,6 +46,17 @@ export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }:
   const exploredCellsRef = useRef<Set<string>>(new Set());
   const [region, setRegion] = useState<MapRegion | null>(null);
   const watchSubRef = useRef<{ remove: () => void } | null>(null);
+  // Guards startFogTracking's own await: watchPosition's underlying
+  // Location.watchPositionAsync isn't instant (real GPS/provider
+  // cold-start), so if the screen unmounts (or the app backgrounds)
+  // while that's still pending, the effect's cleanup runs before
+  // watchSubRef.current is ever set -- stopFogTracking finds nothing to
+  // remove, and the subscription that lands afterward is stored with
+  // nothing left to ever clean it up, leaking a live GPS listener (and
+  // its battery/network cost) for as long as the app process runs. Each
+  // start attempt captures its own generation number and only commits
+  // to watchSubRef if nothing superseded it while it was still starting.
+  const trackingGenerationRef = useRef(0);
 
   // The full walked path of whichever pin was last tapped, drawn directly
   // on this map. Fetched on demand (nearby-route pins only carry a single
@@ -60,14 +71,24 @@ export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }:
   // already running.
   async function startFogTracking() {
     if (watchSubRef.current) return;
+    const myGeneration = ++trackingGenerationRef.current;
     const sub = await watchPosition((lat, lng) => {
       const newHash = reportIfNewCell(lat, lng, exploredCellsRef.current);
       if (newHash) setExploredCells(new Set(exploredCellsRef.current));
     });
+    if (trackingGenerationRef.current !== myGeneration) {
+      // Superseded by a stop (unmount/background) -- or another start --
+      // while this was still starting up. Don't store a subscription
+      // nothing will ever track; just remove the listener it already
+      // registered so it doesn't keep firing forever.
+      sub.remove();
+      return;
+    }
     watchSubRef.current = sub;
   }
 
   function stopFogTracking() {
+    trackingGenerationRef.current++;
     watchSubRef.current?.remove();
     watchSubRef.current = null;
   }

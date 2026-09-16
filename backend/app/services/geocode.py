@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Be a good citizen — identify ourselves and don't hammer the server.
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
+NOMINATIM_SEARCH_URL = "https://nominatim.openstreetmap.org/search"
 USER_AGENT = "BackyardApp/1.0 (tour guide app; contact@backyard.app)"
 REQUEST_TIMEOUT = 5.0  # seconds
 
@@ -131,6 +132,97 @@ async def reverse_geocode(lat: float, lng: float):
         city=city,
         country=country,
     )
+
+
+class ForwardGeocodingResult:
+    """Structured result from forward geocoding (a place name -> a point)."""
+
+    def __init__(self, lat: float, lng: float, city: str, display_name: str):
+        self.lat = lat
+        self.lng = lng
+        # A short, clean label ("San Francisco") for display -- separate
+        # from Nominatim's own display_name, which is a full address
+        # string ("San Francisco, California, United States").
+        self.city = city
+        self.display_name = display_name
+
+
+# Forward-geocode results cached in-process, keyed by the normalized query
+# string -- a city name's coordinates never change, and this call is now
+# reachable from the public (unauthenticated) events endpoint, which
+# shares Nominatim's global 1 req/sec throttle with reverse_geocode's own
+# calls from the live narration pipeline. Without this cache, repeated
+# marketing-page searches for the same popular city would compete with
+# real narration requests for that same one-request-per-second budget.
+# Cleared on process restart -- acceptable for a marketing feature, not
+# worth a persistent cache for.
+_forward_geocode_cache: dict = {}
+
+
+async def forward_geocode(place_name: str):
+    """
+    Convert a free-text place name (e.g. "San Francisco") into
+    coordinates. Returns None if Nominatim can't find it or the request
+    fails after retries -- the caller should treat that as "we don't
+    recognize that place," not a crash.
+
+    Example:
+        result = await forward_geocode("San Francisco")
+        print(result.lat, result.lng)  # 37.77..., -122.41...
+    """
+    cache_key = place_name.strip().lower()
+    if not cache_key:
+        return None
+    if cache_key in _forward_geocode_cache:
+        return _forward_geocode_cache[cache_key]
+
+    params = {
+        "q": place_name,
+        "format": "json",
+        "limit": 1,
+        "addressdetails": 1,
+    }
+
+    data = None
+    for attempt in range(2):
+        try:
+            await _throttle()
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    NOMINATIM_SEARCH_URL,
+                    params=params,
+                    headers={"User-Agent": USER_AGENT},
+                    timeout=REQUEST_TIMEOUT,
+                )
+                response.raise_for_status()
+                data = response.json()
+            break
+        except httpx.TimeoutException:
+            logger.warning(f"Nominatim search timeout for '{place_name}', attempt {attempt + 1}/2")
+        except httpx.HTTPError as e:
+            logger.warning(f"Nominatim search HTTP error for '{place_name}', attempt {attempt + 1}/2: {e}")
+
+    if not data:
+        logger.info(f"Nominatim search found nothing for '{place_name}'")
+        return None
+
+    top = data[0]
+    address = top.get("address", {})
+    city = (
+        address.get("city")
+        or address.get("town")
+        or address.get("village")
+        or address.get("municipality")
+        or place_name.strip()
+    )
+    result = ForwardGeocodingResult(
+        lat=float(top["lat"]),
+        lng=float(top["lon"]),
+        city=city,
+        display_name=top.get("display_name", place_name),
+    )
+    _forward_geocode_cache[cache_key] = result
+    return result
 
 
 def _build_street_name(address: dict) -> str:

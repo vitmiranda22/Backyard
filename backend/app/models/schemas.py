@@ -355,6 +355,20 @@ class EventDetail(NearbyEventSummary):
     source: str
 
 
+class PublicEventsByCityResponse(BaseModel):
+    """
+    GET /api/public/events -- unauthenticated, for the marketing site.
+    `city`/`lat`/`lng` are the resolved place (Nominatim's own city label
+    and coordinates for whatever the caller typed), not an echo of the
+    raw query string, so the frontend can center its map correctly even
+    when the typed text doesn't exactly match Nominatim's canonical name.
+    """
+    city: str
+    lat: float
+    lng: float
+    events: List[NearbyEventSummary]
+
+
 class RateTourRequest(BaseModel):
     """POST /api/rate-tour"""
     tour_id: str

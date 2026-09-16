@@ -99,4 +99,41 @@ describe("EventDetailSheet", () => {
     );
     expect(getByText(/m · /)).toBeTruthy();
   });
+
+  it("trusts the server's phase field over what the raw timestamps alone would imply", async () => {
+    // Timestamps say "happening" (now falls between start/end), but the
+    // server-computed phase says "ended" -- the component must follow
+    // the server field, not re-derive its own answer and disagree with
+    // the map pin showing the same event.
+    const mismatched = makeEvent({
+      start_time: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      end_time: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      phase: "ended",
+    });
+    const { getByText, queryByText } = await render(
+      <EventDetailSheet event={mismatched} visible={true} onClose={jest.fn()} userLocation={null} />
+    );
+    expect(getByText(/^events\.phaseEndedAgo /)).toBeTruthy();
+    expect(queryByText("events.phaseHappeningNow")).toBeNull();
+  });
+
+  it("keeps rendering the last event instead of returning null the instant event goes null", async () => {
+    // Isolates the actual regression from the test environment's own
+    // Modal mock, which (per SafetyModal's own tests) hides children
+    // whenever visible=false regardless of what's rendered underneath --
+    // so this keeps `visible` true and only nulls `event`, exactly the
+    // prop this component used to bail out on immediately with
+    // `if (!event) return null`, unmounting the Modal's children before
+    // its real close animation (driven by `visible` in production) could
+    // ever run.
+    const event = makeEvent();
+    const { getByText, queryByText, rerender } = await render(
+      <EventDetailSheet event={event} visible={true} onClose={jest.fn()} userLocation={null} />
+    );
+    expect(getByText("Sunset Street Festival")).toBeTruthy();
+
+    await rerender(<EventDetailSheet event={null} visible={true} onClose={jest.fn()} userLocation={null} />);
+
+    expect(queryByText("Sunset Street Festival")).toBeTruthy();
+  });
 });

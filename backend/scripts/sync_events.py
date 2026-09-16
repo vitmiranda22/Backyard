@@ -14,6 +14,7 @@ import sys
 import argparse
 import asyncio
 import datetime
+import re
 
 sys.path.insert(0, ".")
 
@@ -51,13 +52,22 @@ _PARADE_KEYWORDS = ("parade", "procession")
 _MARKET_KEYWORDS = ("market", "bazaar", "fair")
 
 
+def _matches_any_keyword(text: str, keywords: tuple) -> bool:
+    """
+    Word-boundary match, not substring -- a plain `kw in text` check made
+    "run" match inside "brunch" and "fair" match inside "affair"/"fairway",
+    mis-categorizing real events with no connection to a run or a market.
+    """
+    return any(re.search(r"\b" + re.escape(kw) + r"\b", text) for kw in keywords)
+
+
 def _map_category(phq_category: str, title: str) -> str:
     title_lower = title.lower()
-    if any(kw in title_lower for kw in _PARADE_KEYWORDS):
+    if _matches_any_keyword(title_lower, _PARADE_KEYWORDS):
         return "parade"
-    if any(kw in title_lower for kw in _RUN_KEYWORDS):
+    if _matches_any_keyword(title_lower, _RUN_KEYWORDS):
         return "run"
-    if any(kw in title_lower for kw in _MARKET_KEYWORDS):
+    if _matches_any_keyword(title_lower, _MARKET_KEYWORDS):
         return "market"
     if phq_category == "festivals":
         return "festival"

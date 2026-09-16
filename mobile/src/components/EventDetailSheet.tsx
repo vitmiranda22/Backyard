@@ -3,7 +3,7 @@
 // scrim + parchment sheet + handle) since this is text/metadata, not an
 // image viewer (ZonePhoto's pattern).
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView } from "react-native";
 import { useTranslation } from "react-i18next";
 import WaypointCompass from "./WaypointCompass";
@@ -34,29 +34,43 @@ function formatDuration(ms: number): string {
 export default function EventDetailSheet({ event, visible, onClose, userLocation }: EventDetailSheetProps) {
   const { t } = useTranslation();
 
-  if (!event) return null;
+  // Keeps the last real event around through the close transition -- the
+  // parent clears `event` to null in the same render that flips `visible`
+  // to false, and returning null immediately (as this used to) unmounts
+  // the Modal before it can play its own slide-down close animation,
+  // unlike every other Modal-based sheet in the app.
+  const [displayEvent, setDisplayEvent] = useState<NearbyEvent | null>(event);
+  useEffect(() => {
+    if (event) setDisplayEvent(event);
+  }, [event]);
+
+  if (!displayEvent) return null;
 
   const now = Date.now();
-  const start = new Date(event.start_time).getTime();
-  const end = new Date(event.end_time).getTime();
+  const start = new Date(displayEvent.start_time).getTime();
+  const end = new Date(displayEvent.end_time).getTime();
 
+  // Which branch to show comes from the server's own `phase` (same value
+  // the map pin/callout already reflects) -- only the specific duration
+  // text within that branch is computed locally, so this can't disagree
+  // with the rest of the app about which phase an event is in.
   let phaseLabel: string;
-  if (now < start) {
+  if (displayEvent.phase === "upcoming") {
     phaseLabel = t("events.phaseStartsIn", { time: formatDuration(start - now) });
-  } else if (now > end) {
+  } else if (displayEvent.phase === "ended") {
     phaseLabel = t("events.phaseEndedAgo", { time: formatDuration(now - end) });
   } else {
     phaseLabel = t("events.phaseHappeningNow");
   }
 
   const distanceLabel =
-    event.distance_m != null ? t("events.distanceAway", { distance: `${Math.round(event.distance_m)}m` }) : null;
+    displayEvent.distance_m != null ? t("events.distanceAway", { distance: `${Math.round(displayEvent.distance_m)}m` }) : null;
 
   const bearingDeg = userLocation
-    ? bearingBetween(userLocation.lat, userLocation.lng, event.center_lat, event.center_lng)
+    ? bearingBetween(userLocation.lat, userLocation.lng, displayEvent.center_lat, displayEvent.center_lng)
     : null;
   const compassDistance = userLocation
-    ? distanceMeters(userLocation.lat, userLocation.lng, event.center_lat, event.center_lng)
+    ? distanceMeters(userLocation.lat, userLocation.lng, displayEvent.center_lat, displayEvent.center_lng)
     : null;
 
   return (
@@ -67,16 +81,16 @@ export default function EventDetailSheet({ event, visible, onClose, userLocation
 
           <View style={styles.headerRow}>
             <View style={styles.categoryBadge}>
-              <Text style={styles.categoryBadgeText}>{t(`events.category.${event.category}`)}</Text>
+              <Text style={styles.categoryBadgeText}>{t(`events.category.${displayEvent.category}`)}</Text>
             </View>
             <Text style={styles.phaseLabel}>{phaseLabel}</Text>
           </View>
 
-          <Text style={styles.name}>{event.name}</Text>
+          <Text style={styles.name}>{displayEvent.name}</Text>
           {distanceLabel && <Text style={styles.distance}>{distanceLabel}</Text>}
 
           <ScrollView style={styles.scroll}>
-            <Text style={styles.description}>{event.description || t("events.noDescription")}</Text>
+            <Text style={styles.description}>{displayEvent.description || t("events.noDescription")}</Text>
           </ScrollView>
 
           {bearingDeg !== null && compassDistance !== null && (

@@ -187,6 +187,22 @@ describe("MuseumTourScreen", () => {
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 
+  it("disables both Next and Previous when the tour has zero blocks", async () => {
+    // Every object failing narration/facts at authoring time leaves a
+    // published tour with an empty blocks array -- Next/Previous must not
+    // be left enabled with nothing to advance to.
+    mockGetTourDetail.mockResolvedValue(tourDetail({ blocks: [] }));
+
+    const { findByText } = await render(<MuseumTourScreen tourId="museum-tour-1" onExit={jest.fn()} />);
+
+    fireEvent.press(await findByText(NEXT));
+    fireEvent.press(await findByText(PREVIOUS));
+
+    // Both presses are no-ops -- still showing the empty state, not stuck
+    // on a phantom block or a negative index.
+    expect(await findByText("museumTour.failedToLoad")).toBeTruthy();
+  });
+
   it("never imports/calls the location service -- this screen is not GPS-triggered", () => {
     // Static guard: MuseumTourScreen's own source must not reference the
     // location service at all -- see the file's own header comment for why.

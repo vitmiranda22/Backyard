@@ -61,8 +61,13 @@ export default function MuseumTourScreen({ tourId, onExit }: MuseumTourScreenPro
   }
 
   const block = tour.blocks[currentIndex];
-  const isFirst = currentIndex === 0;
-  const isLast = currentIndex === tour.blocks.length - 1;
+  // A 0-block tour (every object failed narration/facts at authoring
+  // time) would otherwise compute isLast as `0 === -1` -> false, leaving
+  // Next enabled with nothing to advance to and a nonsensical "1 of 0"
+  // progress label.
+  const hasBlocks = tour.blocks.length > 0;
+  const isFirst = !hasBlocks || currentIndex === 0;
+  const isLast = !hasBlocks || currentIndex === tour.blocks.length - 1;
 
   function goToPrevious() {
     setCurrentIndex((i) => Math.max(0, i - 1));

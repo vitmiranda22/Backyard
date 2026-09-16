@@ -78,8 +78,13 @@ export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }:
         try {
           const loc = await getCurrentLocation();
           setLocation(loc);
-          getNearbyRoutes(loc.lat, loc.lng, { sortBy: "rating", limit: 10 })
-            .then(setNearbyRoutes)
+          // Fetches more than the 10 walking pins actually shown, then
+          // drops museum tours (fetched separately below) and slices back
+          // to 10 -- otherwise a highly-rated museum tour occupying a slot
+          // in this rating-sorted top-10 would silently shrink the number
+          // of walking-tour pins on the map instead of just not appearing.
+          getNearbyRoutes(loc.lat, loc.lng, { sortBy: "rating", limit: 20 })
+            .then((routes) => setNearbyRoutes(routes.filter((r) => r.tour_type !== "museum").slice(0, 10)))
             .catch((e) => {
               console.warn("Failed to load nearby routes:", e.message);
               showToast(t("home.couldntLoadRoutes"));
@@ -126,7 +131,7 @@ export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }:
               before the pins so it sits underneath them. Radius is half
               the ~150m geohash cell the signal is actually keyed to. */}
           {nearbyRoutes
-            .filter((route) => route.is_low_info && route.tour_type !== "museum")
+            .filter((route) => route.is_low_info)
             .map((route) => (
               <Circle
                 key={`${route.tour_id}-low-info`}
@@ -138,11 +143,10 @@ export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }:
               />
             ))}
 
-          {nearbyRoutes
-            .filter((route) => route.tour_type !== "museum")
-            .map((route) => (
+          {nearbyRoutes.map((route) => (
             <Marker
               key={route.tour_id}
+              testID={`route-marker-${route.tour_id}`}
               coordinate={{ latitude: route.lat, longitude: route.lng }}
               title={route.title}
               description={

@@ -140,4 +140,35 @@ describe("MapScreen", () => {
 
     expect(onSelectMuseumTour).toHaveBeenCalledWith("museum-tour-1");
   });
+
+  it("still shows 10 walking-tour pins even when museum tours occupy slots in the unfiltered top results", async () => {
+    // A rating-sorted top-N call can return museum tours mixed in with
+    // walking tours -- fetching more than 10 and filtering + slicing
+    // client-side keeps the walking-tour pin count at a real 10 instead
+    // of silently shrinking whenever a museum tour outranks a walking one.
+    const walkingTours = Array.from({ length: 12 }, (_, i) => ({
+      ...MUSEUM_TOUR,
+      tour_id: `walk-${i}`,
+      tour_type: "walking",
+      title: `Walking Tour ${i}`,
+    }));
+    const museumTours = Array.from({ length: 3 }, (_, i) => ({
+      ...MUSEUM_TOUR,
+      tour_id: `museum-${i}`,
+    }));
+
+    mockGetNearbyRoutes.mockImplementation((lat: number, lng: number, opts?: any) => {
+      if (opts?.tourType === "museum") return Promise.resolve(museumTours);
+      // Simulates the real top-20-by-rating call: museum tours interleaved
+      // among the walking tours, exactly the scenario that used to dilute
+      // the walking-pin count.
+      return Promise.resolve([...museumTours, ...walkingTours].slice(0, 20));
+    });
+
+    const { findAllByTestId, queryAllByTestId } = await render(<MapScreen {...defaultProps()} />);
+
+    const walkingPins = await findAllByTestId(/^route-marker-walk-/);
+    expect(walkingPins).toHaveLength(10);
+    expect(queryAllByTestId(/^route-marker-museum-/)).toHaveLength(0);
+  });
 });

@@ -7,7 +7,7 @@
 //   Home → Journal (Discover) → Route Detail → Replay → Rate → Journal
 //   Home → Profile → Paywall
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { StatusBar, View, ActivityIndicator, Linking } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as Updates from "expo-updates";
@@ -183,6 +183,8 @@ export default function App() {
     setScreen("paywall");
   }
 
+  const quotaCheckInFlightRef = useRef(false);
+
   // Gates both starting a new tour and replaying a saved one -- a spent
   // daily quota now shows as an upfront warning instead of only surfacing
   // mid-flow once ActiveTourScreen's first narrate-block call 429s.
@@ -190,6 +192,12 @@ export default function App() {
   // recorded audio, zero OpenAI/TTS calls), so gating it here is a
   // deliberate product choice, not a technical necessity.
   async function canStartNewNarration(): Promise<boolean> {
+    // Neither the Explore FAB nor Start Replay disable themselves while
+    // this check is in flight, so a fast double-tap would otherwise fire
+    // two concurrent quota checks (and, if quota's spent, two stacked
+    // toasts) -- the second tap while one's already running just no-ops.
+    if (quotaCheckInFlightRef.current) return false;
+    quotaCheckInFlightRef.current = true;
     try {
       const { remaining } = await getNarrationQuota();
       if (remaining <= 0) {
@@ -202,6 +210,8 @@ export default function App() {
       // open, same as the backend's own rate-limit check does on a DB hiccup.
       console.warn("Narration quota check failed, allowing anyway:", e);
       return true;
+    } finally {
+      quotaCheckInFlightRef.current = false;
     }
   }
 

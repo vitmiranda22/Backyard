@@ -168,6 +168,21 @@ export default function ActiveTourScreen({
 
   const { checkZone, commitZone, reset: resetZones } = useZoneTracker();
   const sequenceRef = useRef(0);
+  // Bumped the MOMENT a new triggerNarration call starts, not when it
+  // resolves -- sequenceRef only advances after a fetch succeeds, which
+  // left a real window open: block K's poll stayed "current" for the
+  // whole time block K+1's own narrateBlock call was in flight (sequenceRef
+  // hadn't moved yet), so a slow K+1 fetch let a late-resolving K poll
+  // stomp the freshly-cleared transitionPrefix/closingSuffix right before
+  // K+1's own content replaced it, leaving K's stale text stuck on K+1's
+  // narration. Comparing against this ref instead invalidates a stale
+  // poll as soon as the NEXT block starts loading, regardless of how long
+  // its own fetch takes. Same pattern as MapScreen's trackingGenerationRef.
+  const blockGenerationRef = useRef(0);
+  // Set once on unmount so any still-running pollForTransition loop stops
+  // calling setState (and stops polling at all) instead of continuing for
+  // up to ~10s after the screen is gone.
+  const unmountedRef = useRef(false);
   const startTimeRef = useRef(Date.now());
   const subscriptionRef = useRef<any>(null);
   const headingSubRef = useRef<any>(null);
@@ -408,6 +423,7 @@ export default function ActiveTourScreen({
     init();
 
     return () => {
+      unmountedRef.current = true;
       if (subscriptionRef.current) {
         subscriptionRef.current.remove();
       }
@@ -432,6 +448,11 @@ export default function ActiveTourScreen({
     setError(null);
     setTransitionPrefix(null);
     setClosingSuffix(null);
+
+    // Captured now, before the fetch below -- see blockGenerationRef's own
+    // comment for why this has to invalidate the PREVIOUS block's poll the
+    // moment this one starts, not only once this one's fetch resolves.
+    const myGeneration = ++blockGenerationRef.current;
 
     // Known in advance -- the only ending path that is. Manual stop and
     // hitting a rate limit mid-tour both only become "the last block"
@@ -473,7 +494,7 @@ export default function ActiveTourScreen({
       // awaited here -- if the walker has already moved to another block by
       // the time it resolves, pollForTransition just drops the result.
       if (tourIdRef.current) {
-        pollForTransition(tourIdRef.current, lat, lng, thisSequence);
+        pollForTransition(tourIdRef.current, lat, lng, myGeneration);
       }
 
       // Cache this block's audio to disk once it's done loading, so a
@@ -586,23 +607,29 @@ export default function ActiveTourScreen({
   const TRANSITION_POLL_MAX_ATTEMPTS = 5;
 
   // Polls GET /narrate-block/transition for a few seconds after a block goes
-  // on screen. `sequence` is this block's own sequenceRef value at the time
-  // it was triggered -- comparing it against the live sequenceRef.current on
-  // every wake-up (same staleness check cacheAudio's thisSequence already
-  // uses above) is what lets this stay silent once the walker has moved on,
-  // instead of ever overwriting a later block's text with an old one's
-  // transition.
-  async function pollForTransition(tourId: string, lat: number, lng: number, sequence: number) {
+  // on screen. `generation` is this block's own blockGenerationRef value,
+  // captured the moment ITS triggerNarration call started -- comparing it
+  // against the live blockGenerationRef.current on every wake-up is what
+  // lets this stay silent once the walker has moved on. This deliberately
+  // does NOT use sequenceRef: sequenceRef only advances after the NEXT
+  // block's fetch actually succeeds, which left a real window where a
+  // slow-resolving next block hadn't bumped it yet, so a late-arriving
+  // poll for the block BEFORE it could still land as if still current.
+  // blockGenerationRef bumps the instant the next block starts loading,
+  // closing that window regardless of how long its fetch takes.
+  async function pollForTransition(tourId: string, lat: number, lng: number, generation: number) {
     const geoHash = ngeohash.encode(lat, lng, GEOHASH_PRECISION);
 
     for (let attempt = 0; attempt < TRANSITION_POLL_MAX_ATTEMPTS; attempt++) {
       await new Promise((resolve) => setTimeout(resolve, TRANSITION_POLL_INTERVAL_MS));
 
-      if (sequenceRef.current !== sequence) return; // walker already moved on
+      if (unmountedRef.current) return; // screen is gone -- stop polling entirely
+      if (blockGenerationRef.current !== generation) return; // walker already moved on
 
       try {
         const result = await getPendingTransition(tourId, geoHash);
-        if (sequenceRef.current !== sequence) return; // moved on while the request was in flight
+        if (unmountedRef.current) return;
+        if (blockGenerationRef.current !== generation) return; // moved on while the request was in flight
         if (result.ready) {
           // A final block's closing beat can arrive without a transition
           // (or vice versa, if one half of the background generation

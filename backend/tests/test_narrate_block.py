@@ -9,6 +9,8 @@ View, the 26 zone-data sources) is mocked; nothing here makes a real
 network call.
 """
 
+import time
+
 import pytest
 from app.api import narrate
 from app.config import UNLIMITED_TEST_ACCOUNT_IDS
@@ -246,10 +248,10 @@ def test_own_tour_with_prior_summary_generates_connector_in_background(app, clie
     assert len(update_called) == 1
     assert update_called[0][0] == TOUR_ID
     assert update_called[0][1] == "Updated summary."
-    assert narrate._pending_transitions[f"{TOUR_ID}:{expected_hash}"] == {
-        "transition_text": "Meanwhile,",
-        "closing_text": None,
-    }
+    stored = narrate._pending_transitions[f"{TOUR_ID}:{expected_hash}"]
+    assert stored["transition_text"] == "Meanwhile,"
+    assert stored["closing_text"] is None
+    assert "stored_at" in stored
 
 
 def test_final_block_also_generates_a_closing_beat_alongside_the_connector(app, client, auth_as, monkeypatch):
@@ -285,10 +287,9 @@ def test_final_block_also_generates_a_closing_beat_alongside_the_connector(app, 
     assert len(closing_calls) == 1
     assert closing_calls[0]["prior_summary"] == "Prior story so far."
     assert closing_calls[0]["current_narration"] == "Generated narration text."
-    assert narrate._pending_transitions[f"{TOUR_ID}:{expected_hash}"] == {
-        "transition_text": "Meanwhile,",
-        "closing_text": "And that's the whole walk, right there.",
-    }
+    stored = narrate._pending_transitions[f"{TOUR_ID}:{expected_hash}"]
+    assert stored["transition_text"] == "Meanwhile,"
+    assert stored["closing_text"] == "And that's the whole walk, right there."
 
 
 def test_non_final_block_never_generates_a_closing_beat(app, client, auth_as, monkeypatch):
@@ -311,6 +312,71 @@ def test_non_final_block_never_generates_a_closing_beat(app, client, auth_as, mo
 
     assert resp.status_code == 200
     assert closing_calls == []
+
+
+@pytest.mark.asyncio
+async def test_concurrent_background_tasks_for_the_same_tour_dont_clobber_each_others_write(monkeypatch):
+    """
+    Regression test for a real race: two blocks triggered close together
+    for the SAME tour (a brisk walking pace, or a manual "Tell me about
+    here" landing right after an auto-trigger) each schedule their own
+    _generate_connector_in_background call. Before the per-tour lock, both
+    could read the tour row before either wrote back, and whichever
+    finished last would silently overwrite the other's
+    used_connector_openers/last_connector_transition update.
+
+    Simulates this directly (bypassing the HTTP layer) by running two
+    calls concurrently against a shared mutable "DB" dict, with
+    generate_connector for the FIRST call deliberately delayed so it would
+    still be in flight when the second call's own read happens -- exactly
+    the overlap window the lock exists to close.
+    """
+    import asyncio
+
+    narrate._tour_locks.clear()
+    tour_state = {
+        "creator_id": USER_ID,
+        "narrative_summary": "Start of the story.",
+        "used_connector_openers": [],
+        "last_connector_transition": None,
+    }
+
+    async def _fake_get_tour(tour_id):
+        return dict(tour_state)  # a fresh snapshot each read, like a real DB row
+
+    async def _fake_update(tour_id, summary, used_connector_openers=None, last_connector_transition=None):
+        tour_state["narrative_summary"] = summary
+        tour_state["used_connector_openers"] = used_connector_openers
+        tour_state["last_connector_transition"] = last_connector_transition
+        return True
+
+    call_order = []
+
+    async def _fake_generate_connector(prior_summary, mood, current_narration, used_openers, last_transition):
+        call_order.append(list(used_openers))
+        if current_narration == "First block text.":
+            # Long enough that, without the lock, the second call's own
+            # get_tour would race ahead and read the pre-write state.
+            await asyncio.sleep(0.05)
+            return "First transition.", "Summary after first.", used_openers + ["first"]
+        return "Second transition.", "Summary after second.", used_openers + ["second"]
+
+    monkeypatch.setattr(supabase_db, "get_tour", _fake_get_tour)
+    monkeypatch.setattr(supabase_db, "update_tour_narrative_summary", _fake_update)
+    monkeypatch.setattr(openai_service, "generate_connector", _fake_generate_connector)
+
+    await asyncio.gather(
+        narrate._generate_connector_in_background(TOUR_ID, "hashA", USER_ID, "time_machine", "First block text."),
+        narrate._generate_connector_in_background(TOUR_ID, "hashB", USER_ID, "time_machine", "Second block text."),
+    )
+
+    # If truly serialized, the second call only ever starts its own read
+    # AFTER the first call's write has landed -- so it must have seen the
+    # first call's contribution already in used_connector_openers, not an
+    # empty list from a stale pre-write snapshot.
+    assert call_order[0] == []
+    assert call_order[1] == ["first"]
+    assert tour_state["used_connector_openers"] == ["first", "second"]
 
 
 def test_own_tour_first_block_seeds_summary_without_connector(app, client, auth_as, monkeypatch):
@@ -356,7 +422,9 @@ def test_transition_not_ready_when_nothing_pending(app, client, auth_as, monkeyp
 
 def test_transition_ready_and_popped_exactly_once(app, client, auth_as, monkeypatch):
     narrate._pending_transitions.clear()
-    narrate._pending_transitions[f"{TOUR_ID}:9q8yyk8"] = {"transition_text": "Meanwhile,", "closing_text": None}
+    narrate._pending_transitions[f"{TOUR_ID}:9q8yyk8"] = {
+        "transition_text": "Meanwhile,", "closing_text": None, "stored_at": time.monotonic(),
+    }
     monkeypatch.setattr(supabase_db, "get_tour", _async({"id": TOUR_ID, "creator_id": USER_ID}))
     auth_as(app, USER_ID)
 
@@ -367,11 +435,38 @@ def test_transition_ready_and_popped_exactly_once(app, client, auth_as, monkeypa
     assert second.json() == {"ready": False, "transition_text": None, "closing_text": None}
 
 
+def test_transition_expired_entry_is_discarded_not_served(app, client, auth_as, monkeypatch):
+    """
+    Regression test: a walking route that loops or doubles back can revisit
+    the exact same geohash cell later in the same tour. Without an expiry,
+    a poll for that LATER, unrelated block could pop a stale entry left
+    behind by an EARLIER visit -- an entry older than the client's own
+    ~10s poll window is either abandoned or dangerously stale, so it must
+    never be served, regardless of how it got there.
+    """
+    narrate._pending_transitions.clear()
+    narrate._pending_transitions[f"{TOUR_ID}:9q8yyk8"] = {
+        "transition_text": "Stale, from an earlier visit to this exact spot.",
+        "closing_text": None,
+        "stored_at": time.monotonic() - (narrate._TRANSITION_TTL_SEC + 1),
+    }
+    monkeypatch.setattr(supabase_db, "get_tour", _async({"id": TOUR_ID, "creator_id": USER_ID}))
+    auth_as(app, USER_ID)
+
+    resp = client.get("/api/narrate-block/transition", params={"tour_id": TOUR_ID, "geo_hash": "9q8yyk8"})
+
+    assert resp.json() == {"ready": False, "transition_text": None, "closing_text": None}
+    # Also popped (not left behind) -- an expired entry is just as dead
+    # once observed as one that was never there in the first place.
+    assert f"{TOUR_ID}:9q8yyk8" not in narrate._pending_transitions
+
+
 def test_transition_ready_with_a_closing_beat_for_a_final_block(app, client, auth_as, monkeypatch):
     narrate._pending_transitions.clear()
     narrate._pending_transitions[f"{TOUR_ID}:9q8yyk8"] = {
         "transition_text": "Meanwhile,",
         "closing_text": "And that's the whole walk, right there.",
+        "stored_at": time.monotonic(),
     }
     monkeypatch.setattr(supabase_db, "get_tour", _async({"id": TOUR_ID, "creator_id": USER_ID}))
     auth_as(app, USER_ID)
@@ -394,6 +489,7 @@ def test_transition_poll_for_a_foreign_tour_never_reveals_it(app, client, auth_a
     narrate._pending_transitions[f"{TOUR_ID}:9q8yyk8"] = {
         "transition_text": "Someone else's transition.",
         "closing_text": None,
+        "stored_at": time.monotonic(),
     }
     monkeypatch.setattr(supabase_db, "get_tour", _async({"id": TOUR_ID, "creator_id": OWNER_ID}))
     auth_as(app, USER_ID)  # NOT the tour's owner

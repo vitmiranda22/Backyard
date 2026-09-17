@@ -717,6 +717,88 @@ describe("ActiveTourScreen", () => {
       jest.useRealTimers();
     });
 
+    it("drops a late-arriving transition even while the NEXT block's own fetch is still in flight", async () => {
+      // Regression test: sequenceRef only used to advance once the next
+      // block's narrateBlock call SUCCEEDED. That left a real window open
+      // -- if block 2's fetch was slow, block 1's own poll (still "current"
+      // by the old sequenceRef check, since it hadn't moved yet) could
+      // resolve ready:true and stomp the just-cleared transitionPrefix
+      // right before block 2's content ever arrived, leaving block 1's
+      // stale text stuck on block 2 once it finally loaded. Fixed by
+      // invalidating on blockGenerationRef, bumped the INSTANT block 2's
+      // fetch starts rather than once it finishes.
+      jest.useFakeTimers({ advanceTimers: true });
+      let clock = 1_700_000_000_000;
+      jest.spyOn(Date, "now").mockImplementation(() => clock);
+
+      let positionCallback: (lat: number, lng: number) => void = () => {};
+      mockWatchPosition.mockImplementation(async (cb: any) => {
+        positionCallback = cb;
+        return { remove: removeSpy };
+      });
+      mockCheckZone.mockReturnValue({ isNewZone: true, geoHash: "zone2" });
+
+      const block1Hash = ngeohash.encode(37.77, -122.41, GEOHASH_PRECISION);
+      mockGetPendingTransition.mockImplementation((_tourId: string, geoHash: string) =>
+        Promise.resolve(
+          geoHash === block1Hash
+            ? { ready: true, transition_text: "Stale transition." }
+            : { ready: false, transition_text: null }
+        )
+      );
+
+      const { findByText, queryByText } = await renderStarted();
+      await fireEvent.press(await findByText("finish-audio"));
+
+      // Block 2's fetch never resolves during this test -- simulates a
+      // slow network response arriving well after block 1's poll interval.
+      mockNarrateBlock.mockReturnValue(new Promise(() => {}));
+      clock += 11_000;
+      await act(async () => {
+        positionCallback(37.78, -122.42);
+      });
+      expect(mockNarrateBlock).toHaveBeenCalledTimes(2); // block 2's fetch has started...
+
+      // ...but block 1's own poll interval elapses while it's still pending.
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS + 500);
+      });
+
+      // Block 1's narration is still the only thing on screen (block 2
+      // never resolved), and its stale transition must not have applied.
+      expect(await findByText("24th St")).toBeTruthy();
+      expect(queryByText(/transition:/)).toBeNull();
+
+      jest.useRealTimers();
+    });
+
+    it("stops polling once the screen unmounts", async () => {
+      jest.useFakeTimers({ advanceTimers: true });
+      const getPendingCalls: string[] = [];
+      mockGetPendingTransition.mockImplementation((_tourId: string, geoHash: string) => {
+        getPendingCalls.push(geoHash);
+        return Promise.resolve({ ready: false, transition_text: null });
+      });
+
+      const { unmount } = await renderStarted();
+      await act(async () => {
+        unmount();
+      });
+
+      // If the poll loop didn't check unmountedRef, these advances would
+      // still fire further getPendingTransition calls (and setState calls
+      // on a torn-down component) for up to ~10s after unmount.
+      const callsBeforeAdvancing = getPendingCalls.length;
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 5 + 500);
+      });
+
+      expect(getPendingCalls.length).toBe(callsBeforeAdvancing);
+
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    });
+
     it("flags the block expected to hit the free block cap as isFinalBlock, and shows its closing beat once ready", async () => {
       jest.useFakeTimers({ advanceTimers: true });
       let clock = 1_700_000_000_000;

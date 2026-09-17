@@ -33,6 +33,7 @@ Two cache layers:
 
 import asyncio
 import logging
+import time
 import uuid
 import geohash2
 from datetime import datetime, timezone, timedelta
@@ -79,7 +80,39 @@ GEOHASH_PRECISION = 7  # ~153m x 153m zones (must match tours.py and mobile/src/
 # accumulate, and a process restart losing a few seconds of in-flight
 # transitions is harmless (the tour's narrative_summary is still persisted
 # to the DB regardless).
+#
+# Each value also carries "stored_at" (a monotonic timestamp) — a walking
+# route that loops or doubles back can genuinely revisit the exact same
+# geohash cell later in the same tour, and without an expiry a poll for
+# that LATER block could pop a stale entry left behind by an EARLIER visit
+# (worst case: a closing beat meant for the actual final block, applied to
+# an unrelated non-final one). _TRANSITION_TTL_SEC comfortably exceeds the
+# client's own poll window (5 attempts x 2s = 10s), so a genuinely fresh
+# entry is never at risk of expiring before it's picked up.
 _pending_transitions: dict[str, dict] = {}
+_TRANSITION_TTL_SEC = 20.0
+
+# Serializes _generate_connector_in_background's read-modify-write of a
+# given tour's narrative_summary/used_connector_openers/last_connector_
+# transition. Without this, two blocks triggered close together (a brisk
+# walking pace, or a manual "Tell me about here" landing right after an
+# auto-trigger) can each read the tour row before either writes back,
+# and whichever background task finishes last silently clobbers the
+# other's update — previously impossible, since this whole sequence used
+# to run synchronously inside the request each block was gated behind.
+# Keyed per tour (not global) so unrelated tours/users never contend;
+# same single-instance-deployment assumption as _pending_transitions
+# above, and same acceptance that entries are never removed (a handful of
+# Lock objects per tour ever narrated is not a real memory concern).
+_tour_locks: dict[str, asyncio.Lock] = {}
+
+
+def _get_tour_lock(tour_id: str) -> asyncio.Lock:
+    lock = _tour_locks.get(tour_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _tour_locks[tour_id] = lock
+    return lock
 
 
 def _cache_mood_key(mood: str, is_premium: bool) -> str:
@@ -530,65 +563,77 @@ async def _generate_connector_in_background(
     check for a second background task.
     """
     try:
-        tour = await supabase_db.get_tour(tour_id)
-        # Same IDOR guard the old synchronous code had — re-checked here
-        # since this now runs decoupled from the request's own auth context.
-        # Without it, any authenticated user could pass another user's
-        # tour_id to read fragments of their narrative into a connector, or
-        # overwrite that tour's running summary.
-        if not tour or tour.get("creator_id") != user_id:
-            return
+        # Holds for this whole read-modify-write, including both LLM calls
+        # below — see _get_tour_lock's docstring. Two blocks triggered close
+        # together for the SAME tour now run their background work one
+        # after the other instead of racing to read the same row and
+        # clobbering each other's write; unrelated tours are never blocked
+        # by this (the lock is per tour_id, not global).
+        async with _get_tour_lock(tour_id):
+            tour = await supabase_db.get_tour(tour_id)
+            # Same IDOR guard the old synchronous code had — re-checked here
+            # since this now runs decoupled from the request's own auth context.
+            # Without it, any authenticated user could pass another user's
+            # tour_id to read fragments of their narrative into a connector, or
+            # overwrite that tour's running summary.
+            if not tour or tour.get("creator_id") != user_id:
+                return
 
-        prior_summary = tour.get("narrative_summary")
-        used_openers = tour.get("used_connector_openers") or []
-        new_used_openers = used_openers
-        last_transition = tour.get("last_connector_transition")
-        connector_text = None
-        closing_text = None
+            prior_summary = tour.get("narrative_summary")
+            used_openers = tour.get("used_connector_openers") or []
+            new_used_openers = used_openers
+            last_transition = tour.get("last_connector_transition")
+            connector_text = None
+            closing_text = None
 
-        if prior_summary:
-            connector_text, updated_summary, new_used_openers = await openai_service.generate_connector(
-                prior_summary=prior_summary,
-                mood=mood,
-                current_narration=narration_text,
-                used_openers=used_openers,
-                last_transition=last_transition,
-            )
-            if connector_text:
-                last_transition = connector_text
-
-            if is_final_block:
-                # Local import: GUIDE_PERSONAS lives in tours.py, which
-                # never imports narrate.py back — no cycle risk.
-                from app.api.tours import GUIDE_PERSONAS
-                persona_name = (GUIDE_PERSONAS.get(mood) or {}).get("name")
-                closing_text = await openai_service.generate_closing_beat(
-                    mood=mood,
+            if prior_summary:
+                connector_text, updated_summary, new_used_openers = await openai_service.generate_connector(
                     prior_summary=prior_summary,
+                    mood=mood,
                     current_narration=narration_text,
-                    persona_name=persona_name,
+                    used_openers=used_openers,
+                    last_transition=last_transition,
                 )
-        else:
-            # First block of this tour — nothing to connect to yet. Seed
-            # the summary from this block's own text so block 2 has
-            # something to build on. (A tour whose very first block is
-            # also its last has nothing to resolve against either — an
-            # edge case only reachable if a block cap were ever set to 1,
-            # which neither tier's does today.)
-            updated_summary = narration_text[:200]
+                if connector_text:
+                    last_transition = connector_text
 
-        if connector_text or closing_text:
-            _pending_transitions[f"{tour_id}:{geo_hash}"] = {
-                "transition_text": connector_text,
-                "closing_text": closing_text,
-            }
+                if is_final_block:
+                    # Local import: GUIDE_PERSONAS lives in tours.py, which
+                    # never imports narrate.py back — no cycle risk.
+                    from app.api.tours import GUIDE_PERSONAS
+                    persona_name = (GUIDE_PERSONAS.get(mood) or {}).get("name")
+                    closing_text = await openai_service.generate_closing_beat(
+                        mood=mood,
+                        prior_summary=prior_summary,
+                        current_narration=narration_text,
+                        persona_name=persona_name,
+                    )
+            else:
+                # First block of this tour — nothing to connect to yet. Seed
+                # the summary from this block's own text so block 2 has
+                # something to build on. (A tour whose very first block is
+                # also its last has nothing to resolve against either — an
+                # edge case only reachable if a block cap were ever set to 1,
+                # which neither tier's does today.)
+                updated_summary = narration_text[:200]
 
-        await supabase_db.update_tour_narrative_summary(
-            tour_id,
-            updated_summary,
-            used_connector_openers=new_used_openers,
-            last_connector_transition=last_transition,
-        )
+            if connector_text or closing_text:
+                _pending_transitions[f"{tour_id}:{geo_hash}"] = {
+                    "transition_text": connector_text,
+                    "closing_text": closing_text,
+                    "stored_at": time.monotonic(),
+                }
+
+            # Still inside the lock -- the whole point is that the NEXT
+            # background task waiting on this same tour's lock can't start
+            # its own read until this write has actually landed, not just
+            # until this function finished computing what to write.
+            await supabase_db.update_tour_narrative_summary(
+                tour_id,
+                updated_summary,
+                used_connector_openers=new_used_openers,
+                last_connector_transition=last_transition,
+            )
     except Exception:
         logger.exception(f"Background connector generation failed for tour={tour_id[:8]}...")
 
@@ -610,6 +655,14 @@ async def get_pending_transition(tour_id: str, geo_hash: str, user_id: Authentic
     Same ownership check as the background generator: a tour_id the caller
     doesn't own just never has anything ready for them, rather than letting
     any authenticated user poll for (and pop) another user's transition text.
+
+    Also enforces _TRANSITION_TTL_SEC: a walking route that loops or
+    doubles back can genuinely revisit the same geohash cell later in the
+    same tour, and the client only ever polls for ~10s before giving up —
+    an entry older than that is either abandoned (nobody's polling for it
+    anymore) or, worse, a leftover from an EARLIER visit to this cell that
+    would otherwise get served to this unrelated LATER one. Either way, an
+    expired entry is discarded rather than returned.
     """
     tour = await supabase_db.get_tour(tour_id)
     if not tour or tour.get("creator_id") != user_id:
@@ -618,6 +671,8 @@ async def get_pending_transition(tour_id: str, geo_hash: str, user_id: Authentic
     key = f"{tour_id}:{geo_hash}"
     pending = _pending_transitions.pop(key, None)
     if pending is None:
+        return PendingTransitionResponse(ready=False, transition_text=None, closing_text=None)
+    if time.monotonic() - pending.get("stored_at", 0) > _TRANSITION_TTL_SEC:
         return PendingTransitionResponse(ready=False, transition_text=None, closing_text=None)
     return PendingTransitionResponse(
         ready=True,

@@ -14,7 +14,7 @@ import { Audio } from "expo-av";
 import ngeohash from "ngeohash";
 import RoutePolyline from "../components/RoutePolyline";
 import { useZoneTracker } from "../hooks/useZoneTracker";
-import { GEOHASH_PRECISION } from "../config";
+import { GEOHASH_PRECISION, FOG_MAX_ACCURACY_M } from "../config";
 import {
   watchPosition,
   watchHeading,
@@ -332,13 +332,19 @@ export default function ActiveTourScreen({
         triggerNarration(loc.lat, loc.lng, "auto");
 
         // Start watching position for zone changes
-        const sub = await watchPosition((lat, lng) => {
+        const sub = await watchPosition((lat, lng, accuracyM) => {
           setLocation({ lat, lng });
 
           // Terra Incognita fog-of-war reveal -- fires on every new cell
           // regardless of the narration guards below, since it's just a
-          // quiet background report, not a user-facing trigger.
-          reportIfNewCell(lat, lng, exploredCellsRef.current);
+          // quiet background report, not a user-facing trigger. Skipped
+          // for a degraded fix (common on a bus/car): it can land tens of
+          // meters off the true road, enough to reveal a neighboring cell
+          // never actually visited. Unknown accuracy (null on some
+          // platforms) fails open, same as MapScreen's own fog tracking.
+          if (accuracyM === null || accuracyM <= FOG_MAX_ACCURACY_M) {
+            reportIfNewCell(lat, lng, exploredCellsRef.current);
+          }
 
           // Snapped separately, not awaited here -- zone-crossing/narration
           // logic below always uses the walker's real raw GPS position;

@@ -19,6 +19,7 @@ import { reportIfNewCell } from "../services/exploration";
 import { colors, font, radius, type } from "../theme";
 import { showToast } from "../services/toast";
 import { MOOD_ICONS, FALLBACK_MOOD_ICON } from "../services/moods";
+import { FOG_MAX_ACCURACY_M } from "../config";
 
 // No dedicated museum icon exists yet either -- reuse the same fallback
 // tour icon rather than block shipping on new art.
@@ -72,7 +73,15 @@ export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }:
   async function startFogTracking() {
     if (watchSubRef.current) return;
     const myGeneration = ++trackingGenerationRef.current;
-    const sub = await watchPosition((lat, lng) => {
+    const sub = await watchPosition((lat, lng, accuracyM) => {
+      // A degraded fix (common on a bus/car -- metal body and glass cause
+      // more multipath, and higher speed gives the receiver less time to
+      // settle) can land tens of meters off the true road, enough to
+      // reveal a cell you were never actually in. Skip it entirely rather
+      // than trusting every fix as ground truth; unknown accuracy (null
+      // on some platforms) fails open, same as this app's other
+      // GPS-plausibility checks (see explored.py's teleport check).
+      if (accuracyM !== null && accuracyM > FOG_MAX_ACCURACY_M) return;
       const newHash = reportIfNewCell(lat, lng, exploredCellsRef.current);
       if (newHash) setExploredCells(new Set(exploredCellsRef.current));
     });

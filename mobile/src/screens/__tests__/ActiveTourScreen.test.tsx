@@ -100,7 +100,7 @@ jest.mock("../../components/WaypointCompass", () => () => null);
 jest.mock("../../components/AudioPlayer", () => () => null);
 
 import ActiveTourScreen from "../ActiveTourScreen";
-import { startTour, narrateBlock, getPendingTransition, saveBlock, askQuestion, endTour, ApiError } from "../../services/api";
+import { startTour, narrateBlock, getPendingTransition, saveBlock, askQuestion, endTour, reportExploredCell, ApiError } from "../../services/api";
 import * as Sentry from "@sentry/react-native";
 import { watchPosition, watchHeading, getCurrentLocation, snapSegmentToRoad } from "../../services/location";
 import { startRecording, stopRecording } from "../../services/recording";
@@ -117,6 +117,7 @@ const mockWatchHeading = watchHeading as jest.Mock;
 const mockGetCurrentLocation = getCurrentLocation as jest.Mock;
 const mockStartRecording = startRecording as jest.Mock;
 const mockStopRecording = stopRecording as jest.Mock;
+const mockReportExploredCell = reportExploredCell as jest.Mock;
 
 const removeSpy = jest.fn();
 
@@ -644,6 +645,49 @@ describe("ActiveTourScreen", () => {
     expect(mockNarrateBlock).toHaveBeenCalled();
 
     jest.useRealTimers();
+  });
+
+  it("skips revealing fog-of-war for a degraded GPS fix during an active tour", async () => {
+    // Regression test: a real report traced overly-wide fog reveals to
+    // riding a bus -- a degraded fix (metal body/glass causing more
+    // multipath, higher speed giving the receiver less time to settle)
+    // can land tens of meters off the true road, enough to reveal a
+    // geohash cell (~153m per side) never actually visited. Same guard as
+    // MapScreen's own standalone fog tracking, applied here since a tour
+    // reports fog through its own watchPosition subscription.
+    let positionCallback: (lat: number, lng: number, accuracyM: number | null) => void = () => {};
+    mockWatchPosition.mockImplementation(async (cb: any) => {
+      positionCallback = cb;
+      return { remove: removeSpy };
+    });
+
+    await renderStarted();
+
+    await act(async () => {
+      positionCallback(37.78, -122.42, 45); // worse than FOG_MAX_ACCURACY_M (30m)
+    });
+
+    expect(mockReportExploredCell).not.toHaveBeenCalled();
+  });
+
+  it("still reveals fog-of-war during a tour for a good fix or one with unknown accuracy", async () => {
+    let positionCallback: (lat: number, lng: number, accuracyM: number | null) => void = () => {};
+    mockWatchPosition.mockImplementation(async (cb: any) => {
+      positionCallback = cb;
+      return { remove: removeSpy };
+    });
+
+    await renderStarted();
+
+    await act(async () => {
+      positionCallback(37.78, -122.42, 10); // well within FOG_MAX_ACCURACY_M
+    });
+    expect(mockReportExploredCell).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      positionCallback(37.79, -122.43, null); // unknown accuracy -- fails open
+    });
+    expect(mockReportExploredCell).toHaveBeenCalledTimes(2);
   });
 
   describe("background connector transition poll", () => {

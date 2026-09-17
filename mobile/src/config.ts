@@ -21,6 +21,15 @@ export const GPS_INTERVAL_MS = 5000;
 // 10-50m — tune this after field-testing on a real device.
 export const REPLAY_PROXIMITY_M = 35;
 
+// Terra Incognita fog-of-war reveal: a GPS fix reported less accurate than
+// this (common on a bus/car -- metal body and glass cause more multipath,
+// and higher speed gives the receiver less time to settle) is close
+// enough to a geohash cell's own ~153m size that trusting it risks
+// revealing a neighboring cell you were never actually in. Used by both
+// MapScreen (standalone browsing) and ActiveTourScreen (during a tour) --
+// one shared threshold rather than two independently-tuned copies.
+export const FOG_MAX_ACCURACY_M = 30;
+
 // --- DEV ONLY: skip the login screen for faster testing ---
 // App.tsx only honors this when __DEV__ is true, so a release/production
 // build can never accidentally auto-authenticate real users as this

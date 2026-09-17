@@ -143,9 +143,14 @@ export function compassLabel(bearingDeg: number): string {
   return COMPASS_DIRS[Math.round(bearingDeg / 45) % 8];
 }
 
-// Start watching position — returns a subscription you can remove later
+// Start watching position — returns a subscription you can remove later.
+// accuracyM (the OS's own reported horizontal accuracy radius in meters,
+// null when the platform doesn't report one) is passed through so a
+// caller can decide whether to trust a given fix — see MapScreen's fog
+// tracking, which skips revealing anything for a degraded reading rather
+// than treating every fix as ground truth regardless of quality.
 export async function watchPosition(
-  callback: (lat: number, lng: number) => void,
+  callback: (lat: number, lng: number, accuracyM: number | null) => void,
   intervalMs: number = GPS_INTERVAL_MS
 ) {
   const subscription = await Location.watchPositionAsync(
@@ -159,7 +164,7 @@ export async function watchPosition(
       timeInterval: intervalMs,
     },
     (location) => {
-      callback(location.coords.latitude, location.coords.longitude);
+      callback(location.coords.latitude, location.coords.longitude, location.coords.accuracy ?? null);
     }
   );
   return subscription;

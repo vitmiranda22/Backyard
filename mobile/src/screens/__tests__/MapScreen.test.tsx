@@ -1,6 +1,6 @@
 import React from "react";
 import { AppState } from "react-native";
-import { render, waitFor, fireEvent } from "@testing-library/react-native";
+import { render, waitFor, fireEvent, act } from "@testing-library/react-native";
 
 jest.mock("../../services/location", () => ({
   requestLocationPermission: jest.fn(),
@@ -17,13 +17,14 @@ jest.mock("../../services/toast", () => ({ showToast: jest.fn() }));
 
 import MapScreen from "../MapScreen";
 import { requestLocationPermission, getCurrentLocation, watchPosition } from "../../services/location";
-import { getNearbyRoutes, getExploredCells } from "../../services/api";
+import { getNearbyRoutes, getExploredCells, reportExploredCell } from "../../services/api";
 
 const mockRequestLocationPermission = requestLocationPermission as jest.Mock;
 const mockGetCurrentLocation = getCurrentLocation as jest.Mock;
 const mockGetNearbyRoutes = getNearbyRoutes as jest.Mock;
 const mockWatchPosition = watchPosition as jest.Mock;
 const mockGetExploredCells = getExploredCells as jest.Mock;
+const mockReportExploredCell = reportExploredCell as jest.Mock;
 
 const MUSEUM_TOUR = {
   tour_id: "museum-tour-1",
@@ -57,6 +58,7 @@ beforeEach(() => {
   mockGetCurrentLocation.mockResolvedValue({ lat: 37.7749, lng: -122.4194 });
   mockGetNearbyRoutes.mockResolvedValue([]);
   mockGetExploredCells.mockResolvedValue({ geo_hashes: [] });
+  mockReportExploredCell.mockResolvedValue({ geo_hash: "9q8yyk8" });
   mockWatchPosition.mockResolvedValue({ remove: jest.fn() });
   // The RN jest mock ships AppState.currentState as an unconfigured
   // jest.fn(), not the real string property -- force it foreground for
@@ -174,6 +176,49 @@ describe("MapScreen", () => {
       unmount();
       resolveWatch!({ remove: removeSpy });
       await waitFor(() => expect(removeSpy).toHaveBeenCalledTimes(1));
+    });
+
+    it("skips revealing fog for a degraded GPS fix (e.g. riding a bus, not walking)", async () => {
+      // Regression test: a real report traced overly-wide fog reveals to
+      // riding a bus -- a degraded fix (metal body/glass causing more
+      // multipath, higher speed giving the receiver less time to settle)
+      // can land tens of meters off the true road, enough to reveal a
+      // geohash cell (~153m per side) never actually visited.
+      let positionCallback: (lat: number, lng: number, accuracyM: number | null) => void = () => {};
+      mockWatchPosition.mockImplementation(async (cb: any) => {
+        positionCallback = cb;
+        return { remove: jest.fn() };
+      });
+
+      render(<MapScreen {...defaultProps()} />);
+      await waitFor(() => expect(mockWatchPosition).toHaveBeenCalled());
+
+      await act(async () => {
+        positionCallback(37.78, -122.42, 45); // worse than FOG_MAX_ACCURACY_M (30m)
+      });
+
+      expect(mockReportExploredCell).not.toHaveBeenCalled();
+    });
+
+    it("still reveals fog for a good fix, and for a fix with unknown accuracy", async () => {
+      let positionCallback: (lat: number, lng: number, accuracyM: number | null) => void = () => {};
+      mockWatchPosition.mockImplementation(async (cb: any) => {
+        positionCallback = cb;
+        return { remove: jest.fn() };
+      });
+
+      render(<MapScreen {...defaultProps()} />);
+      await waitFor(() => expect(mockWatchPosition).toHaveBeenCalled());
+
+      await act(async () => {
+        positionCallback(37.78, -122.42, 12); // well within FOG_MAX_ACCURACY_M
+      });
+      expect(mockReportExploredCell).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        positionCallback(37.79, -122.43, null); // unknown accuracy -- fails open
+      });
+      expect(mockReportExploredCell).toHaveBeenCalledTimes(2);
     });
   });
 });

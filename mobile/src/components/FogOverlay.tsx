@@ -21,10 +21,18 @@ interface FogOverlayProps {
   region: MapRegion;
 }
 
-// Tunable: a bit smaller than a full ~153m geohash cell's diagonal, so
-// neighboring explored cells' circles overlap into a continuous trail
-// without clearing an unrealistically large area per step.
-const HOLE_RADIUS_M = 100;
+// Tunable. A precision-7 geohash cell is ~153m per side (half-side
+// ~76.5m) -- confirmed live: at the old 100m radius (200m diameter),
+// every explored cell bled roughly 24m past its own straight edges in
+// every direction, and since a new cell gets marked explored every ~5m
+// of walking (see exploration.ts/location.ts's watchPosition interval),
+// consecutive overlapping circles painted a band far wider than the
+// actual street/sidewalk walked -- whole city blocks read as "explored"
+// on either side of a single street. 85m keeps two directly-adjacent
+// cells' circles just touching (2 x 85 = 170 > the 153m cell pitch, so
+// the trail still reads as continuous, not dashed) while cutting the
+// per-step overshoot down to ~8.5m a side instead of ~24m.
+const HOLE_RADIUS_M = 85;
 const HOLE_POINTS = 24;
 // How far beyond the visible region to still cull-in explored cells / draw
 // fog, so a small pan doesn't flash an unfogged edge before the next

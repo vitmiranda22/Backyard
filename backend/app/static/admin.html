@@ -279,6 +279,14 @@
       </div>
     </header>
 
+    <section id="integrity-section" style="display:none;">
+      <div class="card" style="border-color: var(--danger);">
+        <h2 style="color: var(--danger);">&#9888; Content integrity issues</h2>
+        <p class="section-label" style="margin-top:0">Tours claiming more stops than actually got saved -- see plant_sf_tours.py's fix and the Lower East Side Stories incident.</p>
+        <ul class="rank-list" id="integrity-list"></ul>
+      </div>
+    </section>
+
     <section>
       <p class="section-label">Overview</p>
       <div class="kpi-grid" id="kpi-grid"></div>
@@ -561,7 +569,26 @@
     `).join("");
   }
 
+  function renderIntegrityIssues(issues) {
+    const section = document.getElementById("integrity-section");
+    const list = document.getElementById("integrity-list");
+    if (!issues || !issues.length) {
+      section.style.display = "none";
+      return;
+    }
+    section.style.display = "";
+    list.innerHTML = issues.map((issue) => `
+      <li>
+        <span class="rank-name">${issue.title}${issue.city ? " (" + issue.city + ")" : ""}</span>
+        <span class="rank-count" style="color: var(--danger);">
+          ${issue.blocks_real}/${issue.blocks_claimed} blocks${issue.is_public ? " -- LIVE" : " -- hidden"}
+        </span>
+      </li>
+    `).join("");
+  }
+
   function render(data) {
+    renderIntegrityIssues(data.content_integrity_issues);
     renderKpis(data);
     renderRevenue(data);
     renderCosts(data);

@@ -86,6 +86,30 @@ async def get_dashboard_stats() -> dict:
     top_neighborhoods = _top_n(b.get("neighborhood") for b in tour_blocks)
     top_streets = _top_n(b.get("street_name") for b in tour_blocks)
 
+    # --- Content integrity ---
+    # A tour's blocks_visited is meant to always equal its real tour_blocks
+    # row count -- true by construction for every live-app tour (end_tour
+    # counts get_tour_blocks() itself), but a real incident showed an
+    # offline seeding script could publish a tour claiming e.g. 12 stops
+    # with only 1 (or 0) actually saved, since it used to report the
+    # PLANNED count regardless of how many blocks really succeeded (see
+    # plant_sf_tours.py's fix). Flagging any live mismatch here means the
+    # next time something like that happens, it shows up on this
+    # dashboard instead of requiring another manual DB investigation.
+    real_block_counts = Counter(b["tour_id"] for b in tour_blocks if b.get("tour_id"))
+    content_integrity_issues = [
+        {
+            "tour_id": t["id"],
+            "title": t.get("title") or "Untitled",
+            "city": t.get("city"),
+            "is_public": bool(t.get("is_public")),
+            "blocks_claimed": t.get("blocks_visited") or 0,
+            "blocks_real": real_block_counts.get(t["id"], 0),
+        }
+        for t in tours
+        if (t.get("blocks_visited") or 0) > real_block_counts.get(t["id"], 0)
+    ]
+
     return {
         "generated_at": now.isoformat(),
         "users": {
@@ -116,6 +140,7 @@ async def get_dashboard_stats() -> dict:
         "top_cities": top_cities,
         "top_neighborhoods": top_neighborhoods,
         "top_streets": top_streets,
+        "content_integrity_issues": content_integrity_issues,
         "cache": {
             "narration_cache_rows": narration_cache_count,
             "zone_data_cache_rows": zone_data_cache_count,

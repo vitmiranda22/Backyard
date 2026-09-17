@@ -1,8 +1,20 @@
 import sys, asyncio, math, random
 sys.path.insert(0, ".")
 import geohash2, httpx
+import sentry_sdk
+from app.config import settings
 from app.services import supabase_db, zone_data, openai_service, tts, r2, streetview
 from app.services.zone_data import format_zone_data_for_prompt, should_skip_web_search
+
+# capture_message is a documented no-op if sentry_sdk.init() was never
+# called (blank SENTRY_DSN) -- same reliance as the main app's own setup
+# and admin.py's failed-attempt alerting. Gives this offline script the
+# same "show up in Sentry" visibility a live endpoint already has, since
+# a silent partial/total failure here previously went unnoticed for
+# weeks (see the Lower East Side Stories investigation: a script run
+# published a tour claiming 12 stops with only 1 real block saved,
+# and 4 sibling tours with zero).
+sentry_sdk.init(dsn=settings.SENTRY_DSN, traces_sample_rate=0.0)
 
 UID = "a98ae177-c64f-481d-b394-69e368400053"
 CITY = "San Francisco"
@@ -162,6 +174,14 @@ async def build_tour(spec):
 
     total_audio_ms = 0
     last_narration = ""
+    # Only ever appended to on a REAL save -- this (not spec["blocks"],
+    # the planned count) is what blocks_visited/distance/path get computed
+    # from below. Previously blocks_visited was hardcoded to
+    # len(spec["blocks"]) regardless of how many blocks actually saved,
+    # which is exactly how a run where most/all blocks failed still
+    # published a tour claiming a full stop count with little or nothing
+    # behind it. Matches the pattern plant_event_tours.py already uses.
+    saved_blocks = []
     for i, (lat, lng, street, hood) in enumerate(spec["blocks"], start=1):
         print(f" -- block {i}: {street} / {hood}")
         geo_hash = geohash2.encode(lat, lng, precision=7)
@@ -175,7 +195,9 @@ async def build_tour(spec):
             content_safety=False, zone_data=zone_str, skip_web_search=skip_ws, is_premium=is_premium,
         )
         if not narration_text:
-            print(f"    !! narration failed, skipping block {i}")
+            message = f"plant_sf_tours: narration failed for '{spec['title']}' block {i} ({street}, {hood}) -- skipped"
+            print(f"    !! {message}")
+            sentry_sdk.capture_message(message, level="warning")
             continue
         last_narration = narration_text
         print("    narration:", narration_text[:80].replace("\n", " "), "...")
@@ -195,25 +217,46 @@ async def build_tour(spec):
             await r2.upload_image(image_bytes, image_r2_key)
 
         await supabase_db.save_tour_block(
-            tour_id=tour_id, sequence=i, street_name=street, neighborhood=hood, city=CITY,
+            tour_id=tour_id, sequence=len(saved_blocks) + 1, street_name=street, neighborhood=hood, city=CITY,
             lat=lat, lng=lng, narration_text=narration_text, audio_r2_key=audio_r2_key,
             voice=VOICE, mood=spec["mood"], trigger_type="auto", image_r2_key=image_r2_key,
         )
+        saved_blocks.append((lat, lng))
 
-    pts = [(b[0], b[1]) for b in spec["blocks"]]
-    total_distance_m = sum(haversine_m(a[0], a[1], b[0], b[1]) for a, b in zip(pts, pts[1:]))
+    # Fewer than 2 real blocks isn't a walking tour -- there's no route to
+    # walk between one point (or zero). Previously this still got
+    # end_tour()'d and published anyway, exactly how 4 sibling NYC tours
+    # ended up live with zero real blocks each behind a claimed 12 stops.
+    if len(saved_blocks) < 2:
+        message = (
+            f"plant_sf_tours: '{spec['title']}' only saved {len(saved_blocks)}/{len(spec['blocks'])} "
+            f"planned blocks -- abandoning without publishing (tour_id={tour_id})"
+        )
+        print(f"    !! {message}")
+        sentry_sdk.capture_message(message, level="error")
+        return None
+
+    if len(saved_blocks) < len(spec["blocks"]):
+        message = (
+            f"plant_sf_tours: '{spec['title']}' only saved {len(saved_blocks)}/{len(spec['blocks'])} "
+            f"planned blocks -- publishing anyway with the real (shorter) count (tour_id={tour_id})"
+        )
+        print(f"    !! {message}")
+        sentry_sdk.capture_message(message, level="warning")
+
+    total_distance_m = sum(haversine_m(a[0], a[1], b[0], b[1]) for a, b in zip(saved_blocks, saved_blocks[1:]))
     walking_sec = total_distance_m / 1.3
     duration_sec = int(walking_sec + total_audio_ms / 1000)
 
     print("    building real walking-route path...")
-    walked_path = await build_walked_path(pts)
+    walked_path = await build_walked_path(saved_blocks)
     print(f"    -> {len(walked_path)} real walking points")
 
     await supabase_db.end_tour(
-        tour_id=tour_id, title=spec["title"], blocks_visited=len(spec["blocks"]),
+        tour_id=tour_id, title=spec["title"], blocks_visited=len(saved_blocks),
         total_distance_m=int(total_distance_m), duration_sec=duration_sec,
-        center_lat=pts[0][0], center_lng=pts[0][1], city=CITY,
-        location=f"SRID=4326;POINT({pts[0][1]} {pts[0][0]})",
+        center_lat=saved_blocks[0][0], center_lng=saved_blocks[0][1], city=CITY,
+        location=f"SRID=4326;POINT({saved_blocks[0][1]} {saved_blocks[0][0]})",
         path_points=walked_path, flagged_implausible_speed=False,
     )
     if last_narration:
@@ -225,7 +268,7 @@ async def build_tour(spec):
     sb = supabase_db._get_client()
     sb.table("tour_likes").insert([{"tour_id": tour_id, "user_id": u} for u in likers]).execute()
 
-    print(f"Done: {spec['title']} -> {len(spec['blocks'])} blocks, {int(total_distance_m)}m, {n_likes} likes, tour_id={tour_id}")
+    print(f"Done: {spec['title']} -> {len(saved_blocks)} blocks, {int(total_distance_m)}m, {n_likes} likes, tour_id={tour_id}")
     return tour_id
 
 

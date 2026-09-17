@@ -1542,11 +1542,15 @@ async def get_all_users_summary() -> list:
 
 
 async def get_all_tours_summary() -> list:
-    """Tour-level fields the admin dashboard aggregates: mood/type/city breakdowns, distance, ratings."""
+    """
+    Tour-level fields the admin dashboard aggregates: mood/type/city
+    breakdowns, distance, ratings, and (via title + blocks_visited) the
+    content-integrity check in admin_stats.get_dashboard_stats.
+    """
     try:
         client = _get_client()
         result = client.table("tours").select(
-            "id, mood, tour_type, city, is_public, blocks_visited, total_distance_m, "
+            "id, title, mood, tour_type, city, is_public, blocks_visited, total_distance_m, "
             "avg_rating, rating_count, created_at"
         ).execute()
         return result.data or []
@@ -1556,10 +1560,17 @@ async def get_all_tours_summary() -> list:
 
 
 async def get_all_tour_blocks_places() -> list:
-    """neighborhood/street_name for every tour block — the raw material for 'most-visited places'."""
+    """
+    neighborhood/street_name/tour_id for every tour block -- neighborhood
+    and street_name are the raw material for "most-visited places";
+    tour_id lets the dashboard's own content-integrity check (see
+    admin_stats.get_dashboard_stats) count each tour's REAL saved blocks
+    without a second query, and compare that against the tour row's own
+    blocks_visited.
+    """
     try:
         client = _get_client()
-        result = client.table("tour_blocks").select("neighborhood, street_name").execute()
+        result = client.table("tour_blocks").select("tour_id, neighborhood, street_name").execute()
         return result.data or []
     except Exception as e:
         logger.error(f"Admin stats: failed to fetch tour_blocks: {e}")

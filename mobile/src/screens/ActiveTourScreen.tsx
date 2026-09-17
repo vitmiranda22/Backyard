@@ -524,7 +524,23 @@ export default function ActiveTourScreen({
         // or a raw fetch failure. Not a backend bug, nothing to report.
         setError(t("activeTour.narrationNetworkError"));
       } else if (e.code === "daily_limit_exceeded") {
-        setError(t("activeTour.narrationDailyLimitError"));
+        // Hitting today's ceiling mid-walk used to just show a dead-end
+        // error card with a "Try Again" that could never actually
+        // succeed (the limit resets tomorrow, not on retry) -- a real
+        // walker saw this after only 4 of their "5" blocks, with no
+        // outro, no save prompt, nothing. If at least one block already
+        // landed, this is a natural place to end the tour, not a
+        // failure: same graceful outro + save flow as reaching the
+        // block cap, just triggered a stop or two early. Only fall back
+        // to the plain error when there's truly nothing to close out
+        // (the very first request of the walk already found the daily
+        // limit spent).
+        if (sequenceRef.current > 0) {
+          showToast(isPremium ? t("activeTour.autoCompletePremium") : t("activeTour.autoCompleteFree"));
+          handleEndTour(true);
+        } else {
+          setError(t("activeTour.narrationDailyLimitError"));
+        }
       } else if (e.code === "minute_limit_exceeded") {
         setError(t("activeTour.narrationMinuteLimitError"));
       } else if (e.code === "generation_failed") {

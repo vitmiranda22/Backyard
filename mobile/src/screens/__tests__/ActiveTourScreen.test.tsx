@@ -513,6 +513,58 @@ describe("ActiveTourScreen", () => {
     expect(onEndTour.mock.calls[0][4]).toEqual(endTourResult);
   });
 
+  it("ends the tour gracefully with an outro when today's daily limit is hit mid-walk, instead of a dead-end error", async () => {
+    // Real-world case: a free walker's daily narration budget got spent by
+    // something other than this tour's own blocks (see the investigation --
+    // a failed generation attempt earlier the same day silently used a
+    // slot), so the walker hits daily_limit_exceeded after only 1 real
+    // block instead of the full 5-block cap. This should read as "your
+    // tour is done" (outro + save flow), not a dead-end error with a
+    // "Try Again" that can never actually succeed before tomorrow.
+    let clock = 1_700_000_000_000;
+    jest.spyOn(Date, "now").mockImplementation(() => clock);
+
+    const endTourResult = { mood: "time_machine", outro_audio_url: "https://x/outro.mp3" };
+    mockEndTour.mockResolvedValue(endTourResult);
+    const { Audio } = require("expo-av");
+    (Audio.Sound.createAsync as jest.Mock).mockResolvedValue({
+      sound: {
+        setOnPlaybackStatusUpdate: (cb: (status: any) => void) => cb({ isLoaded: true, didJustFinish: true }),
+        unloadAsync: jest.fn().mockResolvedValue(undefined),
+      },
+    });
+    let positionCallback: (lat: number, lng: number) => void = () => {};
+    mockWatchPosition.mockImplementation(async (cb: any) => {
+      positionCallback = cb;
+      return { remove: removeSpy };
+    });
+    mockCheckZone.mockReturnValue({ isNewZone: true, geoHash: "zone2" });
+    const onEndTour = jest.fn();
+
+    const { findByText } = await renderStarted({ onEndTour }); // block 1 succeeds normally
+    await fireEvent.press(await findByText("finish-audio")); // clears hasActiveAudioRef so the next zone can trigger
+
+    mockNarrateBlock.mockRejectedValueOnce(new ApiError("hit today's limit", 429, "daily_limit_exceeded", false));
+    clock += 11_000;
+    await act(async () => {
+      positionCallback(37.78, -122.42); // block 2's attempt hits the daily limit
+    });
+
+    await waitFor(() => expect(onEndTour).toHaveBeenCalled());
+    expect(onEndTour.mock.calls[0][0]).toBe("tour-1");
+    expect(onEndTour.mock.calls[0][1]).toBe(1); // only block 1 ever landed
+    expect(mockEndTour).toHaveBeenCalledWith("tour-1", 1 * 150, expect.any(Number), expect.any(Array));
+    expect(Audio.Sound.createAsync).toHaveBeenCalledWith({ uri: "https://x/outro.mp3" }, { shouldPlay: true });
+  });
+
+  it("still shows the plain daily-limit error when the very first block of a walk hits it (nothing yet to end gracefully)", async () => {
+    mockNarrateBlock.mockRejectedValueOnce(new ApiError("hit today's limit", 429, "daily_limit_exceeded", false));
+
+    const { findByText } = await render(<ActiveTourScreen {...baseProps()} />);
+
+    await findByText("activeTour.narrationDailyLimitError");
+    expect(mockEndTour).not.toHaveBeenCalled();
+  });
 
   it("shows an alert and does not crash when startTour fails", async () => {
     mockStartTour.mockRejectedValue(new Error("Rate limited"));

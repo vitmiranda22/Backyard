@@ -75,6 +75,28 @@ def _pick_structure_moves(mood: str) -> tuple:
     )
 
 
+def _fix_replacement_chars(text: str) -> str:
+    """
+    Repair the Unicode replacement character (U+FFFD) when it shows up in
+    model output in place of an em dash or curly apostrophe — a real,
+    observed OpenAI response artifact (confirmed live: "It�s 1906"
+    and "see it�it's 9th Avenue" reaching storage), not something our
+    own code introduces (nothing on this path touches raw bytes). Left
+    alone, it reaches the walker's screen and gets read out mangled by
+    TTS, so this is cheap insurance regardless of the model-side cause.
+
+    A replacement character directly between two letters with no space,
+    immediately followed by a contraction suffix (it�s, hasn�t),
+    is almost always a mangled apostrophe. Anything else — typically a
+    dash-like pause between clauses — reads fine as a comma.
+    """
+    if "�" not in text:
+        return text
+    text = re.sub(r"(?<=[A-Za-z])�(?=(?:s|t|d|m|re|ve|ll)\b)", "'", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s*�\s*", ", ", text)
+    return re.sub(r"[ \t]{2,}", " ", text).strip()
+
+
 def _strip_citations(text: str) -> str:
     """
     Remove any markdown-style citations/links the model included despite
@@ -82,12 +104,14 @@ def _strip_citations(text: str) -> str:
     citation style (e.g. "([redfin.com](https://...))"). This is spoken
     narration, not a written article with footnotes. Defense in depth
     alongside the prompt instruction, since prompt compliance alone isn't
-    guaranteed.
+    guaranteed. Also repairs any corrupted replacement characters (see
+    _fix_replacement_chars) — every caller of this function wants both.
     """
     # A citation fully wrapped in its own parens, e.g. "([redfin.com](https://...))"
     text = re.sub(r"\(\[[^\]]*\]\(https?://[^\)]+\)\)", "", text)
     # A bare markdown link, e.g. "[redfin.com](https://...)" — keep the link text
     text = re.sub(r"\[([^\]]*)\]\(https?://[^\)]+\)", r"\1", text)
+    text = _fix_replacement_chars(text)
     # Collapse any doubled-up whitespace left behind by the removal
     return re.sub(r"[ \t]{2,}", " ", text).strip()
 

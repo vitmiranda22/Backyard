@@ -52,6 +52,49 @@ def test_strip_citations_collapses_doubled_whitespace_left_behind():
     assert "source.com" not in result
 
 
+# --- _fix_replacement_chars ---------------------------------------------------
+# Regression coverage for a real corrupted tour: two of four blocks in a
+# live walk had U+FFFD (the Unicode replacement character) in place of an
+# em dash or curly apostrophe in the OpenAI response, reaching storage and
+# (eventually) TTS unmangled. Confirmed nothing on this path touches raw
+# bytes, so this is a defensive repair, not a fix to our own encoding bug.
+
+def test_fix_replacement_chars_restores_a_contraction_apostrophe():
+    text = "It�s 1906. The ground shakes beneath the street."
+    assert openai_service._fix_replacement_chars(text) == "It's 1906. The ground shakes beneath the street."
+
+
+def test_fix_replacement_chars_restores_a_contraction_that_isnt_reported():
+    text = "a fire that hasn�t been reported yet"
+    assert openai_service._fix_replacement_chars(text) == "a fire that hasn't been reported yet"
+
+
+def test_fix_replacement_chars_turns_a_dash_like_gap_into_a_comma():
+    text = "before you even see it�it's 9th Avenue and California Street"
+    assert (
+        openai_service._fix_replacement_chars(text)
+        == "before you even see it, it's 9th Avenue and California Street"
+    )
+
+
+def test_fix_replacement_chars_handles_both_patterns_in_one_string():
+    text = "That gleam � it�s the only calm here now."
+    assert openai_service._fix_replacement_chars(text) == "That gleam, it's the only calm here now."
+
+
+def test_fix_replacement_chars_leaves_clean_text_untouched():
+    text = "It's 1915. The building you're looking at right now didn't exist yet."
+    assert openai_service._fix_replacement_chars(text) == text
+
+
+def test_strip_citations_also_repairs_replacement_characters():
+    # _strip_citations is the shared post-processing entry point every
+    # generate_* function already calls -- both fixes should land through
+    # it without every call site needing its own extra step.
+    text = "It�s 1906 ([source.com](https://source.com))."
+    assert openai_service._strip_citations(text) == "It's 1906 ."
+
+
 # --- generate_connector -------------------------------------------------------
 
 @pytest.mark.asyncio

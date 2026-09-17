@@ -31,11 +31,21 @@ cache key has to include tier, not just voice.
 
 import asyncio
 import logging
+import time
 from google.cloud import texttospeech
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Confirmed live: a real free-tier tour lost audio on all 4 of its blocks,
+# generated a few minutes apart, while the identical text/voice/code
+# synthesized fine when replayed minutes later -- a transient blip (network
+# or Google-side) can otherwise take out an entire walk's audio with zero
+# retry. A couple of quick retries before giving up on a voice is cheap
+# insurance against exactly that.
+_MAX_SYNTHESIS_ATTEMPTS = 3
+_RETRY_BACKOFF_SEC = 1.5
 
 # Map our voice presets to Google TTS voice names.
 # You can preview these at https://cloud.google.com/text-to-speech#demo
@@ -59,6 +69,30 @@ VOICE_FALLBACK_MAP = {
     "dramatic": "en-US-Wavenet-A",
     "warm": "en-US-Wavenet-F",
 }
+
+
+def _call_synthesize(client, synthesis_input, voice_config, audio_config):
+    """
+    One logical Google TTS request, retried up to _MAX_SYNTHESIS_ATTEMPTS
+    times with a short backoff before giving up on this voice. Raises the
+    last exception if every attempt fails, for the caller to decide what
+    happens next (try the fallback voice, or give up entirely).
+    """
+    last_exc = None
+    for attempt in range(1, _MAX_SYNTHESIS_ATTEMPTS + 1):
+        try:
+            return client.synthesize_speech(
+                input=synthesis_input,
+                voice=voice_config,
+                audio_config=audio_config,
+                timeout=20.0,
+            )
+        except Exception as e:
+            last_exc = e
+            if attempt < _MAX_SYNTHESIS_ATTEMPTS:
+                logger.warning(f"Google TTS attempt {attempt}/{_MAX_SYNTHESIS_ATTEMPTS} failed, retrying: {e}")
+                time.sleep(_RETRY_BACKOFF_SEC)
+    raise last_exc
 
 
 def _get_tts_client():
@@ -125,15 +159,11 @@ def _synthesize_speech_sync(text: str, voice: str, is_premium: bool = True):
             pitch=_get_pitch(voice),
         )
 
-        # Make the API call. Explicit timeout — this runs in a worker
-        # thread (see synthesize_speech above); an unbounded hang here
-        # would tie up that thread indefinitely instead of just failing.
-        response = client.synthesize_speech(
-            input=synthesis_input,
-            voice=voice_config,
-            audio_config=audio_config,
-            timeout=20.0,
-        )
+        # Retried internally (see _call_synthesize) before this raises.
+        # Explicit timeout per attempt — this runs in a worker thread (see
+        # synthesize_speech above); an unbounded hang here would tie up
+        # that thread indefinitely instead of just failing.
+        response = _call_synthesize(client, synthesis_input, voice_config, audio_config)
 
         audio_bytes = response.audio_content
 
@@ -159,12 +189,7 @@ def _synthesize_speech_sync(text: str, voice: str, is_premium: bool = True):
                     language_code="en-US",
                     name=fallback_name,
                 )
-                response = client.synthesize_speech(
-                    input=synthesis_input,
-                    voice=voice_config,
-                    audio_config=audio_config,
-                    timeout=20.0,
-                )
+                response = _call_synthesize(client, synthesis_input, voice_config, audio_config)
                 return response.audio_content
             except Exception as e2:
                 logger.error(f"Fallback TTS also failed: {e2}")

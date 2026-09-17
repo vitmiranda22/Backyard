@@ -246,7 +246,71 @@ def test_own_tour_with_prior_summary_generates_connector_in_background(app, clie
     assert len(update_called) == 1
     assert update_called[0][0] == TOUR_ID
     assert update_called[0][1] == "Updated summary."
-    assert narrate._pending_transitions[f"{TOUR_ID}:{expected_hash}"] == "Meanwhile,"
+    assert narrate._pending_transitions[f"{TOUR_ID}:{expected_hash}"] == {
+        "transition_text": "Meanwhile,",
+        "closing_text": None,
+    }
+
+
+def test_final_block_also_generates_a_closing_beat_alongside_the_connector(app, client, auth_as, monkeypatch):
+    """
+    is_final_block signals the client expects this request's sequence to
+    hit the tour's block cap -- the one ending path knowable in advance.
+    Both the normal connector (transition INTO this block) and a new
+    closing beat (resolving the whole walk, appended AFTER this block's
+    narration) should be generated from the same background task.
+    """
+    narrate._pending_transitions.clear()
+    monkeypatch.setattr(supabase_db, "get_tour", _async({
+        "id": TOUR_ID, "creator_id": USER_ID,
+        "narrative_summary": "Prior story so far.",
+        "used_connector_openers": [], "last_connector_transition": None,
+    }))
+    monkeypatch.setattr(openai_service, "generate_connector", _async(("Meanwhile,", "Updated summary.", ["meanwhile"])))
+
+    closing_calls = []
+    async def _track_closing(**kwargs):
+        closing_calls.append(kwargs)
+        return "And that's the whole walk, right there."
+    monkeypatch.setattr(openai_service, "generate_closing_beat", _track_closing)
+
+    auth_as(app, USER_ID)
+    resp = client.post("/api/narrate-block", json=_request_body(
+        lat=37.7749, lng=-122.4194, tour_id=TOUR_ID, is_final_block=True,
+    ))
+    import geohash2
+    expected_hash = geohash2.encode(37.7749, -122.4194, precision=7)
+
+    assert resp.status_code == 200
+    assert len(closing_calls) == 1
+    assert closing_calls[0]["prior_summary"] == "Prior story so far."
+    assert closing_calls[0]["current_narration"] == "Generated narration text."
+    assert narrate._pending_transitions[f"{TOUR_ID}:{expected_hash}"] == {
+        "transition_text": "Meanwhile,",
+        "closing_text": "And that's the whole walk, right there.",
+    }
+
+
+def test_non_final_block_never_generates_a_closing_beat(app, client, auth_as, monkeypatch):
+    narrate._pending_transitions.clear()
+    monkeypatch.setattr(supabase_db, "get_tour", _async({
+        "id": TOUR_ID, "creator_id": USER_ID,
+        "narrative_summary": "Prior story so far.",
+        "used_connector_openers": [], "last_connector_transition": None,
+    }))
+    monkeypatch.setattr(openai_service, "generate_connector", _async(("Meanwhile,", "Updated summary.", ["meanwhile"])))
+
+    closing_calls = []
+    async def _track_closing(**kwargs):
+        closing_calls.append(kwargs)
+        return "should not be called"
+    monkeypatch.setattr(openai_service, "generate_closing_beat", _track_closing)
+
+    auth_as(app, USER_ID)
+    resp = client.post("/api/narrate-block", json=_request_body(tour_id=TOUR_ID, is_final_block=False))
+
+    assert resp.status_code == 200
+    assert closing_calls == []
 
 
 def test_own_tour_first_block_seeds_summary_without_connector(app, client, auth_as, monkeypatch):
@@ -287,20 +351,38 @@ def test_transition_not_ready_when_nothing_pending(app, client, auth_as, monkeyp
     resp = client.get("/api/narrate-block/transition", params={"tour_id": TOUR_ID, "geo_hash": "9q8yyk8"})
 
     assert resp.status_code == 200
-    assert resp.json() == {"ready": False, "transition_text": None}
+    assert resp.json() == {"ready": False, "transition_text": None, "closing_text": None}
 
 
 def test_transition_ready_and_popped_exactly_once(app, client, auth_as, monkeypatch):
     narrate._pending_transitions.clear()
-    narrate._pending_transitions[f"{TOUR_ID}:9q8yyk8"] = "Meanwhile,"
+    narrate._pending_transitions[f"{TOUR_ID}:9q8yyk8"] = {"transition_text": "Meanwhile,", "closing_text": None}
     monkeypatch.setattr(supabase_db, "get_tour", _async({"id": TOUR_ID, "creator_id": USER_ID}))
     auth_as(app, USER_ID)
 
     first = client.get("/api/narrate-block/transition", params={"tour_id": TOUR_ID, "geo_hash": "9q8yyk8"})
     second = client.get("/api/narrate-block/transition", params={"tour_id": TOUR_ID, "geo_hash": "9q8yyk8"})
 
-    assert first.json() == {"ready": True, "transition_text": "Meanwhile,"}
-    assert second.json() == {"ready": False, "transition_text": None}
+    assert first.json() == {"ready": True, "transition_text": "Meanwhile,", "closing_text": None}
+    assert second.json() == {"ready": False, "transition_text": None, "closing_text": None}
+
+
+def test_transition_ready_with_a_closing_beat_for_a_final_block(app, client, auth_as, monkeypatch):
+    narrate._pending_transitions.clear()
+    narrate._pending_transitions[f"{TOUR_ID}:9q8yyk8"] = {
+        "transition_text": "Meanwhile,",
+        "closing_text": "And that's the whole walk, right there.",
+    }
+    monkeypatch.setattr(supabase_db, "get_tour", _async({"id": TOUR_ID, "creator_id": USER_ID}))
+    auth_as(app, USER_ID)
+
+    resp = client.get("/api/narrate-block/transition", params={"tour_id": TOUR_ID, "geo_hash": "9q8yyk8"})
+
+    assert resp.json() == {
+        "ready": True,
+        "transition_text": "Meanwhile,",
+        "closing_text": "And that's the whole walk, right there.",
+    }
 
 
 def test_transition_poll_for_a_foreign_tour_never_reveals_it(app, client, auth_as, monkeypatch):
@@ -309,16 +391,19 @@ def test_transition_poll_for_a_foreign_tour_never_reveals_it(app, client, auth_a
     must never leak that user's pending transition text, even if one exists.
     """
     narrate._pending_transitions.clear()
-    narrate._pending_transitions[f"{TOUR_ID}:9q8yyk8"] = "Someone else's transition."
+    narrate._pending_transitions[f"{TOUR_ID}:9q8yyk8"] = {
+        "transition_text": "Someone else's transition.",
+        "closing_text": None,
+    }
     monkeypatch.setattr(supabase_db, "get_tour", _async({"id": TOUR_ID, "creator_id": OWNER_ID}))
     auth_as(app, USER_ID)  # NOT the tour's owner
 
     resp = client.get("/api/narrate-block/transition", params={"tour_id": TOUR_ID, "geo_hash": "9q8yyk8"})
 
     assert resp.status_code == 200
-    assert resp.json() == {"ready": False, "transition_text": None}
+    assert resp.json() == {"ready": False, "transition_text": None, "closing_text": None}
     # Still there -- an unauthorized poll must not pop it out from under the real owner.
-    assert narrate._pending_transitions[f"{TOUR_ID}:9q8yyk8"] == "Someone else's transition."
+    assert narrate._pending_transitions[f"{TOUR_ID}:9q8yyk8"]["transition_text"] == "Someone else's transition."
 
 
 def test_tts_failure_returns_text_only_response(app, client, auth_as, monkeypatch):

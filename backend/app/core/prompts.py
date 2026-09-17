@@ -811,6 +811,54 @@ def build_connector_prompt(
     )
 
 
+_CLOSING_BEAT_PROMPT = """
+You are writing ONE short closing beat for a walking-tour narrator, in the
+same {mood} voice as the rest of the tour{persona_clause}. This block is
+the LAST stop of the tour — the walker is about to stop walking.
+
+ALWAYS write in English, regardless of what language "SO FAR ON THIS TOUR"
+or "THE LAST THING THE NARRATOR JUST SAID" below are written in — translate
+first if needed, never output a sentence, or part of one, in another
+language.
+
+SO FAR ON THIS TOUR (the earlier stops, before this last one): {prior_summary}
+
+THE LAST THING THE NARRATOR JUST SAID (this final block's own narration,
+already spoken — write what comes right AFTER it): {current_narration}
+
+Write a closing beat of 1-2 sentences (20-35 words) that:
+- Reads as the sentence(s) spoken immediately after the text above, tying
+  this final stop together with at least one SPECIFIC thing from "SO FAR ON
+  THIS TOUR" — not a generic "thanks for walking with me" filler.
+- Actually resolves and wraps up the whole walk. Unlike a normal mid-tour
+  block, this one is allowed (expected, even) to land on a satisfied,
+  complete note instead of leaving things open.
+- Matches the {mood} mood's voice and tone.
+- Second person, addressed to the walker.
+
+Output ONLY the closing beat itself, nothing else — no quotes, no
+markdown, no "Here's a closing beat:" preamble.
+"""
+
+
+def build_closing_beat_prompt(
+    mood: str,
+    prior_summary: str,
+    current_narration: str,
+    persona_name: str = None,
+) -> str:
+    """Build the prompt for a tour's final block: a short beat appended
+    after its own narration that resolves the whole walk, generated the
+    same way (and at the same time) as that block's own connector."""
+    persona_clause = f", as {persona_name}" if persona_name else ""
+    return _CLOSING_BEAT_PROMPT.format(
+        mood=mood,
+        persona_clause=persona_clause,
+        prior_summary=prior_summary,
+        current_narration=current_narration,
+    )
+
+
 def build_prompt(
     street: str,
     neighborhood: str,

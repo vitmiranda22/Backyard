@@ -64,6 +64,15 @@ class NarrateBlockRequest(BaseModel):
         "narration is stitched with a transition connecting it to the "
         "tour's prior blocks. Omit for one-off requests outside a tour.",
     )
+    is_final_block: bool = Field(
+        default=False,
+        description="Client-side signal that this request's sequence number "
+        "is expected to hit the tour's block cap (FREE_MAX_BLOCKS/"
+        "PREMIUM_MAX_BLOCKS) — the only ending path knowable in advance. "
+        "When true (and tour_id is set), a background closing beat is "
+        "generated to resolve the whole walk, appended after this block's "
+        "narration instead of every other block's usual open-ended close.",
+    )
 
 
 class PrefetchZoneRequest(BaseModel):
@@ -128,9 +137,13 @@ class PendingTransitionResponse(BaseModel):
     Response from GET /api/narrate-block/transition — polled by
     ActiveTourScreen to pick up a connector line generate_connector
     produced in the background after narrate-block already returned.
+    closing_text is only ever set for a block the client flagged as
+    is_final_block — a beat generate_closing_beat produced to resolve the
+    whole tour, appended after that block's own narration.
     """
     ready: bool
     transition_text: Optional[str] = None
+    closing_text: Optional[str] = None
 
 
 class AskQuestionResponse(BaseModel):

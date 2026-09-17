@@ -127,7 +127,12 @@ export async function narrateBlock(
   voice: string,
   contentSafety: boolean,
   triggerType: "auto" | "manual",
-  tourId?: string
+  tourId?: string,
+  // Set when this request's sequence is expected to hit the tour's block
+  // cap -- the one ending path knowable in advance (see ActiveTourScreen's
+  // MAX_BLOCKS check). Backend uses it to also generate a closing beat
+  // that resolves the whole walk, appended after this block's narration.
+  isFinalBlock?: boolean
 ): Promise<NarrationResponse> {
   return authFetch("/narrate-block", {
     method: "POST",
@@ -139,6 +144,7 @@ export async function narrateBlock(
       content_safety: contentSafety,
       trigger_type: triggerType,
       tour_id: tourId,
+      is_final_block: !!isFinalBlock,
     }),
   });
 }
@@ -159,6 +165,10 @@ export async function prefetchZone(lat: number, lng: number): Promise<void> {
 export interface PendingTransitionResponse {
   ready: boolean;
   transition_text: string | null;
+  // Only ever set for a block sent with isFinalBlock=true -- a beat that
+  // resolves the whole tour, meant to be appended after the narration
+  // instead of prepended like transition_text.
+  closing_text: string | null;
 }
 
 // Polled by ActiveTourScreen for a few seconds after a tour block goes on

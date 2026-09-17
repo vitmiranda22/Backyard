@@ -136,6 +136,11 @@ export default function ActiveTourScreen({
   // picked up by a short poll and spliced in front of narrationText with an
   // underline -- see pollForTransition below and NarrationCard's rendering.
   const [transitionPrefix, setTransitionPrefix] = useState<string | null>(null);
+  // Same background-generated pattern as transitionPrefix above, but only
+  // ever produced for the block flagged isFinalBlock (see triggerNarration)
+  // -- a beat that resolves the whole tour, appended AFTER narrationText
+  // instead of prepended.
+  const [closingSuffix, setClosingSuffix] = useState<string | null>(null);
   const [highlights, setHighlights] = useState<NarrationHighlight[]>([]);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -426,6 +431,13 @@ export default function ActiveTourScreen({
     setIsLoading(true);
     setError(null);
     setTransitionPrefix(null);
+    setClosingSuffix(null);
+
+    // Known in advance -- the only ending path that is. Manual stop and
+    // hitting a rate limit mid-tour both only become "the last block"
+    // after the fact, so this can't cover those; see ActiveTourScreen's
+    // daily_limit_exceeded handling for how those endings play out.
+    const isFinalBlock = sequenceRef.current + 1 >= MAX_BLOCKS;
 
     try {
       const result = await narrateBlock(
@@ -435,7 +447,8 @@ export default function ActiveTourScreen({
         voice,
         contentSafety,
         triggerType,
-        tourIdRef.current || undefined
+        tourIdRef.current || undefined,
+        isFinalBlock
       );
 
       // Set text and audio together — they always come from the same response
@@ -590,8 +603,12 @@ export default function ActiveTourScreen({
       try {
         const result = await getPendingTransition(tourId, geoHash);
         if (sequenceRef.current !== sequence) return; // moved on while the request was in flight
-        if (result.ready && result.transition_text) {
-          setTransitionPrefix(result.transition_text);
+        if (result.ready) {
+          // A final block's closing beat can arrive without a transition
+          // (or vice versa, if one half of the background generation
+          // failed) -- apply whichever fields actually came back.
+          if (result.transition_text) setTransitionPrefix(result.transition_text);
+          if (result.closing_text) setClosingSuffix(result.closing_text);
           return;
         }
       } catch (e) {
@@ -814,6 +831,7 @@ export default function ActiveTourScreen({
         streetName={streetName}
         narrationText={narrationText}
         transitionPrefix={transitionPrefix}
+        closingSuffix={closingSuffix}
         highlights={highlights}
         audioUrl={audioUrl}
         imageUrl={imageUrl}
@@ -832,6 +850,7 @@ export default function ActiveTourScreen({
           hasActiveAudioRef.current = false;
           setNarrationText(null);
           setTransitionPrefix(null);
+          setClosingSuffix(null);
           setHighlights([]);
           setAudioUrl(null);
           setImageUrl(null);

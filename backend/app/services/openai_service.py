@@ -14,7 +14,7 @@ import re
 from openai import AsyncOpenAI
 
 from app.config import settings
-from app.core.prompts import build_prompt, build_connector_prompt, CONNECTOR_OPENER_CATEGORIES, MOVE_POOLS
+from app.core.prompts import build_prompt, build_connector_prompt, build_closing_beat_prompt, CONNECTOR_OPENER_CATEGORIES, MOVE_POOLS
 
 logger = logging.getLogger(__name__)
 
@@ -471,6 +471,67 @@ async def generate_connector(
     except Exception as e:
         logger.error(f"Connector generation failed: {e}")
         return None, fallback_summary, new_used_openers
+
+
+async def generate_closing_beat(
+    mood: str,
+    prior_summary: str,
+    current_narration: str,
+    persona_name: str = None,
+):
+    """
+    Generate a short beat that resolves the whole tour, appended after
+    the FINAL block's own narration — called only when the client has
+    flagged this block as the one expected to hit the tour's block cap
+    (see narrate.py's is_final_block handling). Calls back to the earlier
+    stops via prior_summary (the same rolling field generate_connector
+    already builds up) so the walk actually ends on a resolution instead
+    of every block's usual "never end on a resolved note" openness.
+
+    Returns None on any failure — no summary to work from, a generation
+    error, or empty output — so the caller just doesn't append anything;
+    a final block with no closing beat still has its normal narration
+    and (for the block-cap-reached path) the tour's own outro audio at
+    end-tour, so this is a nice-to-have upgrade, never a hard dependency.
+    """
+    if not prior_summary:
+        return None
+
+    prompt = build_closing_beat_prompt(mood, prior_summary, current_narration, persona_name)
+
+    try:
+        response = await client.responses.create(
+            model=MODEL,
+            input=prompt,
+            temperature=0.8,
+            max_output_tokens=1024,
+        )
+
+        text = None
+        try:
+            text = response.output_text
+        except Exception:
+            pass
+
+        if not text and response.output:
+            text_parts = []
+            for item in response.output:
+                if getattr(item, "type", None) == "message":
+                    for part in getattr(item, "content", []):
+                        if getattr(part, "text", None):
+                            text_parts.append(part.text)
+            if text_parts:
+                text = " ".join(text_parts)
+
+        if not text:
+            logger.warning("Closing beat generation returned no text")
+            return None
+
+        return _strip_citations(text)
+
+    except Exception as e:
+        logger.error(f"Closing beat generation failed: {e}")
+        return None
 
 
 async def transcribe_audio(audio_bytes: bytes, filename: str = "question.m4a") -> str:

@@ -68,14 +68,16 @@ router = APIRouter()
 
 GEOHASH_PRECISION = 7  # ~153m x 153m zones (must match tours.py and mobile/src/config.ts)
 
-# Transition text generated in the background for an active tour's block,
-# waiting to be picked up by a client poll — keyed "{tour_id}:{geo_hash}".
-# Modeled on public_events.py's _ip_request_log: a plain in-memory dict is
-# fine here because the deployment is single-instance, entries are popped
-# (not just read) on a successful poll so they never accumulate, and a
-# process restart losing a few seconds of in-flight transitions is harmless
-# (the tour's narrative_summary is still persisted to the DB regardless).
-_pending_transitions: dict[str, str] = {}
+# Transition/closing text generated in the background for an active tour's
+# block, waiting to be picked up by a client poll — keyed
+# "{tour_id}:{geo_hash}", value {"transition_text": str|None, "closing_text":
+# str|None}. Modeled on public_events.py's _ip_request_log: a plain
+# in-memory dict is fine here because the deployment is single-instance,
+# entries are popped (not just read) on a successful poll so they never
+# accumulate, and a process restart losing a few seconds of in-flight
+# transitions is harmless (the tour's narrative_summary is still persisted
+# to the DB regardless).
+_pending_transitions: dict[str, dict] = {}
 
 
 def _cache_mood_key(mood: str, is_premium: bool) -> str:
@@ -414,6 +416,7 @@ async def narrate_block(
             user_id,
             request.mood.value,
             narration_text,
+            request.is_final_block,
         )
 
     # --- Step 7-8: Handle audio ---
@@ -508,12 +511,21 @@ async def _generate_connector_in_background(
     user_id: str,
     mood: str,
     narration_text: str,
+    is_final_block: bool = False,
 ) -> None:
     """
     Scheduled via BackgroundTasks from narrate_block — runs after the
     response has already been sent, so nothing here can slow down what the
     walker sees/hears. Exceptions are swallowed (logged only): a background
     task's failure must never surface anywhere a caller could observe it.
+
+    When is_final_block is set (the client's advance signal that this
+    request's sequence is expected to hit the tour's block cap — the only
+    ending path knowable ahead of time), also generates a closing beat
+    that resolves the whole walk, from the SAME prior_summary/narration_text
+    already being used for the connector — one background task, one set of
+    inputs, two small LLM calls instead of duplicating the tour fetch/IDOR
+    check for a second background task.
     """
     try:
         tour = await supabase_db.get_tour(tour_id)
@@ -529,6 +541,8 @@ async def _generate_connector_in_background(
         used_openers = tour.get("used_connector_openers") or []
         new_used_openers = used_openers
         last_transition = tour.get("last_connector_transition")
+        connector_text = None
+        closing_text = None
 
         if prior_summary:
             connector_text, updated_summary, new_used_openers = await openai_service.generate_connector(
@@ -540,12 +554,32 @@ async def _generate_connector_in_background(
             )
             if connector_text:
                 last_transition = connector_text
-                _pending_transitions[f"{tour_id}:{geo_hash}"] = connector_text
+
+            if is_final_block:
+                # Local import: GUIDE_PERSONAS lives in tours.py, which
+                # never imports narrate.py back — no cycle risk.
+                from app.api.tours import GUIDE_PERSONAS
+                persona_name = (GUIDE_PERSONAS.get(mood) or {}).get("name")
+                closing_text = await openai_service.generate_closing_beat(
+                    mood=mood,
+                    prior_summary=prior_summary,
+                    current_narration=narration_text,
+                    persona_name=persona_name,
+                )
         else:
             # First block of this tour — nothing to connect to yet. Seed
             # the summary from this block's own text so block 2 has
-            # something to build on.
+            # something to build on. (A tour whose very first block is
+            # also its last has nothing to resolve against either — an
+            # edge case only reachable if a block cap were ever set to 1,
+            # which neither tier's does today.)
             updated_summary = narration_text[:200]
+
+        if connector_text or closing_text:
+            _pending_transitions[f"{tour_id}:{geo_hash}"] = {
+                "transition_text": connector_text,
+                "closing_text": closing_text,
+            }
 
         await supabase_db.update_tour_narrative_summary(
             tour_id,
@@ -577,11 +611,17 @@ async def get_pending_transition(tour_id: str, geo_hash: str, user_id: Authentic
     """
     tour = await supabase_db.get_tour(tour_id)
     if not tour or tour.get("creator_id") != user_id:
-        return PendingTransitionResponse(ready=False, transition_text=None)
+        return PendingTransitionResponse(ready=False, transition_text=None, closing_text=None)
 
     key = f"{tour_id}:{geo_hash}"
-    transition_text = _pending_transitions.pop(key, None)
-    return PendingTransitionResponse(ready=transition_text is not None, transition_text=transition_text)
+    pending = _pending_transitions.pop(key, None)
+    if pending is None:
+        return PendingTransitionResponse(ready=False, transition_text=None, closing_text=None)
+    return PendingTransitionResponse(
+        ready=True,
+        transition_text=pending.get("transition_text"),
+        closing_text=pending.get("closing_text"),
+    )
 
 
 @router.post(

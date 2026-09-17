@@ -88,6 +88,7 @@ jest.mock("../../components/NarrationCard", () => {
         {props.error && <Text>{props.error}</Text>}
         {props.streetName && <Text>{props.streetName}</Text>}
         {props.transitionPrefix && <Text>transition:{props.transitionPrefix}</Text>}
+        {props.closingSuffix && <Text>closing:{props.closingSuffix}</Text>}
         <TouchableOpacity onPress={props.onAudioFinished}><Text>finish-audio</Text></TouchableOpacity>
         <TouchableOpacity onPress={props.onSkip}><Text>skip-narration</Text></TouchableOpacity>
         <TouchableOpacity onPress={props.onRetry}><Text>retry-narration</Text></TouchableOpacity>
@@ -184,7 +185,7 @@ describe("ActiveTourScreen", () => {
     await renderStarted();
 
     expect(mockStartTour).toHaveBeenCalledWith("time_machine", "neutral", false);
-    expect(mockNarrateBlock).toHaveBeenCalledWith(37.77, -122.41, "time_machine", "neutral", false, "auto", "tour-1");
+    expect(mockNarrateBlock).toHaveBeenCalledWith(37.77, -122.41, "time_machine", "neutral", false, "auto", "tour-1", false);
   });
 
   it("retries narration at the current location when Retry is pressed after a failure", async () => {
@@ -207,7 +208,7 @@ describe("ActiveTourScreen", () => {
 
     await findByText("24th St");
     expect(mockNarrateBlock).toHaveBeenCalledTimes(2);
-    expect(mockNarrateBlock).toHaveBeenLastCalledWith(37.77, -122.41, "time_machine", "neutral", false, "manual", "tour-1");
+    expect(mockNarrateBlock).toHaveBeenLastCalledWith(37.77, -122.41, "time_machine", "neutral", false, "manual", "tour-1", false);
   });
 
   it("shows the daily-limit message and does not report to Sentry for a daily_limit_exceeded ApiError", async () => {
@@ -712,6 +713,51 @@ describe("ActiveTourScreen", () => {
       });
 
       expect(queryByText(/transition:/)).toBeNull();
+
+      jest.useRealTimers();
+    });
+
+    it("flags the block expected to hit the free block cap as isFinalBlock, and shows its closing beat once ready", async () => {
+      jest.useFakeTimers({ advanceTimers: true });
+      let clock = 1_700_000_000_000;
+      jest.spyOn(Date, "now").mockImplementation(() => clock);
+
+      // No audio, so each block completes without needing a "finish-audio"
+      // press between zone crossings (same trick the auto-complete test uses).
+      mockNarrateBlock.mockResolvedValue(narration({ audio_url: null, audio_r2_key: null }));
+      mockGetPendingTransition.mockResolvedValue({
+        ready: true,
+        transition_text: null,
+        closing_text: "And that's the whole walk, right there.",
+      });
+      let positionCallback: (lat: number, lng: number) => void = () => {};
+      mockWatchPosition.mockImplementation(async (cb: any) => {
+        positionCallback = cb;
+        return { remove: removeSpy };
+      });
+      let zoneCounter = 0;
+      mockCheckZone.mockImplementation(() => ({ isNewZone: true, geoHash: `zone${++zoneCounter}` }));
+
+      const { findByText } = await renderStarted(); // block 1 of 5 (FREE_MAX_BLOCKS)
+
+      for (let i = 0; i < 4; i++) {
+        clock += 11_000;
+        await act(async () => {
+          positionCallback(37.77 + i * 0.001, -122.41);
+        });
+      }
+      await waitFor(() => expect(mockNarrateBlock).toHaveBeenCalledTimes(5));
+
+      // isFinalBlock (the 8th positional arg) is only true on the 5th call.
+      expect(mockNarrateBlock.mock.calls[0][7]).toBe(false);
+      expect(mockNarrateBlock.mock.calls[3][7]).toBe(false);
+      expect(mockNarrateBlock.mock.calls[4][7]).toBe(true);
+
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS + 500);
+      });
+
+      expect(await findByText("closing:And that's the whole walk, right there.")).toBeTruthy();
 
       jest.useRealTimers();
     });

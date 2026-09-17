@@ -168,3 +168,110 @@ async def test_generate_connector_space_joins_multiple_parts_in_the_output_text_
 
     assert transition == "Turn the corner and keep walking."
     assert "corner andkeep" not in transition
+
+
+# --- generate_closing_beat -----------------------------------------------------
+# Only ever called for a block the client flagged as is_final_block (see
+# narrate.py) -- a short beat resolving the whole tour, appended after that
+# block's own narration instead of every other block's usual open ending.
+
+@pytest.mark.asyncio
+async def test_generate_closing_beat_returns_the_plain_text_response(monkeypatch):
+    monkeypatch.setattr(
+        openai_service.client.responses,
+        "create",
+        _async_response(FakeResponse(output_text="And that's the whole walk, right there.")),
+    )
+
+    result = await openai_service.generate_closing_beat(
+        mood="time_machine", prior_summary="Visited three historic blocks.", current_narration="The final block's text.",
+    )
+
+    assert result == "And that's the whole walk, right there."
+
+
+@pytest.mark.asyncio
+async def test_generate_closing_beat_strips_citations(monkeypatch):
+    monkeypatch.setattr(
+        openai_service.client.responses,
+        "create",
+        _async_response(FakeResponse(output_text="You've seen it all, from [the old depot](https://example.com) to here.")),
+    )
+
+    result = await openai_service.generate_closing_beat(
+        mood="hidden_city", prior_summary="So far so good.", current_narration="",
+    )
+
+    assert "https://" not in result
+    assert "the old depot" in result
+
+
+@pytest.mark.asyncio
+async def test_generate_closing_beat_returns_none_with_no_prior_summary():
+    # Guarded even though narrate.py's own caller already only invokes this
+    # when prior_summary is truthy -- a closing beat can't call back to
+    # "so far" if there's nothing there yet.
+    result = await openai_service.generate_closing_beat(
+        mood="time_machine", prior_summary="", current_narration="Some text.",
+    )
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_generate_closing_beat_returns_none_on_empty_output(monkeypatch):
+    monkeypatch.setattr(
+        openai_service.client.responses,
+        "create",
+        _async_response(FakeResponse(output_text=None, output=[])),
+    )
+
+    result = await openai_service.generate_closing_beat(
+        mood="time_machine", prior_summary="So far so good.", current_narration="",
+    )
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_generate_closing_beat_returns_none_on_generation_error(monkeypatch):
+    async def _raise(*args, **kwargs):
+        raise RuntimeError("OpenAI is down")
+    monkeypatch.setattr(openai_service.client.responses, "create", _raise)
+
+    result = await openai_service.generate_closing_beat(
+        mood="time_machine", prior_summary="So far so good.", current_narration="",
+    )
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_generate_closing_beat_space_joins_multiple_parts_in_the_output_text_fallback_path(monkeypatch):
+    fake_response = FakeResponse(
+        output_text=None,
+        output=[FakeItem(content=[FakePart("That's the whole walk,"), FakePart(" right there.")])],
+    )
+    monkeypatch.setattr(openai_service.client.responses, "create", _async_response(fake_response))
+
+    result = await openai_service.generate_closing_beat(
+        mood="time_machine", prior_summary="So far so good.", current_narration="",
+    )
+
+    assert result == "That's the whole walk, right there."
+    assert "walk,right" not in result
+
+
+@pytest.mark.asyncio
+async def test_generate_closing_beat_includes_persona_name_in_the_prompt(monkeypatch):
+    captured = {}
+    async def _capture_create(*args, **kwargs):
+        captured["input"] = kwargs.get("input")
+        return FakeResponse(output_text="Closing line.")
+    monkeypatch.setattr(openai_service.client.responses, "create", _capture_create)
+
+    await openai_service.generate_closing_beat(
+        mood="dark_side", prior_summary="So far so good.", current_narration="", persona_name="Silas",
+    )
+
+    assert "as Silas" in captured["input"]

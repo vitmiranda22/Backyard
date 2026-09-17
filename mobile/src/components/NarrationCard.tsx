@@ -29,6 +29,10 @@ interface NarrationCardProps {
   // picked up by ActiveTourScreen's poll and passed in here once ready.
   // Rendered underlined ahead of narrationText so it visibly reads as new.
   transitionPrefix?: string | null;
+  // Same background-generated pattern as transitionPrefix, but only ever
+  // set for the tour's final block -- a beat that resolves the whole walk,
+  // rendered underlined AFTER narrationText instead of before it.
+  closingSuffix?: string | null;
   audioUrl: string | null;
   imageUrl?: string | null;
   // Premium-only, real-Wikipedia-article links matched against this exact
@@ -99,12 +103,20 @@ function renderTransitionPrefix(transitionPrefix: string | null | undefined) {
   return <Text style={transitionPrefixStyle}>{transitionPrefix} </Text>;
 }
 
+// Same idea as renderTransitionPrefix, mirrored for the trailing side --
+// a leading space so it reads as narrationText flowing into this beat.
+function renderClosingSuffix(closingSuffix: string | null | undefined) {
+  if (!closingSuffix) return null;
+  return <Text style={transitionPrefixStyle}> {closingSuffix}</Text>;
+}
+
 export default function NarrationCard({
   isLoading,
   error,
   streetName,
   narrationText,
   transitionPrefix,
+  closingSuffix,
   audioUrl,
   imageUrl,
   highlights,
@@ -174,6 +186,7 @@ export default function NarrationCard({
             <Text style={styles.narrationText} numberOfLines={5} ellipsizeMode="tail">
               {renderTransitionPrefix(transitionPrefix)}
               {narrationText}
+              {renderClosingSuffix(closingSuffix)}
             </Text>
             <Text style={styles.expandHint}>{t("narrationCard.swipeUpHint")}</Text>
           </TouchableOpacity>
@@ -213,6 +226,7 @@ export default function NarrationCard({
               <Text style={styles.modalText}>
                 {renderTransitionPrefix(transitionPrefix)}
                 {renderWithHighlights(narrationText, highlights)}
+                {renderClosingSuffix(closingSuffix)}
               </Text>
             </ScrollView>
             <TouchableOpacity

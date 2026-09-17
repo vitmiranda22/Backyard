@@ -67,6 +67,24 @@ async def check_rate_limit(user_id: str, minute_limit: int, daily_limit: int) ->
         return True, ""
 
 
+async def get_daily_narration_usage(user_id: str):
+    """
+    Read-only peek at a user's current daily_count/daily_window_start —
+    unlike check_rate_limit's atomic RPC, this never increments anything,
+    so the client can check remaining quota (before letting a walker reach
+    MoodPickerScreen or tap Start Replay) without burning a slot just to
+    look. Returns None if the user has no row yet (never narrated), which
+    callers should treat as "full quota remaining."
+    """
+    try:
+        client = _get_client()
+        result = client.table("user_rate_limits").select("daily_count, daily_window_start").eq("user_id", user_id).execute()
+        return result.data[0] if result.data else None
+    except Exception as e:
+        logger.error(f"Failed to read daily narration usage for {user_id}: {e}")
+        return None
+
+
 async def check_minute_rate_limit(user_id: str, minute_limit: int) -> tuple:
     """
     Same atomic check-and-increment pattern as check_rate_limit, but only

@@ -146,6 +146,17 @@ class PendingTransitionResponse(BaseModel):
     closing_text: Optional[str] = None
 
 
+class NarrationQuotaResponse(BaseModel):
+    """
+    Response from GET /api/narrate-block/quota — a read-only check the
+    client makes BEFORE letting the walker reach MoodPickerScreen or tap
+    Start Replay, so a spent daily quota shows as an upfront warning
+    instead of only surfacing mid-flow as a 429 from narrate-block itself.
+    """
+    remaining: int
+    daily_limit: int
+
+
 class AskQuestionResponse(BaseModel):
     """Response from /api/ask-question"""
     question_text: str

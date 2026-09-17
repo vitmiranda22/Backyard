@@ -23,12 +23,14 @@ import { WorkSans_400Regular, WorkSans_500Medium, WorkSans_600SemiBold, WorkSans
 import { restoreSession, signIn, getCurrentUserId, establishRecoverySession } from "./src/services/auth";
 import { DEV_SKIP_LOGIN, DEV_EMAIL, DEV_PASSWORD } from "./src/config";
 import { colors } from "./src/theme";
-import { TourDetail, EndTourResponse, getSettings } from "./src/services/api";
+import { TourDetail, EndTourResponse, getSettings, getNarrationQuota } from "./src/services/api";
 import { initSentry } from "./src/services/sentry";
 import { initAnalytics, identifyUser, track, resetAnalytics } from "./src/services/analytics";
 import { initPurchases } from "./src/services/purchases";
 import "./src/i18n";
 import { loadSavedLanguage } from "./src/i18n";
+import { useTranslation } from "react-i18next";
+import { showToast } from "./src/services/toast";
 
 import LoginScreen from "./src/screens/LoginScreen";
 import SignupScreen from "./src/screens/SignupScreen";
@@ -107,6 +109,7 @@ type Screen =
   | "museumTour";
 
 export default function App() {
+  const { t } = useTranslation();
   const [fontsLoaded] = useFonts({
     Caveat_500Medium,
     Caveat_600SemiBold,
@@ -178,6 +181,28 @@ export default function App() {
   function requirePremium() {
     setScreenBeforePaywall(screen);
     setScreen("paywall");
+  }
+
+  // Gates both starting a new tour and replaying a saved one -- a spent
+  // daily quota now shows as an upfront warning instead of only surfacing
+  // mid-flow once ActiveTourScreen's first narrate-block call 429s.
+  // Replay itself never calls narrate-block (it plays back already-
+  // recorded audio, zero OpenAI/TTS calls), so gating it here is a
+  // deliberate product choice, not a technical necessity.
+  async function canStartNewNarration(): Promise<boolean> {
+    try {
+      const { remaining } = await getNarrationQuota();
+      if (remaining <= 0) {
+        showToast(t("activeTour.narrationDailyLimitError"));
+        return false;
+      }
+      return true;
+    } catch (e) {
+      // A failed quota check shouldn't itself block the walker -- fail
+      // open, same as the backend's own rate-limit check does on a DB hiccup.
+      console.warn("Narration quota check failed, allowing anyway:", e);
+      return true;
+    }
   }
 
   async function goToMainOrOnboarding() {
@@ -350,7 +375,9 @@ export default function App() {
 
       {screen === "main" && (
         <HomeScreen
-          onStartTour={() => setScreen("mood")}
+          onStartTour={async () => {
+            if (await canStartNewNarration()) setScreen("mood");
+          }}
           onSelectRoute={(id) => {
             setSelectedRouteId(id);
             setScreen("routeDetail");
@@ -441,9 +468,11 @@ export default function App() {
       {screen === "routeDetail" && selectedRouteId && (
         <RouteDetailScreen
           tourId={selectedRouteId}
-          onStartReplay={(tour) => {
-            setReplayTour(tour);
-            setScreen("replay");
+          onStartReplay={async (tour) => {
+            if (await canStartNewNarration()) {
+              setReplayTour(tour);
+              setScreen("replay");
+            }
           }}
           onBack={backToTours}
         />

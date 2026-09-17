@@ -183,6 +183,19 @@ export async function getPendingTransition(
   return authFetch(`/narrate-block/transition?${params.toString()}`);
 }
 
+export interface NarrationQuotaResponse {
+  remaining: number;
+  daily_limit: number;
+}
+
+// Read-only pre-flight check, called right before letting the walker reach
+// MoodPickerScreen or tap Start Replay -- so a spent daily quota shows as
+// an upfront warning instead of only surfacing mid-flow as a 429 from
+// narrateBlock() itself. Never burns a slot just to check.
+export async function getNarrationQuota(): Promise<NarrationQuotaResponse> {
+  return authFetch("/narrate-block/quota");
+}
+
 export interface AskQuestionResponse {
   question_text: string;
   answer_text: string;

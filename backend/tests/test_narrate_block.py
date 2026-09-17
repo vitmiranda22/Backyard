@@ -497,3 +497,84 @@ def test_ordinary_account_still_gets_rate_limited(app, client, auth_as, monkeypa
     assert resp.status_code == 429
 
 
+# --- GET /narrate-block/quota -------------------------------------------------
+# Read-only pre-flight check so the client can warn before the walker ever
+# reaches MoodPickerScreen or taps Start Replay, instead of only finding out
+# via a 429 mid-flow.
+
+def test_quota_reports_full_daily_limit_for_a_brand_new_user(app, client, auth_as, monkeypatch):
+    # baseline mocks: get_user_premium_status -> False (free, limit 5)
+    monkeypatch.setattr(supabase_db, "get_daily_narration_usage", _async(None))
+    auth_as(app, USER_ID)
+
+    resp = client.get("/api/narrate-block/quota")
+
+    assert resp.status_code == 200
+    assert resp.json() == {"remaining": 5, "daily_limit": 5}
+
+
+def test_quota_subtracts_todays_usage(app, client, auth_as, monkeypatch):
+    import datetime
+    monkeypatch.setattr(supabase_db, "get_daily_narration_usage", _async({
+        "daily_count": 3,
+        "daily_window_start": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    }))
+    auth_as(app, USER_ID)
+
+    resp = client.get("/api/narrate-block/quota")
+
+    assert resp.json() == {"remaining": 2, "daily_limit": 5}
+
+
+def test_quota_floors_at_zero_when_the_daily_limit_is_fully_spent(app, client, auth_as, monkeypatch):
+    import datetime
+    monkeypatch.setattr(supabase_db, "get_daily_narration_usage", _async({
+        "daily_count": 5,
+        "daily_window_start": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    }))
+    auth_as(app, USER_ID)
+
+    resp = client.get("/api/narrate-block/quota")
+
+    assert resp.json() == {"remaining": 0, "daily_limit": 5}
+
+
+def test_quota_resets_once_the_24h_window_has_rolled_over(app, client, auth_as, monkeypatch):
+    # A stale row from a prior day, never touched since (no request has
+    # come in yet to trigger the atomic RPC's own reset) -- this endpoint
+    # has to apply the same rolling-window rule itself, or a walker who
+    # hasn't narrated anything yet today would see yesterday's spent quota.
+    import datetime
+    monkeypatch.setattr(supabase_db, "get_daily_narration_usage", _async({
+        "daily_count": 5,
+        "daily_window_start": (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=2)).isoformat(),
+    }))
+    auth_as(app, USER_ID)
+
+    resp = client.get("/api/narrate-block/quota")
+
+    assert resp.json() == {"remaining": 5, "daily_limit": 5}
+
+
+def test_quota_uses_the_premium_daily_limit_for_a_premium_user(app, client, auth_as, monkeypatch):
+    monkeypatch.setattr(supabase_db, "get_user_premium_status", _async(True))
+    monkeypatch.setattr(supabase_db, "get_daily_narration_usage", _async(None))
+    auth_as(app, USER_ID)
+
+    resp = client.get("/api/narrate-block/quota")
+
+    assert resp.json() == {"remaining": 36, "daily_limit": 36}
+
+
+def test_quota_reports_full_for_the_unlimited_test_allowlist(app, client, auth_as, monkeypatch):
+    # This account is never actually decremented (see narrate_block's own
+    # bypass) -- reporting a full quota is more honest than a sentinel.
+    monkeypatch.setattr(supabase_db, "get_daily_narration_usage", _async({"daily_count": 5, "daily_window_start": None}))
+    test_account_id = next(iter(UNLIMITED_TEST_ACCOUNT_IDS))
+    auth_as(app, test_account_id)
+
+    resp = client.get("/api/narrate-block/quota")
+
+    assert resp.json() == {"remaining": 5, "daily_limit": 5}
+
+

@@ -35,6 +35,7 @@ import asyncio
 import logging
 import uuid
 import geohash2
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File, Form
 
@@ -44,6 +45,7 @@ from app.models.schemas import (
     NarrateBlockRequest,
     NarrateBlockResponse,
     PendingTransitionResponse,
+    NarrationQuotaResponse,
     PrefetchZoneRequest,
     PrefetchZoneResponse,
     AskQuestionResponse,
@@ -622,6 +624,51 @@ async def get_pending_transition(tour_id: str, geo_hash: str, user_id: Authentic
         transition_text=pending.get("transition_text"),
         closing_text=pending.get("closing_text"),
     )
+
+
+@router.get(
+    "/narrate-block/quota",
+    response_model=NarrationQuotaResponse,
+    summary="Read-only check of how many narrations the caller has left today",
+)
+async def get_narration_quota(user_id: AuthenticatedUser):
+    """
+    Lets the client warn BEFORE the walker reaches MoodPickerScreen or taps
+    Start Replay, instead of only finding out mid-flow via a 429 from the
+    real narrate-block call. Purely a read — unlike check_rate_limit's
+    atomic RPC (which always increments on success), checking here never
+    costs a slot.
+
+    Replay itself never calls narrate-block (it plays back already-
+    recorded audio, zero OpenAI/TTS calls) — gating it on this same quota
+    is a product choice, not a technical necessity, so this endpoint
+    doesn't need to know or care who's calling it for which reason.
+    """
+    is_premium = await supabase_db.get_user_premium_status(user_id)
+    daily_limit = settings.DAILY_NARRATION_LIMIT_PREMIUM if is_premium else settings.DAILY_NARRATION_LIMIT_FREE
+
+    # This account never actually gets decremented (see narrate_block's own
+    # UNLIMITED_TEST_ACCOUNT_IDS bypass) — reporting a full quota here is
+    # more honest than an arbitrary sentinel, and keeps this response
+    # shaped the same for every caller regardless of account type.
+    if user_id in UNLIMITED_TEST_ACCOUNT_IDS:
+        return NarrationQuotaResponse(remaining=daily_limit, daily_limit=daily_limit)
+
+    usage = await supabase_db.get_daily_narration_usage(user_id)
+    daily_count = 0
+    if usage:
+        daily_count = usage.get("daily_count", 0)
+        window_start = usage.get("daily_window_start")
+        # Same 24h rolling-window rule as check_and_increment_rate_limit's
+        # SQL (migrations/005_rate_limiting.sql) — a window that started
+        # more than a day ago has effectively reset, even though nothing
+        # has actually touched the row yet to zero it back out.
+        if window_start:
+            started_at = datetime.fromisoformat(window_start.replace("Z", "+00:00"))
+            if datetime.now(timezone.utc) - started_at > timedelta(days=1):
+                daily_count = 0
+
+    return NarrationQuotaResponse(remaining=max(0, daily_limit - daily_count), daily_limit=daily_limit)
 
 
 @router.post(

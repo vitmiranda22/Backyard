@@ -337,3 +337,57 @@ def test_elevation_empty_list_produces_no_section():
     formatted = zone_data.format_zone_data_for_prompt({"elevation": []})
 
     assert "ELEVATION AT THIS SPOT" not in formatted
+
+
+# --- New sources: OpenHistoricalMap, Chronicling America, DPLA ---
+
+def test_openhistoricalmap_reaches_the_formatted_output():
+    data = {
+        "openhistoricalmap": [
+            {"name": "Childs Restaurant", "kind": "restaurant", "start_date": "1930",
+             "end_date": "", "source": "1930 G.W. Bromley & Co. map of Manhattan"},
+        ],
+    }
+
+    formatted = zone_data.format_zone_data_for_prompt(data)
+
+    assert "DATED HISTORICAL FEATURES (OpenHistoricalMap)" in formatted
+    assert "Childs Restaurant" in formatted
+    assert "(restaurant), 1930" in formatted
+    assert "[source: 1930 G.W. Bromley & Co. map of Manhattan]" in formatted
+
+
+def test_openhistoricalmap_shows_a_date_span_when_an_end_date_exists():
+    data = {"openhistoricalmap": [{"name": "Grand Hotel", "start_date": "1930", "end_date": "1955"}]}
+
+    formatted = zone_data.format_zone_data_for_prompt(data)
+
+    assert "1930-1955" in formatted
+
+
+def test_chronicling_america_reaches_the_formatted_output():
+    data = {
+        "chronicling_america": [
+            {"title": "The San Francisco Call", "date": "1903-10-25", "newspaper": "the san francisco call"},
+        ],
+    }
+
+    formatted = zone_data.format_zone_data_for_prompt(data)
+
+    assert "HISTORIC NEWSPAPER COVERAGE (Chronicling America)" in formatted
+    assert "The San Francisco Call" in formatted
+    assert "1903-10-25" in formatted
+
+
+def test_dpla_reaches_the_formatted_output():
+    data = {
+        "dpla": [
+            {"title": "Polk Street streetcar, 1912", "date": "1912", "provider": "California Digital Library"},
+        ],
+    }
+
+    formatted = zone_data.format_zone_data_for_prompt(data)
+
+    assert "DIGITIZED ARCHIVE ITEMS (DPLA)" in formatted
+    assert "Polk Street streetcar, 1912" in formatted
+    assert "California Digital Library" in formatted

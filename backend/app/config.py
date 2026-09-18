@@ -108,6 +108,13 @@ class Settings(BaseSettings):
     CENSUS_API_KEY: str = ""
 
     # -------------------------------------------------------------------------
+    # DPLA (Digital Public Library of America) — optional, free key from
+    # pro.dp.la/developers (instant signup, no approval wait). US-only source
+    # (see fetch_dpla in global_sources.py). Skipped entirely if left blank.
+    # -------------------------------------------------------------------------
+    DPLA_API_KEY: str = ""
+
+    # -------------------------------------------------------------------------
     # PredictHQ (real-world events: runs, parades, festivals) — powers
     # backend/scripts/sync_events.py, which populates the `events` table
     # (see migrations/025_events.sql). Free plan from predicthq.com. Not

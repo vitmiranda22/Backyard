@@ -43,15 +43,24 @@ convenience in already-rich ones.
 - US Census ACS: a real demographic snapshot (population, median
   income, median age) for this exact location's county — US-only,
   self-gated on country like the UK sources below
+- OpenHistoricalMap: dated historical map features (old buildings,
+  shops, hotels, transit stops) with real start/end dates and cited
+  sources — genuinely global, same Overpass QL family as OSM above
+- Chronicling America: full-text search of 21M+ digitized historic US
+  newspaper pages (1756-1963) mentioning this street/neighborhood —
+  US-only, self-gated on country
+- DPLA (Digital Public Library of America): real coordinate+radius geo
+  search across thousands of US libraries/archives/museums — the US
+  counterpart to Europeana above, US-only, self-gated on country
 
 All free. Wikipedia/Wikivoyage/Wikimedia/OSM/Wikidata/UNESCO/GBIF/USGS
 (earthquakes and elevation)/Open-Meteo/MusicBrainz/Open Library/Library
-of Congress need no API key
+of Congress/OpenHistoricalMap/Chronicling America need no API key
 (MusicBrainz just needs a real User-Agent header and respects a ~1req/sec
 rate limit). Knowledge Graph reuses your Google Cloud TTS key. TMDb,
-GeoNames, Europeana, Smithsonian, NYT, and US Census each need their own
-free key/username (optional — each source is skipped entirely if its
-credential is unset).
+GeoNames, Europeana, Smithsonian, NYT, US Census, and DPLA each need
+their own free key/username (optional — each source is skipped entirely
+if its credential is unset).
 
 Plus two country-gated sources, `fetch_uk_police_data` and
 `fetch_uk_planning_data` — not global, but not city-specific either:
@@ -1244,4 +1253,180 @@ async def fetch_open_library_books(city: str, client: httpx.AsyncClient) -> list
 
     except Exception as e:
         logger.warning(f"Open Library lookup failed: {e}")
+        return []
+
+
+OHM_OVERPASS_URL = "https://overpass-api.openhistoricalmap.org/api/interpreter"
+
+
+async def fetch_openhistoricalmap(lat: float, lng: float, client: httpx.AsyncClient) -> list:
+    """
+    OpenHistoricalMap (Overpass API) — real dated historical features near
+    this coordinate: old buildings, hotels, shops, and transit stops that
+    existed at a specific point in the past, each tagged with a real
+    start_date (and often end_date) plus a cited source (an old city
+    directory, insurance map, etc). Confirmed live against Herald Square,
+    NYC: a 1930 restaurant, a 1955 department store, and a 1918 subway
+    entrance all came back with real sourced dates and citations.
+
+    Same Overpass QL query family as fetch_osm_buildings above, just
+    pointed at OpenHistoricalMap's own separate data instance instead of
+    regular OSM -- OHM is a distinct project/dataset for historical map
+    data, not a mode of the main Overpass API. No API key needed,
+    genuinely global (anywhere OHM contributors have mapped anything).
+    """
+    query = f"""
+    [out:json][timeout:8];
+    (
+      node(around:{RADIUS_METERS},{lat},{lng})["start_date"];
+      way(around:{RADIUS_METERS},{lat},{lng})["start_date"];
+    );
+    out body center 15;
+    """
+    headers = {"User-Agent": "BackyardApp/1.0 (tour guide app; contact@backyard.app)"}
+
+    try:
+        r = await client.post(OHM_OVERPASS_URL, data={"data": query}, headers=headers, timeout=TIMEOUT + 3)
+        if r.status_code != 200:
+            logger.warning(f"OpenHistoricalMap Overpass returned {r.status_code}")
+            return []
+
+        elements = r.json().get("elements", [])
+        results = []
+        for el in elements[:15]:
+            tags = el.get("tags", {})
+            name = tags.get("name", "")
+            start_date = tags.get("start_date", "")
+            if not name or not start_date:
+                continue
+            center = el.get("center") or {}
+            results.append({
+                "name": name,
+                "start_date": start_date,
+                "end_date": tags.get("end_date", ""),
+                "kind": tags.get("amenity") or tags.get("shop") or tags.get("tourism")
+                        or tags.get("building") or tags.get("railway") or tags.get("historic") or "",
+                "source": tags.get("source", ""),
+                "lat": el.get("lat", center.get("lat")),
+                "lng": el.get("lon", center.get("lon")),
+            })
+        return results
+
+    except Exception as e:
+        logger.warning(f"OpenHistoricalMap Overpass failed: {e}")
+        return []
+
+
+async def fetch_chronicling_america(street: str, neighborhood: str, city: str, country: str, client: httpx.AsyncClient) -> list:
+    """
+    Chronicling America (loc.gov) — full-text search of 21M+ digitized
+    historic US newspaper pages (1756-1963) whose text mentions this exact
+    street/neighborhood. No API key needed. Confirmed live: a real query
+    for "Polk Street San Francisco" returned real 1903-1905 San Francisco
+    Call newspaper pages, each with a title, date, and newspaper name.
+
+    Distinct from fetch_library_of_congress above, which only hits
+    loc.gov/photos/ (LOC's photo/print collection) -- this hits loc.gov's
+    separate Chronicling America newspaper-page search, a different
+    collection entirely. US-only (the collection is exclusively American
+    newspapers), so self-gated on country like fetch_us_census below.
+
+    Uses TIMEOUT + 3, not the shared default -- a live 12-block test run
+    showed this endpoint timing out under real concurrent load (all ~45
+    sources firing at once per block) far more often than every other
+    source hitting the same default budget, consistent with a full-text
+    search over newspaper OCR being a structurally heavier query than a
+    single-collection lookup like fetch_library_of_congress. Same fix
+    already applied to fetch_osm_buildings/fetch_openhistoricalmap above
+    for the same reason (a heavier Overpass query).
+    """
+    if not country or "united states" not in country.lower():
+        return []
+
+    query = " ".join(p for p in (street, neighborhood, city) if p).strip()
+    if not query:
+        return []
+
+    try:
+        r = await client.get(
+            "https://www.loc.gov/collections/chronicling-america/",
+            params={"q": query, "fo": "json", "c": "5"},
+            timeout=TIMEOUT + 3,
+        )
+        if r.status_code != 200:
+            return []
+
+        results = []
+        for item in r.json().get("results", [])[:5]:
+            title = item.get("title", "")
+            if not title:
+                continue
+            partof = item.get("partof") or []
+            newspaper = partof[-1] if partof else ""
+            results.append({
+                "title": title,
+                "date": item.get("date", ""),
+                "newspaper": newspaper,
+            })
+        return results
+
+    except Exception as e:
+        logger.warning(f"Chronicling America failed: {e}")
+        return []
+
+
+async def fetch_dpla(lat: float, lng: float, country: str, client: httpx.AsyncClient) -> list:
+    """
+    Digital Public Library of America — real historic photos/documents/
+    objects from thousands of US libraries, archives, and museums, found
+    via a real coordinate+radius geo search (sourceResource.spatial.
+    coordinates + sourceResource.spatial.distance -- both real, documented
+    filterable fields, see pro.dp.la/developers/field-reference). The US
+    counterpart to fetch_europeana above. Optional, free key from
+    pro.dp.la/developers (instant signup, no approval wait) -- source is
+    skipped entirely if left blank, same pattern as every other optional-
+    key source here. US-only, gated on country like fetch_us_census.
+    """
+    if not country or "united states" not in country.lower():
+        return []
+
+    api_key = getattr(settings, "DPLA_API_KEY", None)
+    if not api_key:
+        return []
+
+    try:
+        r = await client.get(
+            "https://api.dp.la/v2/items",
+            params={
+                "sourceResource.spatial.coordinates": f"{lat},{lng}",
+                "sourceResource.spatial.distance": "2mi",
+                "page_size": 6,
+                "api_key": api_key,
+            },
+            timeout=TIMEOUT,
+        )
+        if r.status_code != 200:
+            return []
+
+        docs = r.json().get("docs", [])
+        results = []
+        for doc in docs[:6]:
+            source = doc.get("sourceResource") or {}
+            title = source.get("title", "")
+            if isinstance(title, list):
+                title = title[0] if title else ""
+            if not title:
+                continue
+            date = source.get("date")
+            display_date = date.get("displayDate", "") if isinstance(date, dict) else (date or "")
+            provider = (doc.get("provider") or {}).get("name", "")
+            results.append({
+                "title": title,
+                "date": display_date,
+                "provider": provider,
+            })
+        return results
+
+    except Exception as e:
+        logger.warning(f"DPLA lookup failed: {e}")
         return []

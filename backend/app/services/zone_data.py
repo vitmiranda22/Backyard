@@ -4,8 +4,8 @@ Zone data fetcher — orchestrates all data sources in parallel.
 For any geographic zone, we:
 1. Fire off 15 DataSF queries (only when the geocoded city is San
    Francisco — see `is_san_francisco`/`DATASF_SOURCE_NAMES`, skipped
-   entirely with zero network calls everywhere else) + 21 always-on
-   global queries + 1 US-gated query + 2 UK-gated queries + N other-city
+   entirely with zero network calls everywhere else) + 20 always-on
+   global queries + 3 US-gated queries + 2 UK-gated queries + N other-city
    queries (no-op instantly unless the geocoded city matches the
    registry in city_data.py, which now spans multiple platforms —
    Socrata and OpenDataSoft; GeoNames/Europeana/Smithsonian/NYT/US Census
@@ -116,10 +116,13 @@ async def fetch_all_zone_data(
             "smithsonian": global_sources.fetch_smithsonian(city, client),
             "library_of_congress": global_sources.fetch_library_of_congress(street_name, neighborhood, city, client),
             "nyt_articles": global_sources.fetch_nyt_articles(street_name, neighborhood, city, client),
+            "openhistoricalmap": global_sources.fetch_openhistoricalmap(lat, lng, client),
             "uk_police": global_sources.fetch_uk_police_data(lat, lng, country, client),
             "uk_planning": global_sources.fetch_uk_planning_data(lat, lng, country, client),
-            # --- US-gated (1 source) ---
+            # --- US-gated (3 sources) ---
             "us_census": global_sources.fetch_us_census(lat, lng, country, client),
+            "chronicling_america": global_sources.fetch_chronicling_america(street_name, neighborhood, city, country, client),
+            "dpla": global_sources.fetch_dpla(lat, lng, country, client),
         })
 
         # --- Other-city Socrata (gated on city match — NYC/Chicago/LA/
@@ -355,6 +358,8 @@ def format_zone_data_for_prompt(zone_data: dict, mode: str = None) -> str:
         "tmdb_films": ("🎬 FILMS/TV ASSOCIATED WITH THIS CITY", _format_tmdb),
         "unesco_heritage": ("🏛️ UNESCO WORLD HERITAGE", _format_unesco),
         "europeana": ("🏺 EUROPEAN CULTURAL HERITAGE (Europeana)", _format_europeana),
+        "dpla": ("🏛️ DIGITIZED ARCHIVE ITEMS (DPLA)", _format_dpla),
+        "openhistoricalmap": ("🕰️ DATED HISTORICAL FEATURES (OpenHistoricalMap)", _format_openhistoricalmap),
         "wikivoyage": ("🧭 TRAVEL-GUIDE NOTES NEARBY (Wikivoyage)", _format_wikivoyage),
         "uk_planning": ("🏛️ PLANNING & HERITAGE DATA (UK-wide)", _format_uk_planning),
         "knowledge_graph": ("🔍 KNOWLEDGE GRAPH ENTITIES", _format_kg),
@@ -376,6 +381,7 @@ def format_zone_data_for_prompt(zone_data: dict, mode: str = None) -> str:
         "smithsonian": ("🏛️ SMITHSONIAN ARCHIVE MENTIONS", _format_smithsonian),
         "library_of_congress": ("📷 LIBRARY OF CONGRESS ARCHIVE", _format_library_of_congress),
         "nyt_articles": ("📰 NEW YORK TIMES COVERAGE", _format_nyt_articles),
+        "chronicling_america": ("📰 HISTORIC NEWSPAPER COVERAGE (Chronicling America)", _format_chronicling_america),
         "us_census": ("📊 CENSUS SNAPSHOT FOR THIS COUNTY", _format_us_census),
 
         # --- Tier 3 ---
@@ -716,6 +722,42 @@ def _format_europeana(data: list) -> str:
     return "\n".join(lines)
 
 
+def _format_dpla(data: list) -> str:
+    lines = []
+    for item in data[:6]:
+        title = item.get("title", "")
+        if not title:
+            continue
+        details = [d for d in (item.get("date", ""), item.get("provider", "")) if d]
+        line = f"- \"{title}\""
+        if details:
+            line += f" ({', '.join(details)})"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_openhistoricalmap(data: list) -> str:
+    lines = []
+    for h in data[:6]:
+        name = h.get("name", "")
+        if not name:
+            continue
+        kind = h.get("kind", "")
+        start = h.get("start_date", "")
+        end = h.get("end_date", "")
+        span = f"{start}-{end}" if end else start
+        line = f"- {name}"
+        if kind:
+            line += f" ({kind})"
+        if span:
+            line += f", {span}"
+        source = h.get("source", "")
+        if source:
+            line += f" [source: {source}]"
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def _format_wikivoyage(data: list) -> str:
     lines = []
     for a in data[:3]:
@@ -837,6 +879,20 @@ def _format_nyt_articles(data: list) -> str:
         line = f"- \"{headline}\""
         if date:
             line += f" ({date})"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _format_chronicling_america(data: list) -> str:
+    lines = []
+    for item in data[:5]:
+        title = item.get("title", "")
+        if not title:
+            continue
+        details = [d for d in (item.get("date", ""), item.get("newspaper", "")) if d]
+        line = f"- \"{title}\""
+        if details:
+            line += f" ({', '.join(details)})"
         lines.append(line)
     return "\n".join(lines)
 

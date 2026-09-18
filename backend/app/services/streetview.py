@@ -4,11 +4,12 @@ Google Street View Static API — one photo per zone.
 Gives the listener a real street-level photo of roughly the spot the
 narration is discussing. The API searches a ~50m radius for the nearest
 available photo to a coordinate, so it can occasionally show a neighboring
-building rather than the exact one — an accepted approximation, especially
-since Backyard's narration zones are already ~150m geohash cells.
+building rather than the exact one — an accepted approximation.
 
-Cached forever per geohash (mood-agnostic) once fetched — see
-store_zone_image()/get_cached_zone_data() in supabase_db.py and the
+Cached per photo_geo_hash (precision 8, ~19m — deliberately much finer
+than narration's own ~153m geohash cells, since a photo is viewpoint-
+specific in a way narration text isn't; see migration 030) once fetched —
+see store_zone_photo()/get_cached_zone_photo() in supabase_db.py and the
 wiring in narrate.py.
 """
 

@@ -47,7 +47,8 @@ def _baseline_mocks(monkeypatch):
     monkeypatch.setattr(supabase_db, "store_narration", _async({"id": "narration-1"}))
     monkeypatch.setattr(supabase_db, "get_cached_audio", _async(None))
     monkeypatch.setattr(supabase_db, "store_audio_file", _async(True))
-    monkeypatch.setattr(supabase_db, "store_zone_image", _async(True))
+    monkeypatch.setattr(supabase_db, "get_cached_zone_photo", _async(None))
+    monkeypatch.setattr(supabase_db, "store_zone_photo", _async(True))
 
     monkeypatch.setattr(geocode, "reverse_geocode", _async(GEO_RESULT))
 
@@ -65,8 +66,9 @@ def _baseline_mocks(monkeypatch):
     monkeypatch.setattr(r2, "upload_audio", _async(True))
     monkeypatch.setattr(r2, "generate_signed_url", lambda key, expires_in=3600: f"https://signed/{key}")
 
-    # No cached zone photo and Street View comes up empty — the photo task
-    # then resolves to (None, None) without a real HTTP call.
+    # No cached zone photo (get_cached_zone_photo above) and Street View
+    # comes up empty — the photo task then resolves to (None, None)
+    # without a real HTTP call.
     from app.services import streetview
     monkeypatch.setattr(streetview, "fetch_street_view_image", _async(None))
 

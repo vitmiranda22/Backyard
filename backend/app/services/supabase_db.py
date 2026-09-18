@@ -199,8 +199,8 @@ async def store_narration(
     primary key by default, which a freshly-generated row never collides
     with, so it silently falls through to a plain INSERT and hits the
     table's real UNIQUE constraint instead (a real, Sentry-confirmed bug
-    on zone_data_cache's equivalent upsert calls — see
-    store_zone_data/store_zone_image below).
+    on zone_data_cache's equivalent upsert calls — see store_zone_data
+    below).
     """
     expires_at = datetime.now(timezone.utc) + timedelta(days=30)
     try:
@@ -517,39 +517,63 @@ async def get_explored_cells_among(user_id: str, geo_hashes: list) -> set:
         return set()
 
 
-async def store_zone_image(geo_hash: str, image_r2_key: str):
+async def get_cached_zone_photo(photo_geo_hash: str):
     """
-    Persist a zone's cached street-view photo key.
+    Check the (precision-8, ~19m) zone_photos cache — a much finer grain
+    than zone_data_cache's own geo_hash (precision 7, ~153m). A Street
+    View photo is viewpoint-specific in a way narration text isn't:
+    confirmed live, two different nearby addresses sharing one ~153m
+    zone_data_cache cell served the exact same photo, taken from the
+    OTHER address's viewpoint. See migration 030.
+    """
+    try:
+        client = _get_client()
+        result = (
+            client.table("zone_photos")
+            .select("*")
+            .eq("geo_hash", photo_geo_hash)
+            .gt("expires_at", datetime.now(timezone.utc).isoformat())
+            .limit(1)
+            .execute()
+        )
+        if result.data:
+            return result.data[0]
+        return None
+    except Exception as e:
+        logger.error(f"Zone photo cache lookup failed: {e}")
+        return None
 
-    Only touches geo_hash/image_r2_key/expires_at on conflict — a partial
-    upsert like this can't wipe raw_data/sources_queried on an existing
-    row. expires_at is included (same 30-day window as store_zone_data)
-    so this also works standalone if this is the very first time we've
-    ever seen this geohash (zone_data_cache.expires_at is NOT NULL).
 
-    on_conflict="geo_hash" — same bug/fix as store_zone_data above (this
-    is a separate upsert against the same table, so it needed the same
-    fix independently). Sentry-confirmed as "Failed to store zone image"
-    (~11 occurrences) before this fix.
+async def store_zone_photo(photo_geo_hash: str, image_r2_key: str):
+    """
+    Persist a cached street-view photo key at the finer photo_geo_hash
+    (precision 8) — see get_cached_zone_photo above and migration 030.
+
+    on_conflict="geo_hash" — same reasoning as store_zone_data's own
+    upsert: zone_photos' PRIMARY KEY is geo_hash itself here (unlike
+    zone_data_cache, which has a separate id column), so this one is
+    actually redundant with the default upsert target, but kept explicit
+    to match this codebase's established pattern rather than relying on
+    it being a no-op by coincidence.
     """
     expires_at = datetime.now(timezone.utc) + timedelta(days=30)
     try:
         client = _get_client()
         result = (
-            client.table("zone_data_cache")
+            client.table("zone_photos")
             .upsert({
-                "geo_hash": geo_hash,
+                "geo_hash": photo_geo_hash,
                 "image_r2_key": image_r2_key,
                 "expires_at": expires_at.isoformat(),
             }, on_conflict="geo_hash")
             .execute()
         )
         if result.data:
-            logger.info(f"Stored zone image: {geo_hash}")
+            logger.info(f"Stored zone photo: {photo_geo_hash}")
             return result.data[0]
         return None
     except Exception as e:
-        logger.error(f"Failed to store zone image: {e}")
+        logger.error(f"Failed to store zone photo: {e}")
         return None
 
 

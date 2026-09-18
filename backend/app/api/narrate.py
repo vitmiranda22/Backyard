@@ -71,6 +71,15 @@ router = APIRouter()
 
 GEOHASH_PRECISION = 7  # ~153m x 153m zones (must match tours.py and mobile/src/config.ts)
 
+# Deliberately much finer than GEOHASH_PRECISION above -- a Street View
+# photo is viewpoint-specific in a way narration text isn't. Confirmed
+# live: two different, nearby real addresses (~50m apart, same ~153m
+# geohash cell) served the exact same cached photo, taken from the OTHER
+# address's viewpoint a month earlier. ~19m cells keep photos accurate to
+# roughly "this specific address" while still caching/reusing Street View
+# cost for anyone who revisits the same few meters. See migration 030.
+PHOTO_GEOHASH_PRECISION = 8
+
 # Transition/closing text generated in the background for an active tour's
 # block, waiting to be picked up by a client poll — keyed
 # "{tour_id}:{geo_hash}", value {"transition_text": str|None, "closing_text":
@@ -135,31 +144,39 @@ def _cache_mood_key(mood: str, is_premium: bool) -> str:
     return mood if is_premium else f"{mood}-short"
 
 
-async def _resolve_zone_photo(geo_hash: str, lat: float, lng: float, existing_image_r2_key: str = None):
+async def _resolve_zone_photo(photo_geo_hash: str, lat: float, lng: float):
     """
     Resolve (image_url, image_r2_key) for a zone — sign the already-cached
     key if we have one, or fetch+upload+cache a fresh one from Street View.
+    Cached at PHOTO_GEOHASH_PRECISION (~19m), independently of and much
+    finer than the narration/zone-data cache's own ~153m cells — see that
+    constant's own comment for why a shared-per-153m-cell photo was a
+    real, visible bug in a way shared narration text isn't.
 
-    Meant to be run as a concurrent asyncio task alongside the narration
-    pipeline in narrate_block(), since the two share no data dependency:
-    narration generation never needs the photo, and the photo never needs
-    the street name/zone data. On a cache miss this chain is two sequential
-    Street View calls plus an R2 upload (~16s worst case) — there's no
+    Does its own cache lookup (rather than being handed an already-known
+    key) so this stays a single self-contained unit of work — meant to be
+    run as a concurrent asyncio task alongside the narration pipeline in
+    narrate_block(), since the two share no data dependency: narration
+    generation never needs the photo, and the photo never needs the
+    street name/zone data. On a full cache miss this chain is a DB lookup,
+    a Street View call, and an R2 upload (~16s worst case) — there's no
     reason for that to block narration generation from even starting.
     """
-    if existing_image_r2_key:
-        return r2.generate_signed_url(existing_image_r2_key), existing_image_r2_key
+    cached_photo = await supabase_db.get_cached_zone_photo(photo_geo_hash)
+    if cached_photo:
+        image_r2_key = cached_photo["image_r2_key"]
+        return r2.generate_signed_url(image_r2_key), image_r2_key
 
     image_bytes = await streetview.fetch_street_view_image(lat, lng)
     if not image_bytes:
         return None, None
 
-    image_r2_key = r2.build_image_r2_key(geo_hash)
+    image_r2_key = r2.build_image_r2_key(photo_geo_hash)
     upload_ok = await r2.upload_image(image_bytes, image_r2_key)
     if not upload_ok:
         return None, None
 
-    await supabase_db.store_zone_image(geo_hash, image_r2_key)
+    await supabase_db.store_zone_photo(photo_geo_hash, image_r2_key)
     return r2.generate_signed_url(image_r2_key), image_r2_key
 
 
@@ -231,7 +248,11 @@ async def narrate_block(
         request.content_safety = True
 
     # --- Step 1: Compute geohash ---
+    # Two different precisions on purpose -- geo_hash (narration/zone-data,
+    # ~153m) vs PHOTO_GEOHASH_PRECISION (~19m, see that constant's comment
+    # for why a photo needs a much finer cell than narration text does).
     geo_hash = geohash2.encode(request.lat, request.lng, precision=GEOHASH_PRECISION)
+    photo_geo_hash = geohash2.encode(request.lat, request.lng, precision=PHOTO_GEOHASH_PRECISION)
     logger.info(
         f"Narration request: user={user_id[:8]}... "
         f"location=({request.lat}, {request.lng}) "
@@ -239,15 +260,7 @@ async def narrate_block(
         f"voice={request.voice.value} safety={'on' if request.content_safety else 'off'}"
     )
 
-    # --- Zone photo (kicked off concurrently — see below) ---
-    # Zone data (and now the photo) live in zone_data_cache, keyed only by
-    # geo_hash, mood-agnostic. This lookup used to happen only inside the
-    # "narration_text is None" branch further down, which meant it never ran
-    # at all on a narration cache HIT — a photo would never come back for an
-    # already-cached location. Doing it once, unconditionally, here fixes
-    # that and lets the branch below reuse the same row instead of a second
-    # DB round trip.
-    #
+    # --- Zone data + photo (photo kicked off concurrently — see below) ---
     # Run alongside the reverse-geocode call below (originally a separate
     # sequential await further down) -- neither has any data dependency on
     # the other, so there's no reason to pay for both round trips back to
@@ -269,14 +282,12 @@ async def narrate_block(
     # The actual photo fetch/upload (on a cache miss) shares no data
     # dependency with narration generation below, so it runs as a
     # background task instead of blocking the pipeline — joined right
-    # before the response is built, once both sides are done.
+    # before the response is built, once both sides are done. Does its
+    # own (separately-keyed) cache lookup internally rather than reusing
+    # cached_zone above -- photos live in their own table now, see
+    # _resolve_zone_photo's docstring.
     photo_task = asyncio.create_task(
-        _resolve_zone_photo(
-            geo_hash,
-            request.lat,
-            request.lng,
-            existing_image_r2_key=cached_zone.get("image_r2_key") if cached_zone else None,
-        )
+        _resolve_zone_photo(photo_geo_hash, request.lat, request.lng)
     )
 
     # --- Step 2: Check narration cache ---

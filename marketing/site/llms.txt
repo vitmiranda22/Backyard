@@ -16,6 +16,10 @@ Backyard is a mobile app (iOS) in the Travel/Navigation category. It is free to 
 - An Exploration Log tracks tours completed, distance walked, cities visited, and badges earned
 - Narration is generated from real, fact-checked public history and location data
 
+## Download
+
+- [Backyard Explorer on the App Store](https://apps.apple.com/us/app/backyard-explorer/id6789675904) (iOS, free with in-app purchases)
+
 ## Pages
 
 - [Home](https://backyardexplorer.org/): overview, moods, features, screenshots

@@ -498,6 +498,20 @@ export async function getExploredCells(): Promise<{ geo_hashes: string[] }> {
   return authFetch("/explored-cells");
 }
 
+export interface ExploredNeighborhood {
+  neighborhood: string;
+  city: string;
+  count: number;
+  // Only present when a real (or best-effort AI-derived) boundary exists
+  // for this exact neighborhood -- most neighborhoods won't have one yet,
+  // that's the expected common case, not a loading/error state.
+  percentage: number | null;
+}
+
+export async function getExploredNeighborhoods(): Promise<{ neighborhoods: ExploredNeighborhood[] }> {
+  return authFetch("/explored-cells/neighborhoods");
+}
+
 export interface RateTourResponse {
   tour_id: string;
   score: number;

@@ -11,19 +11,21 @@ jest.mock("../../services/api", () => ({
   getNearbyRoutes: jest.fn(),
   getTourDetail: jest.fn(),
   getExploredCells: jest.fn(),
+  getExploredNeighborhoods: jest.fn(),
   reportExploredCell: jest.fn(),
 }));
 jest.mock("../../services/toast", () => ({ showToast: jest.fn() }));
 
 import MapScreen from "../MapScreen";
 import { requestLocationPermission, getCurrentLocation, watchPosition } from "../../services/location";
-import { getNearbyRoutes, getExploredCells, reportExploredCell } from "../../services/api";
+import { getNearbyRoutes, getExploredCells, getExploredNeighborhoods, reportExploredCell } from "../../services/api";
 
 const mockRequestLocationPermission = requestLocationPermission as jest.Mock;
 const mockGetCurrentLocation = getCurrentLocation as jest.Mock;
 const mockGetNearbyRoutes = getNearbyRoutes as jest.Mock;
 const mockWatchPosition = watchPosition as jest.Mock;
 const mockGetExploredCells = getExploredCells as jest.Mock;
+const mockGetExploredNeighborhoods = getExploredNeighborhoods as jest.Mock;
 const mockReportExploredCell = reportExploredCell as jest.Mock;
 
 const MUSEUM_TOUR = {
@@ -58,6 +60,7 @@ beforeEach(() => {
   mockGetCurrentLocation.mockResolvedValue({ lat: 37.7749, lng: -122.4194 });
   mockGetNearbyRoutes.mockResolvedValue([]);
   mockGetExploredCells.mockResolvedValue({ geo_hashes: [] });
+  mockGetExploredNeighborhoods.mockResolvedValue({ neighborhoods: [] });
   mockReportExploredCell.mockResolvedValue({ geo_hash: "9q8yyk8" });
   mockWatchPosition.mockResolvedValue({ remove: jest.fn() });
   // The RN jest mock ships AppState.currentState as an unconfigured
@@ -219,6 +222,36 @@ describe("MapScreen", () => {
         positionCallback(37.79, -122.43, null); // unknown accuracy -- fails open
       });
       expect(mockReportExploredCell).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("neighborhoods sheet", () => {
+    it("fetches and displays neighborhoods only once the button is pressed, not on mount", async () => {
+      mockGetExploredNeighborhoods.mockResolvedValue({
+        neighborhoods: [{ neighborhood: "Mission", city: "San Francisco", count: 14, percentage: null }],
+      });
+      const { getByLabelText, findByText } = await render(<MapScreen {...defaultProps()} />);
+      await waitFor(() => expect(mockGetCurrentLocation).toHaveBeenCalled());
+      expect(mockGetExploredNeighborhoods).not.toHaveBeenCalled();
+
+      await act(async () => {
+        fireEvent.press(getByLabelText("neighborhoods.openA11y"));
+      });
+
+      expect(mockGetExploredNeighborhoods).toHaveBeenCalledTimes(1);
+      expect(await findByText("Mission")).toBeTruthy();
+    });
+
+    it("shows the sheet's failed state when the fetch rejects, instead of crashing", async () => {
+      mockGetExploredNeighborhoods.mockRejectedValue(new Error("network error"));
+      const { getByLabelText, findByText } = await render(<MapScreen {...defaultProps()} />);
+      await waitFor(() => expect(mockGetCurrentLocation).toHaveBeenCalled());
+
+      await act(async () => {
+        fireEvent.press(getByLabelText("neighborhoods.openA11y"));
+      });
+
+      expect(await findByText("neighborhoods.failedToLoad")).toBeTruthy();
     });
   });
 });

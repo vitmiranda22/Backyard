@@ -9,12 +9,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MapView, { Marker, Circle } from "react-native-maps";
 import RoutePolyline from "../components/RoutePolyline";
 import FogOverlay, { MapRegion } from "../components/FogOverlay";
+import NeighborhoodsSheet from "../components/NeighborhoodsSheet";
 import {
   requestLocationPermission,
   getCurrentLocation,
   watchPosition,
 } from "../services/location";
-import { getNearbyRoutes, getTourDetail, getExploredCells, NearbyRoute } from "../services/api";
+import { getNearbyRoutes, getTourDetail, getExploredCells, getExploredNeighborhoods, ExploredNeighborhood, NearbyRoute } from "../services/api";
 import { reportIfNewCell } from "../services/exploration";
 import { colors, font, radius, type } from "../theme";
 import { showToast } from "../services/toast";
@@ -65,6 +66,29 @@ export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }:
   // every pin, since most of them will never get tapped.
   const [selectedPath, setSelectedPath] = useState<{ latitude: number; longitude: number }[]>([]);
   const [selectedTourId, setSelectedTourId] = useState<string | null>(null);
+
+  // Neighborhoods sheet -- fetched on demand when opened, not on mount,
+  // since most map visits won't open it and the data can't meaningfully
+  // change within a single short map session anyway.
+  const [neighborhoodsVisible, setNeighborhoodsVisible] = useState(false);
+  const [neighborhoods, setNeighborhoods] = useState<ExploredNeighborhood[]>([]);
+  const [neighborhoodsLoading, setNeighborhoodsLoading] = useState(false);
+  const [neighborhoodsFailed, setNeighborhoodsFailed] = useState(false);
+
+  async function openNeighborhoods() {
+    setNeighborhoodsVisible(true);
+    setNeighborhoodsLoading(true);
+    setNeighborhoodsFailed(false);
+    try {
+      const result = await getExploredNeighborhoods();
+      setNeighborhoods(result.neighborhoods);
+    } catch (e: any) {
+      console.warn("Failed to load neighborhoods:", e.message);
+      setNeighborhoodsFailed(true);
+    } finally {
+      setNeighborhoodsLoading(false);
+    }
+  }
 
   // Terra Incognita: continuous foreground-only GPS tracking, separate
   // from ActiveTourScreen's own -- this is what makes the fog clear while
@@ -314,6 +338,23 @@ export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }:
       >
         <Text style={styles.backBtnText}>‹ {t("common.back")}</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.neighborhoodsBtn, { top: insets.top + 12 }]}
+        onPress={openNeighborhoods}
+        accessibilityRole="button"
+        accessibilityLabel={t("neighborhoods.openA11y")}
+      >
+        <Text style={styles.neighborhoodsBtnText}>🏘️ {t("neighborhoods.buttonLabel")}</Text>
+      </TouchableOpacity>
+
+      <NeighborhoodsSheet
+        visible={neighborhoodsVisible}
+        onClose={() => setNeighborhoodsVisible(false)}
+        neighborhoods={neighborhoods}
+        loading={neighborhoodsLoading}
+        failed={neighborhoodsFailed}
+      />
     </View>
   );
 }
@@ -416,6 +457,24 @@ const styles = StyleSheet.create({
     fontFamily: font.cursiveBold,
     fontSize: 17,
     lineHeight: 23,
+    color: colors.ink,
+  },
+  neighborhoodsBtn: {
+    position: "absolute",
+    right: 16,
+    backgroundColor: "rgba(251,247,234,0.92)",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: radius.pill,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  neighborhoodsBtnText: {
+    fontFamily: font.sansBold,
+    fontSize: 13,
     color: colors.ink,
   },
 });

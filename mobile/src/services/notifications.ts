@@ -15,7 +15,6 @@ Notifications.setNotificationHandler({
 });
 
 const UNFINISHED_TOUR_DELAY_SEC = 90 * 60; // 90 minutes
-const reminderIds = new Map<string, string>();
 
 export async function requestPermission(): Promise<boolean> {
   try {
@@ -28,11 +27,21 @@ export async function requestPermission(): Promise<boolean> {
   }
 }
 
-export async function scheduleUnfinishedTourReminder(tourId: string) {
+// This is the app's only scheduled notification, so "at most one pending
+// reminder" is enforced by clearing everything scheduled and everything
+// already delivered before scheduling a new one. Tracking ids in memory
+// doesn't survive an app restart, which let reminders pile up.
+async function clearAllReminders() {
+  await Notifications.cancelAllScheduledNotificationsAsync();
+  await Notifications.dismissAllNotificationsAsync();
+}
+
+export async function scheduleUnfinishedTourReminder(_tourId: string) {
   try {
     const granted = await requestPermission();
     if (!granted) return;
-    const id = await Notifications.scheduleNotificationAsync({
+    await clearAllReminders();
+    await Notifications.scheduleNotificationAsync({
       content: {
         title: i18next.t("notifications.unfinishedTourTitle"),
         body: i18next.t("notifications.unfinishedTourBody"),
@@ -42,19 +51,15 @@ export async function scheduleUnfinishedTourReminder(tourId: string) {
         seconds: UNFINISHED_TOUR_DELAY_SEC,
       },
     });
-    reminderIds.set(tourId, id);
   } catch (e) {
     console.warn("Failed to schedule tour reminder:", e);
   }
 }
 
-export async function cancelReminder(tourId: string) {
-  const id = reminderIds.get(tourId);
-  if (!id) return;
+export async function cancelReminder(_tourId: string) {
   try {
-    await Notifications.cancelScheduledNotificationAsync(id);
+    await clearAllReminders();
   } catch (e) {
     console.warn("Failed to cancel tour reminder:", e);
   }
-  reminderIds.delete(tourId);
 }

@@ -152,14 +152,14 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.fieldBorder,
   },
   backLink: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.fieldMuted,
     fontSize: 20,
     lineHeight: 26,
   },
   title: {
     flex: 1,
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.ink,
     fontSize: 20,
     lineHeight: 26,
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.parchmentBg,
   },
   navBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.parchmentSurface,
     fontSize: 18,
     lineHeight: 24,
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     color: colors.fieldMuted,
   },
   progressText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.fieldMuted,
     fontSize: 16,
     lineHeight: 22,

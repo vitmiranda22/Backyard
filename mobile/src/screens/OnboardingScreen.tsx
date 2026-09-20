@@ -146,13 +146,13 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   welcomeSkipText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: "rgba(255,255,255,0.9)",
     fontSize: 18,
     lineHeight: 25,
   },
   welcomeTitle: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 37,
     lineHeight: 50,
     color: "#fff",
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   skip: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     alignSelf: "flex-end",
     color: colors.fieldMuted,
     fontSize: 18,
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     tintColor: colors.ink,
   },
   title: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 32,
     lineHeight: 43,
     color: colors.ink,
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   nextBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.parchmentSurface,
     textAlign: "center",
     fontSize: 23,

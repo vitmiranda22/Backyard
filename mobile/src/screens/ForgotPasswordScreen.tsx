@@ -84,14 +84,14 @@ const styles = StyleSheet.create({
     paddingTop: 60,
   },
   backArrow: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 20,
     lineHeight: 26,
     color: colors.fieldMuted,
     marginBottom: 18,
   },
   heading: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 32,
     lineHeight: 43,
     color: colors.ink,
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   primaryBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.parchmentSurface,
     textAlign: "center",
     fontSize: 23,

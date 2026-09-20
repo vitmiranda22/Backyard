@@ -144,14 +144,14 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   cancelText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.fieldMuted,
     fontSize: 23,
     lineHeight: 32,
     paddingRight: 6,
   },
   title: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 34,
     lineHeight: 47,
     color: colors.ink,
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   subtitle: {
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     fontSize: 21,
     lineHeight: 28,
     color: colors.fieldMuted,
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     tintColor: colors.fieldGreen,
   },
   modeLabel: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 23,
     lineHeight: 32,
     color: colors.ink,
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   tag: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 14,
     lineHeight: 20,
     letterSpacing: 0.3,

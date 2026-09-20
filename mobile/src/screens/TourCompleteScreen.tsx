@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
     right: 0,
     paddingTop: 20,
     paddingHorizontal: 22,
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 28,
     lineHeight: 38,
     color: "#fff",
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ink,
   },
   compactHint: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 15,
     lineHeight: 21,
     color: "rgba(255,255,255,0.6)",
@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   polaroidPlaceholderText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 14,
     lineHeight: 20,
     color: colors.fieldMuted,
@@ -570,7 +570,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   heroCardLabel: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 16,
     lineHeight: 22,
     color: "rgba(255,255,255,0.8)",
@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
     tintColor: colors.fieldGreen,
   },
   title: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 34,
     lineHeight: 47,
     color: colors.ink,
@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   shareText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 16,
     lineHeight: 22,
     color: "#fff",
@@ -636,7 +636,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   doneBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.parchmentSurface,
     fontSize: 22,
     lineHeight: 29,
@@ -647,14 +647,14 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   discardBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.danger,
     fontSize: 16,
     lineHeight: 22,
     textAlign: "center",
   },
   shareDesc: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 16,
     lineHeight: 22,
     color: colors.fieldMuted,

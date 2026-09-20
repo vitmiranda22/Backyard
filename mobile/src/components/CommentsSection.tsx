@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   header: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 26,
     lineHeight: 34,
     color: colors.ink,
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   commentAuthor: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 17,
     lineHeight: 23,
     color: colors.ink,
@@ -175,13 +175,13 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   commentDate: {
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     fontSize: 12,
     lineHeight: 16,
     color: colors.fieldMuted,
   },
   reportLink: {
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     fontSize: 12,
     lineHeight: 16,
     color: colors.fieldMuted,
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.fieldBorder,
   },
   postBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.parchmentSurface,
     fontSize: 17,
     lineHeight: 23,

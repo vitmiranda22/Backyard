@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     right: 0,
     paddingTop: 56,
     paddingHorizontal: spacing.lg,
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 43,
     lineHeight: 45,
     color: "#fff",
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   ctaText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     textAlign: "center",
     color: colors.parchmentSurface,
     fontSize: 21,

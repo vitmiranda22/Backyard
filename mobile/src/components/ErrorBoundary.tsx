@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     right: 0,
     paddingTop: 56,
     paddingHorizontal: spacing.lg,
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 31,
     lineHeight: 41,
     color: "#fff",
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   buttonText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.parchmentSurface,
     fontSize: 21,
     lineHeight: 28,

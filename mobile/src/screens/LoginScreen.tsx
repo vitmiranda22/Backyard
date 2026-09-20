@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
   // below -- rather than the serif italic it had before, which read as a
   // mismatched, unrelated typeface next to everything around it.
   quote: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 24,
     lineHeight: 30,
     color: "#fff",
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 8,
   },
   quoteAttr: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 16,
     lineHeight: 22,
     color: "rgba(255,255,255,0.85)",
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardTitle: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 26,
     lineHeight: 34,
     color: colors.ink,
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   checkboxLabel: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 17,
     lineHeight: 23,
     color: colors.ink,
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   signInText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.parchmentSurface,
     textAlign: "center",
     fontSize: 19,
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.fieldBorder,
   },
   dividerText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 14,
     lineHeight: 19,
     color: colors.fieldMuted,
@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   googleBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.ink,
     textAlign: "center",
     fontSize: 16,
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   forgotText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.fieldMuted,
     textAlign: "center",
     fontSize: 14,
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   newHereText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.fieldGreen,
     textAlign: "center",
     fontSize: 17,

@@ -496,7 +496,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.25)",
   },
   dividerTextOnDark: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 15,
     lineHeight: 21,
     color: "rgba(255,255,255,0.75)",
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   heading: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 32,
     lineHeight: 43,
     color: colors.ink,
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   fieldLabel: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 16,
     lineHeight: 22,
     color: colors.fieldMuted,
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   oauthText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 20,
     lineHeight: 26,
     color: colors.ink,
@@ -578,12 +578,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   dobFieldValue: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: type.body,
     color: colors.ink,
   },
   dobFieldPlaceholder: {
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     fontSize: type.body,
     color: colors.fieldMuted,
   },
@@ -612,20 +612,20 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.fieldBorder,
   },
   dobSheetCancel: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 21,
     lineHeight: 28,
     color: colors.fieldMuted,
     paddingRight: 6,
   },
   dobSheetTitle: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 18,
     lineHeight: 25,
     color: colors.ink,
   },
   dobSheetDone: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 17,
     lineHeight: 23,
     color: colors.fieldGreen,
@@ -669,7 +669,7 @@ const styles = StyleSheet.create({
   },
   checkboxText: {
     flex: 1,
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     fontSize: 14,
     color: colors.fieldMuted,
     lineHeight: 21,
@@ -687,7 +687,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   primaryBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.parchmentSurface,
     textAlign: "center",
     fontSize: 23,

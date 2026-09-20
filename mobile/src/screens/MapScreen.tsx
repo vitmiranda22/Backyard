@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: colors.fieldMuted,
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     fontSize: 18,
     lineHeight: 25,
   },
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   backBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 17,
     lineHeight: 23,
     color: colors.ink,

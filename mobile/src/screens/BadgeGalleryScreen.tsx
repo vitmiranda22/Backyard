@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   backTextOnDark: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: "#fff",
     fontSize: 18,
     lineHeight: 25,
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 6,
   },
   title: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 34,
     lineHeight: 47,
     color: "#fff",
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   label: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 21,
     lineHeight: 28,
     color: colors.ink,
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     color: colors.fieldMuted,
   },
   requirement: {
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     fontSize: type.caption,
     color: colors.fieldMuted,
     marginTop: 2,

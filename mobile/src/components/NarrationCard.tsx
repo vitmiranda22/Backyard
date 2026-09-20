@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
     tintColor: colors.fieldMuted,
   },
   streetName: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 15,
     lineHeight: 21,
     letterSpacing: 0.2,
@@ -302,13 +302,13 @@ const styles = StyleSheet.create({
     maxWidth: "85%",
   },
   narrationText: {
-    fontFamily: font.serifItalic,
-    fontSize: type.body,
+    fontFamily: font.script,
+    fontSize: 21,
     color: colors.ink,
-    lineHeight: 26,
+    lineHeight: 28,
   },
   expandHint: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 15,
     lineHeight: 21,
     color: colors.fieldGreen,
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   loadingText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.fieldMuted,
     textAlign: "center",
     marginTop: spacing.sm,
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
     tintColor: colors.ink,
   },
   modalStreetName: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 22,
     lineHeight: 29,
     color: colors.ink,
@@ -372,10 +372,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   modalText: {
-    fontFamily: font.serifItalic,
-    fontSize: 16,
+    fontFamily: font.script,
+    fontSize: 21,
     color: colors.ink,
-    lineHeight: 25,
+    lineHeight: 28,
   },
   modalCloseBtn: {
     backgroundColor: colors.parchmentBg,
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   modalCloseBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     textAlign: "center",
     fontSize: 20,
     lineHeight: 26,

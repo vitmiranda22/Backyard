@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   timeText: {
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     fontSize: type.caption,
     color: colors.fieldMuted,
     width: 40,

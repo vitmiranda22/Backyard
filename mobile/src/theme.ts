@@ -58,12 +58,15 @@ export const font = {
   display: Platform.select({ ios: "Georgia", android: "serif", default: "Georgia" }),
 
   // Field Guide type system (see mobile/App.tsx's useFonts call for the
-  // loaded weights). Cursive carries almost everything -- headlines,
-  // buttons, labels -- by deliberate choice (matches the approved mockups);
-  // serifItalic is reserved for narration/log prose specifically, the one
-  // place cursive stays out of for readability over a full paragraph.
-  cursive: "Caveat_600SemiBold",
-  cursiveBold: "Caveat_700Bold",
+  // loaded weights). DM Serif Display carries headlines, buttons and
+  // labels -- it ships in one weight only, so heading and headingBold are
+  // the same face (never pair headingBold with a fontWeight, which would
+  // synthesize a fake bold). Cursive (Caveat) was too thin to read
+  // outdoors at small sizes, so it's reserved for the tour narration
+  // script only.
+  heading: "DMSerifDisplay_400Regular",
+  headingBold: "DMSerifDisplay_400Regular",
+  script: "Caveat_600SemiBold",
   serif: "LibreBaskerville_700Bold",
   serifItalic: "LibreBaskerville_400Regular_Italic",
   sans: "WorkSans_400Regular",

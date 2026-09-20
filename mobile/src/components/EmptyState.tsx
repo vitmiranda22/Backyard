@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   retryBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.parchmentSurface,
     fontSize: 20,
     lineHeight: 26,
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     tintColor: colors.fieldGreen,
   },
   retryLinkText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.fieldGreen,
     fontSize: 16,
     lineHeight: 22,
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   secondaryBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.fieldMuted,
     fontSize: 15,
     lineHeight: 21,

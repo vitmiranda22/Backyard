@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   },
   perkText: {
     flex: 1,
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     fontSize: type.label,
     color: colors.paywallText,
   },
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   planBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.ink,
     textAlign: "center",
     fontSize: 22,
@@ -280,21 +280,21 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   planBtnOutlineText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.paywallText,
     textAlign: "center",
     fontSize: 22,
     lineHeight: 29,
   },
   planBtnSub: {
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     color: "rgba(244,239,221,0.7)",
     textAlign: "center",
     fontSize: type.caption,
     marginTop: 2,
   },
   autoRenews: {
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     color: "rgba(244,239,221,0.55)",
     textAlign: "center",
     fontSize: 12,
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   restoreText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: "rgba(244,239,221,0.75)",
     textAlign: "center",
     fontSize: 17,
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   notNow: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: "rgba(244,239,221,0.75)",
     textAlign: "center",
     fontSize: 17,
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   legalLink: {
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     color: "rgba(244,239,221,0.5)",
     fontSize: type.caption,
     textDecorationLine: "underline",

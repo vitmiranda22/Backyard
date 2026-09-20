@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   // section could be sized up on its own without dragging the others
   // along with it.
   statsSectionLabel: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 25,
     lineHeight: 35,
     color: colors.fieldMuted,
@@ -278,13 +278,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   statValue: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 36,
     lineHeight: 49,
     color: colors.ink,
   },
   statLabel: {
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     fontSize: 17,
     lineHeight: 24,
     color: colors.fieldMuted,
@@ -387,13 +387,13 @@ const styles = StyleSheet.create({
     tintColor: colors.ink,
   },
   fabLabel: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 17,
     lineHeight: 23,
     color: colors.fieldMuted,
   },
   fabLabelPrimary: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 20,
     lineHeight: 26,
     color: colors.ink,
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sectionLabel: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 22,
     lineHeight: 31,
     color: colors.fieldMuted,
@@ -456,13 +456,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   storyTitle: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 21,
     lineHeight: 28,
     color: colors.ink,
   },
   storyMeta: {
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     fontSize: 15,
     lineHeight: 21,
     color: colors.fieldMuted,

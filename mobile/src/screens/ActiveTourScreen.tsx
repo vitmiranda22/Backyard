@@ -963,7 +963,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.parchmentSurface,
   },
   placeholderText: {
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     fontSize: 18,
     lineHeight: 25,
     color: colors.fieldMuted,
@@ -977,7 +977,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   endLinkText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.fieldMuted,
     fontSize: 16,
     lineHeight: 22,
@@ -1007,13 +1007,13 @@ const styles = StyleSheet.create({
     tintColor: colors.ink,
   },
   statsText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.ink,
     fontSize: 17,
     lineHeight: 23,
   },
   moodBadge: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.fieldGreen,
     fontSize: 17,
     lineHeight: 23,
@@ -1095,7 +1095,7 @@ const styles = StyleSheet.create({
     color: colors.parchmentSurface,
   },
   footerHint: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     marginTop: spacing.sm,
     fontSize: 15,
     lineHeight: 21,

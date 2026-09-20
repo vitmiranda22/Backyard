@@ -13,7 +13,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as Updates from "expo-updates";
 import * as SecureStore from "expo-secure-store";
 import * as SplashScreen from "expo-splash-screen";
-import { useFonts, Caveat_500Medium, Caveat_600SemiBold, Caveat_700Bold } from "@expo-google-fonts/caveat";
+import { useFonts, Caveat_600SemiBold } from "@expo-google-fonts/caveat";
+import { DMSerifDisplay_400Regular } from "@expo-google-fonts/dm-serif-display";
 import {
   LibreBaskerville_400Regular,
   LibreBaskerville_700Bold,
@@ -111,9 +112,8 @@ type Screen =
 export default function App() {
   const { t } = useTranslation();
   const [fontsLoaded] = useFonts({
-    Caveat_500Medium,
     Caveat_600SemiBold,
-    Caveat_700Bold,
+    DMSerifDisplay_400Regular,
     LibreBaskerville_400Regular,
     LibreBaskerville_700Bold,
     LibreBaskerville_400Regular_Italic,

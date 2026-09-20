@@ -246,13 +246,13 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   backArrow: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 20,
     lineHeight: 26,
     color: colors.fieldMuted,
   },
   header: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 34,
     lineHeight: 47,
     color: colors.ink,
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.parchmentSurface,
   },
   segmentText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 17,
     lineHeight: 23,
     color: colors.fieldMuted,
@@ -333,19 +333,19 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   title: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 21,
     lineHeight: 28,
     color: colors.ink,
   },
   meta: {
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     fontSize: type.caption,
     color: colors.fieldMuted,
     marginTop: 2,
   },
   date: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 16,
     lineHeight: 22,
     color: colors.fieldMuted,
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   ratingCount: {
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     fontSize: 12,
     lineHeight: 16,
     color: colors.fieldMuted,

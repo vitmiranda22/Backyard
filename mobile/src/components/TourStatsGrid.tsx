@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     height: 20,
   },
   statValue: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 21,
     lineHeight: 28,
     color: colors.ink,
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   statLabel: {
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     fontSize: type.caption,
     color: colors.fieldMuted,
     marginTop: spacing.xs,

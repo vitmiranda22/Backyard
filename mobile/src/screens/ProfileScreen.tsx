@@ -456,14 +456,14 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   backArrow: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 20,
     lineHeight: 26,
     color: colors.fieldMuted,
     marginBottom: 12,
   },
   header: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 34,
     lineHeight: 47,
     color: colors.ink,
@@ -479,13 +479,13 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   label: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 14,
     lineHeight: 20,
     color: colors.fieldMuted,
   },
   email: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: type.body,
     color: colors.ink,
     marginTop: spacing.xs,
@@ -496,13 +496,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   rowTitle: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 20,
     lineHeight: 26,
     color: colors.ink,
   },
   rowDesc: {
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     fontSize: type.caption,
     color: colors.fieldMuted,
     marginTop: 2,
@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   upgradeBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.parchmentSurface,
     textAlign: "center",
     fontSize: 20,
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   addDobPillText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.parchmentSurface,
     fontSize: 14,
     lineHeight: 20,
@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   saveDobBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.parchmentSurface,
     textAlign: "center",
     fontSize: 20,
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
     borderColor: colors.danger,
   },
   signOutText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.danger,
     textAlign: "center",
     fontSize: 20,
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   deleteText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.fieldMuted,
     textAlign: "center",
     fontSize: 16,
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   modalTitle: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 23,
     lineHeight: 32,
     color: colors.ink,
@@ -662,13 +662,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.parchmentSurface,
   },
   languageRowText: {
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     fontSize: 20,
     lineHeight: 26,
     color: colors.ink,
   },
   languageRowTextActive: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.fieldGreen,
   },
   languageCheck: {
@@ -684,7 +684,7 @@ const styles = StyleSheet.create({
     borderColor: colors.fieldBorder,
   },
   modalCancelBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 21,
     lineHeight: 28,
     color: colors.fieldMuted,

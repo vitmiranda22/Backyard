@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   },
   label: {
     marginTop: 6,
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 16,
     lineHeight: 22,
     color: colors.ink,

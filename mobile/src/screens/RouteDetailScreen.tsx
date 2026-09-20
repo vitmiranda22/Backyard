@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   backLink: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     alignSelf: "flex-start",
     color: colors.fieldMuted,
     fontSize: 20,
@@ -368,13 +368,13 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   reportLink: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.fieldMuted,
     fontSize: 17,
     lineHeight: 23,
   },
   shareLink: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.fieldGreen,
     fontSize: 17,
     lineHeight: 23,
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   title: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 32,
     lineHeight: 43,
     color: colors.ink,
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   creator: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 18,
     lineHeight: 25,
     color: colors.fieldMuted,
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   ratingCount: {
-    fontFamily: font.cursive,
+    fontFamily: font.heading,
     fontSize: 14,
     lineHeight: 20,
     color: colors.fieldMuted,
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
     tintColor: colors.danger,
   },
   likeBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 20,
     lineHeight: 26,
     color: colors.ink,
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
     tintColor: colors.ink,
   },
   statText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 18,
     lineHeight: 25,
     color: colors.ink,
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   logHeader: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 26,
     lineHeight: 34,
     color: colors.ink,
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
     tintColor: colors.ink,
   },
   logStreet: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 17,
     lineHeight: 23,
     color: colors.ink,
@@ -559,14 +559,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   startBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.parchmentSurface,
     textAlign: "center",
     fontSize: 23,
     lineHeight: 32,
   },
   deleteLink: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.danger,
     textAlign: "center",
     fontSize: 17,

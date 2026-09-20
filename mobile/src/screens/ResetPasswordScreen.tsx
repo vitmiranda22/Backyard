@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   heading: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     fontSize: 32,
     lineHeight: 43,
     color: colors.ink,
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   primaryBtnText: {
-    fontFamily: font.cursiveBold,
+    fontFamily: font.headingBold,
     color: colors.parchmentSurface,
     textAlign: "center",
     fontSize: 23,

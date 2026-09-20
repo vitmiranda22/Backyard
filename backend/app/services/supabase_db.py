@@ -421,11 +421,21 @@ async def get_zone_richness_batch(geo_hashes: list) -> dict:
         return {}
 
 
-async def mark_cells_explored(user_id: str, geo_hashes: list) -> None:
+async def mark_cells_explored(user_id: str, geo_hash: str, neighborhood: str = None, city: str = None) -> None:
     """
-    Record that this user has physically been in these geohash cells —
-    powers the Map tab's fog-of-war reveal (see migrations/029_user_explored_cells.sql).
+    Record that this user has physically been in this geohash cell —
+    powers the Map tab's fog-of-war reveal (see migrations/029_user_explored_cells.sql)
+    and per-neighborhood exploration counts (migrations/031_explored_cell_location.sql).
     Permanent: a cell, once explored, is never un-marked.
+
+    neighborhood/city are best-effort, looked up from zone_data_cache by
+    explored.py's report_explored_cell — never freshly geocoded here (see
+    migration 031's own comment on why: reverse_geocode shares one global
+    1 req/sec Nominatim throttle with the live narration pipeline, and
+    this function fires on every new fog-of-war cell across every walking
+    user). None when that exact cell has never been narrated by anyone
+    yet — it still counts as explored for the map either way, it just
+    doesn't attribute to a neighborhood's count until it does.
 
     on_conflict="user_id,geo_hash" is required for the same reason
     store_zone_data's on_conflict="geo_hash" is — the table's PRIMARY KEY
@@ -434,16 +444,14 @@ async def mark_cells_explored(user_id: str, geo_hashes: list) -> None:
     INSERT and fail outright on any real conflict (e.g. re-reporting a
     cell you've already explored).
     """
-    if not geo_hashes:
-        return
     try:
         client = _get_client()
         client.table("user_explored_cells").upsert(
-            [{"user_id": user_id, "geo_hash": h} for h in set(geo_hashes)],
+            {"user_id": user_id, "geo_hash": geo_hash, "neighborhood": neighborhood, "city": city},
             on_conflict="user_id,geo_hash",
         ).execute()
     except Exception as e:
-        logger.error(f"Failed to mark cells explored: {e}")
+        logger.error(f"Failed to mark cell explored: {e}")
 
 
 async def get_explored_geohashes(user_id: str) -> list:
@@ -465,6 +473,94 @@ async def get_explored_geohashes(user_id: str) -> list:
     except Exception as e:
         logger.error(f"Failed to fetch explored geohashes: {e}")
         return []
+
+
+async def get_explored_neighborhood_counts(user_id: str) -> list:
+    """
+    This user's explored cells grouped by (neighborhood, city), with a
+    count each — powers GET /explored-cells/neighborhoods. Cells with no
+    neighborhood on file (never narrated by anyone yet, or explored
+    before migration 031) are excluded entirely, not lumped into an
+    "Unknown" bucket. Grouped/sorted in Python rather than SQL for the
+    same reason get_explored_geohashes doesn't paginate — a real user's
+    history is at most a few thousand short rows, cheap to pull whole.
+    """
+    try:
+        client = _get_client()
+        result = (
+            client.table("user_explored_cells")
+            .select("neighborhood, city")
+            .eq("user_id", user_id)
+            .not_.is_("neighborhood", "null")
+            .execute()
+        )
+        counts: dict = {}
+        for row in (result.data or []):
+            key = (row["neighborhood"], row.get("city") or "")
+            counts[key] = counts.get(key, 0) + 1
+        return [
+            {"neighborhood": n, "city": c, "count": cnt}
+            for (n, c), cnt in sorted(counts.items(), key=lambda kv: -kv[1])
+        ]
+    except Exception as e:
+        logger.error(f"Failed to fetch explored neighborhood counts: {e}")
+        return []
+
+
+async def get_neighborhood_boundary(neighborhood: str, city: str):
+    """
+    The real (or best-effort AI-derived) boundary for this neighborhood,
+    if backend/scripts/map_neighborhood_boundaries.py has ever mapped it.
+    Returns dict or None — most neighborhoods have no row here, which is
+    the expected common case, not an error.
+    """
+    try:
+        client = _get_client()
+        result = (
+            client.table("neighborhood_boundaries")
+            .select("total_cells")
+            .eq("neighborhood", neighborhood)
+            .eq("city", city)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+    except Exception as e:
+        logger.error(f"Failed to fetch neighborhood boundary for {neighborhood}, {city}: {e}")
+        return None
+
+
+async def store_neighborhood_boundary(
+    neighborhood: str, city: str, source: str, source_url: str, boundary_polygon: list, total_cells: int
+) -> bool:
+    """
+    Written only by the offline backend/scripts/map_neighborhood_boundaries.py
+    -- never from a live request path. on_conflict="neighborhood,city" so
+    re-running the script for an already-mapped neighborhood replaces it
+    rather than erroring (migration 032's UNIQUE constraint).
+
+    Returns True/False so the caller (a script that may have just spent
+    real OpenAI cost computing this) can tell a genuine save apart from
+    a silent failure (e.g. migration 032 not yet run) instead of
+    reporting success unconditionally.
+    """
+    try:
+        client = _get_client()
+        client.table("neighborhood_boundaries").upsert(
+            {
+                "neighborhood": neighborhood,
+                "city": city,
+                "source": source,
+                "source_url": source_url,
+                "boundary_polygon": boundary_polygon,
+                "total_cells": total_cells,
+            },
+            on_conflict="neighborhood,city",
+        ).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to store neighborhood boundary for {neighborhood}, {city}: {e}")
+        return False
 
 
 async def get_most_recently_explored_cell(user_id: str):

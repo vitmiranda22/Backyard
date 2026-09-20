@@ -24,7 +24,13 @@ from fastapi import APIRouter
 
 from app.api.auth import AuthenticatedUser
 from app.api.tours import _enforce_minute_rate_limit
-from app.models.schemas import ExploredCellRequest, ExploredCellResponse, ExploredCellsListResponse
+from app.models.schemas import (
+    ExploredCellRequest,
+    ExploredCellResponse,
+    ExploredCellsListResponse,
+    ExploredNeighborhoodCount,
+    ExploredNeighborhoodsResponse,
+)
 from app.services import supabase_db
 
 logger = logging.getLogger(__name__)
@@ -95,7 +101,17 @@ async def report_explored_cell(request: ExploredCellRequest, user_id: Authentica
         logger.warning(f"Rejected implausible explored-cell jump for user={user_id[:8]}...")
         return ExploredCellResponse(geo_hash=geo_hash)
 
-    await supabase_db.mark_cells_explored(user_id, [geo_hash])
+    # Best-effort neighborhood/city attribution -- reused from whatever
+    # narration already resolved for this exact cell, never a fresh
+    # geocode call here (see mark_cells_explored's own docstring: this
+    # endpoint fires on every new fog-of-war cell across every walking
+    # user, and reverse_geocode shares one global 1 req/sec Nominatim
+    # throttle with the live narration pipeline).
+    cached_zone = await supabase_db.get_cached_zone_data(geo_hash)
+    neighborhood = (cached_zone.get("neighborhood") or None) if cached_zone else None
+    city = (cached_zone.get("city") or None) if cached_zone else None
+
+    await supabase_db.mark_cells_explored(user_id, geo_hash, neighborhood, city)
     return ExploredCellResponse(geo_hash=geo_hash)
 
 
@@ -107,3 +123,31 @@ async def report_explored_cell(request: ExploredCellRequest, user_id: Authentica
 async def list_explored_cells(user_id: AuthenticatedUser):
     geo_hashes = await supabase_db.get_explored_geohashes(user_id)
     return ExploredCellsListResponse(geo_hashes=geo_hashes)
+
+
+@router.get(
+    "/explored-cells/neighborhoods",
+    response_model=ExploredNeighborhoodsResponse,
+    summary="The caller's explored cells grouped by neighborhood, with counts",
+)
+async def list_explored_neighborhoods(user_id: AuthenticatedUser):
+    raw_counts = await supabase_db.get_explored_neighborhood_counts(user_id)
+
+    results = []
+    for row in raw_counts:
+        percentage = None
+        # A boundary only exists for the small pilot set
+        # backend/scripts/map_neighborhood_boundaries.py has mapped so
+        # far -- absent for the overwhelming majority of neighborhoods,
+        # which is the expected common case, not an error.
+        boundary = await supabase_db.get_neighborhood_boundary(row["neighborhood"], row["city"])
+        if boundary and boundary.get("total_cells"):
+            percentage = min(100, round(row["count"] / boundary["total_cells"] * 100))
+        results.append(ExploredNeighborhoodCount(
+            neighborhood=row["neighborhood"],
+            city=row["city"],
+            count=row["count"],
+            percentage=percentage,
+        ))
+
+    return ExploredNeighborhoodsResponse(neighborhoods=results)

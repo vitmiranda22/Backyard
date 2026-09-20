@@ -48,11 +48,14 @@ def _route(**overrides):
 
 def test_reports_the_geohash_for_the_given_point(client, auth_as, app, monkeypatch):
     auth_as(app, USER_ID)
+    monkeypatch.setattr(supabase_db, "get_cached_zone_data", _async(None))
     captured = {}
 
-    async def _track(user_id, geo_hashes):
+    async def _track(user_id, geo_hash, neighborhood=None, city=None):
         captured["user_id"] = user_id
-        captured["geo_hashes"] = geo_hashes
+        captured["geo_hash"] = geo_hash
+        captured["neighborhood"] = neighborhood
+        captured["city"] = city
     monkeypatch.setattr(supabase_db, "mark_cells_explored", _track)
 
     resp = client.post("/api/explored-cells", json={"lat": 37.8087, "lng": -122.4098})
@@ -61,7 +64,32 @@ def test_reports_the_geohash_for_the_given_point(client, auth_as, app, monkeypat
     expected_hash = geohash2.encode(37.8087, -122.4098, precision=GEOHASH_PRECISION)
     assert resp.json() == {"geo_hash": expected_hash}
     assert captured["user_id"] == USER_ID
-    assert captured["geo_hashes"] == [expected_hash]
+    assert captured["geo_hash"] == expected_hash
+    assert captured["neighborhood"] is None
+    assert captured["city"] is None
+
+
+def test_attributes_the_neighborhood_and_city_from_an_already_narrated_cell(client, auth_as, app, monkeypatch):
+    """
+    The whole point of this feature: reused from zone_data_cache, never a
+    fresh geocode call in this endpoint's own request path.
+    """
+    auth_as(app, USER_ID)
+    monkeypatch.setattr(supabase_db, "get_cached_zone_data", _async({
+        "neighborhood": "Mission", "city": "San Francisco",
+    }))
+    captured = {}
+
+    async def _track(user_id, geo_hash, neighborhood=None, city=None):
+        captured["neighborhood"] = neighborhood
+        captured["city"] = city
+    monkeypatch.setattr(supabase_db, "mark_cells_explored", _track)
+
+    resp = client.post("/api/explored-cells", json={"lat": 37.7599, "lng": -122.4148})
+
+    assert resp.status_code == 200
+    assert captured["neighborhood"] == "Mission"
+    assert captured["city"] == "San Francisco"
 
 
 def test_rejects_an_out_of_range_coordinate(client, auth_as, app):
@@ -178,10 +206,11 @@ def test_an_implausible_jump_is_not_persisted(client, auth_as, app, monkeypatch)
 def test_a_plausible_report_with_no_prior_history_is_persisted(client, auth_as, app, monkeypatch):
     auth_as(app, USER_ID)
     monkeypatch.setattr(supabase_db, "get_most_recently_explored_cell", _async(None))
+    monkeypatch.setattr(supabase_db, "get_cached_zone_data", _async(None))
 
     called = []
-    async def _track_mark(user_id, geo_hashes):
-        called.append((user_id, geo_hashes))
+    async def _track_mark(user_id, geo_hash, neighborhood=None, city=None):
+        called.append((user_id, geo_hash))
     monkeypatch.setattr(supabase_db, "mark_cells_explored", _track_mark)
 
     resp = client.post("/api/explored-cells", json={"lat": 37.7749, "lng": -122.4194})
@@ -200,13 +229,94 @@ def test_a_plausible_nearby_report_is_persisted(client, auth_as, app, monkeypatc
         "geo_hash": prior_hash,
         "first_explored_at": (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=1)).isoformat(),
     }))
+    monkeypatch.setattr(supabase_db, "get_cached_zone_data", _async(None))
 
     called = []
-    async def _track_mark(user_id, geo_hashes):
-        called.append((user_id, geo_hashes))
+    async def _track_mark(user_id, geo_hash, neighborhood=None, city=None):
+        called.append((user_id, geo_hash))
     monkeypatch.setattr(supabase_db, "mark_cells_explored", _track_mark)
 
     resp = client.post("/api/explored-cells", json={"lat": 37.7760, "lng": -122.4194})
 
     assert resp.status_code == 200
     assert len(called) == 1
+
+
+# --- GET /explored-cells/neighborhoods ---------------------------------------
+
+def test_returns_neighborhood_counts_without_a_percentage_when_no_boundary_exists(client, auth_as, app, monkeypatch):
+    auth_as(app, USER_ID)
+    monkeypatch.setattr(supabase_db, "get_explored_neighborhood_counts", _async([
+        {"neighborhood": "Mission", "city": "San Francisco", "count": 14},
+    ]))
+    monkeypatch.setattr(supabase_db, "get_neighborhood_boundary", _async(None))
+
+    resp = client.get("/api/explored-cells/neighborhoods")
+
+    assert resp.status_code == 200
+    assert resp.json() == {"neighborhoods": [
+        {"neighborhood": "Mission", "city": "San Francisco", "count": 14, "percentage": None},
+    ]}
+
+
+def test_returns_a_percentage_when_a_boundary_exists(client, auth_as, app, monkeypatch):
+    auth_as(app, USER_ID)
+    monkeypatch.setattr(supabase_db, "get_explored_neighborhood_counts", _async([
+        {"neighborhood": "Western Addition", "city": "San Francisco", "count": 25},
+    ]))
+    monkeypatch.setattr(supabase_db, "get_neighborhood_boundary", _async({"total_cells": 100}))
+
+    resp = client.get("/api/explored-cells/neighborhoods")
+
+    assert resp.status_code == 200
+    body = resp.json()["neighborhoods"][0]
+    assert body["percentage"] == 25
+
+
+def test_caps_the_percentage_at_100_even_if_more_cells_were_explored_than_the_boundary_expects(client, auth_as, app, monkeypatch):
+    """
+    A cell can sit right on a boundary's edge and get attributed to a
+    neighborhood the polygon math didn't count as interior, or the
+    boundary itself can be a slightly conservative approximation (see
+    map_neighborhood_boundaries.py's AI-derived rows) -- either way, the
+    reported percentage should never claim more than 100%.
+    """
+    auth_as(app, USER_ID)
+    monkeypatch.setattr(supabase_db, "get_explored_neighborhood_counts", _async([
+        {"neighborhood": "Western Addition", "city": "San Francisco", "count": 120},
+    ]))
+    monkeypatch.setattr(supabase_db, "get_neighborhood_boundary", _async({"total_cells": 100}))
+
+    resp = client.get("/api/explored-cells/neighborhoods")
+
+    assert resp.json()["neighborhoods"][0]["percentage"] == 100
+
+
+def test_returns_an_empty_list_for_a_user_with_no_narrated_explored_cells(client, auth_as, app, monkeypatch):
+    auth_as(app, USER_ID)
+    monkeypatch.setattr(supabase_db, "get_explored_neighborhood_counts", _async([]))
+
+    resp = client.get("/api/explored-cells/neighborhoods")
+
+    assert resp.status_code == 200
+    assert resp.json() == {"neighborhoods": []}
+
+
+def test_looks_up_a_boundary_independently_for_each_distinct_neighborhood(client, auth_as, app, monkeypatch):
+    auth_as(app, USER_ID)
+    monkeypatch.setattr(supabase_db, "get_explored_neighborhood_counts", _async([
+        {"neighborhood": "Western Addition", "city": "San Francisco", "count": 10},
+        {"neighborhood": "Mission", "city": "San Francisco", "count": 5},
+    ]))
+
+    async def _boundary(neighborhood, city):
+        if neighborhood == "Western Addition":
+            return {"total_cells": 50}
+        return None
+    monkeypatch.setattr(supabase_db, "get_neighborhood_boundary", _boundary)
+
+    resp = client.get("/api/explored-cells/neighborhoods")
+
+    body = {n["neighborhood"]: n["percentage"] for n in resp.json()["neighborhoods"]}
+    assert body["Western Addition"] == 20
+    assert body["Mission"] is None

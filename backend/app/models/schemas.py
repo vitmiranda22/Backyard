@@ -406,23 +406,22 @@ class ExploredCellsListResponse(BaseModel):
     geo_hashes: List[str]
 
 
-class ExploredNeighborhoodCount(BaseModel):
+class ExploredCityCount(BaseModel):
     """
-    One neighborhood's worth of a user's exploration. `percentage` is only
-    present when a real (or best-effort AI-derived) boundary exists for
-    this neighborhood in neighborhood_boundaries -- most neighborhoods
-    don't have one, so `count` alone is the only thing guaranteed present.
-    See backend/scripts/map_neighborhood_boundaries.py.
+    One city's worth of a user's exploration. `percentage` is only
+    present when a real OSM-derived boundary exists for this city in
+    region_boundaries -- only the pilot list has one so far, so `count`
+    alone is the only thing guaranteed present.
+    See backend/scripts/map_region_boundaries.py.
     """
-    neighborhood: str
     city: str
     count: int
     percentage: Optional[int] = None
 
 
-class ExploredNeighborhoodsResponse(BaseModel):
-    """GET /api/explored-cells/neighborhoods -- sorted by count descending."""
-    neighborhoods: List[ExploredNeighborhoodCount]
+class ExploredCitiesResponse(BaseModel):
+    """GET /api/explored-cells/cities -- sorted by count descending."""
+    cities: List[ExploredCityCount]
 
 
 class RateTourRequest(BaseModel):

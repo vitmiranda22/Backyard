@@ -28,8 +28,8 @@ from app.models.schemas import (
     ExploredCellRequest,
     ExploredCellResponse,
     ExploredCellsListResponse,
-    ExploredNeighborhoodCount,
-    ExploredNeighborhoodsResponse,
+    ExploredCityCount,
+    ExploredCitiesResponse,
 )
 from app.services import supabase_db
 
@@ -126,28 +126,27 @@ async def list_explored_cells(user_id: AuthenticatedUser):
 
 
 @router.get(
-    "/explored-cells/neighborhoods",
-    response_model=ExploredNeighborhoodsResponse,
-    summary="The caller's explored cells grouped by neighborhood, with counts",
+    "/explored-cells/cities",
+    response_model=ExploredCitiesResponse,
+    summary="The caller's explored cells grouped by city, with counts",
 )
-async def list_explored_neighborhoods(user_id: AuthenticatedUser):
-    raw_counts = await supabase_db.get_explored_neighborhood_counts(user_id)
+async def list_explored_cities(user_id: AuthenticatedUser):
+    raw_counts = await supabase_db.get_explored_city_counts(user_id)
 
     results = []
     for row in raw_counts:
         percentage = None
-        # A boundary only exists for the small pilot set
-        # backend/scripts/map_neighborhood_boundaries.py has mapped so
-        # far -- absent for the overwhelming majority of neighborhoods,
-        # which is the expected common case, not an error.
-        boundary = await supabase_db.get_neighborhood_boundary(row["neighborhood"], row["city"])
+        # A boundary only exists for the pilot set
+        # backend/scripts/map_region_boundaries.py has mapped so far --
+        # absent for any city outside that list, which is the expected
+        # common case, not an error.
+        boundary = await supabase_db.get_region_boundary(row["city"])
         if boundary and boundary.get("total_cells"):
             percentage = min(100, round(row["count"] / boundary["total_cells"] * 100))
-        results.append(ExploredNeighborhoodCount(
-            neighborhood=row["neighborhood"],
+        results.append(ExploredCityCount(
             city=row["city"],
             count=row["count"],
             percentage=percentage,
         ))
 
-    return ExploredNeighborhoodsResponse(neighborhoods=results)
+    return ExploredCitiesResponse(cities=results)

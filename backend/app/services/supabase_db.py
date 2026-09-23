@@ -475,91 +475,98 @@ async def get_explored_geohashes(user_id: str) -> list:
         return []
 
 
-async def get_explored_neighborhood_counts(user_id: str) -> list:
+async def get_explored_city_counts(user_id: str) -> list:
     """
-    This user's explored cells grouped by (neighborhood, city), with a
-    count each — powers GET /explored-cells/neighborhoods. Cells with no
-    neighborhood on file (never narrated by anyone yet, or explored
-    before migration 031) are excluded entirely, not lumped into an
-    "Unknown" bucket. Grouped/sorted in Python rather than SQL for the
-    same reason get_explored_geohashes doesn't paginate — a real user's
-    history is at most a few thousand short rows, cheap to pull whole.
+    This user's explored cells grouped by city, with a count each --
+    powers GET /explored-cells/cities. Cells with no city on file (never
+    narrated by anyone yet, or explored before migration 031) are
+    excluded entirely, not lumped into an "Unknown" bucket.
+    Grouped/sorted in Python rather than SQL for the same reason
+    get_explored_geohashes doesn't paginate -- a real user's history is
+    at most a few thousand short rows, cheap to pull whole.
     """
     try:
         client = _get_client()
         result = (
             client.table("user_explored_cells")
-            .select("neighborhood, city")
+            .select("city")
             .eq("user_id", user_id)
-            .not_.is_("neighborhood", "null")
+            .not_.is_("city", "null")
             .execute()
         )
         counts: dict = {}
         for row in (result.data or []):
-            key = (row["neighborhood"], row.get("city") or "")
-            counts[key] = counts.get(key, 0) + 1
+            counts[row["city"]] = counts.get(row["city"], 0) + 1
         return [
-            {"neighborhood": n, "city": c, "count": cnt}
-            for (n, c), cnt in sorted(counts.items(), key=lambda kv: -kv[1])
+            {"city": c, "count": cnt}
+            for c, cnt in sorted(counts.items(), key=lambda kv: -kv[1])
         ]
     except Exception as e:
-        logger.error(f"Failed to fetch explored neighborhood counts: {e}")
+        logger.error(f"Failed to fetch explored city counts: {e}")
         return []
 
 
-async def get_neighborhood_boundary(neighborhood: str, city: str):
+async def get_region_boundary(city: str, region_type: str = "city"):
     """
-    The real (or best-effort AI-derived) boundary for this neighborhood,
-    if backend/scripts/map_neighborhood_boundaries.py has ever mapped it.
-    Returns dict or None — most neighborhoods have no row here, which is
-    the expected common case, not an error.
+    The real OSM-derived boundary for this region, if
+    backend/scripts/map_region_boundaries.py has ever mapped it. Returns
+    dict or None -- a city with no row here is the expected common case
+    (not every city a user visits will have been through the pilot
+    list), not an error.
     """
     try:
         client = _get_client()
         result = (
-            client.table("neighborhood_boundaries")
+            client.table("region_boundaries")
             .select("total_cells")
-            .eq("neighborhood", neighborhood)
+            .eq("region_name", city)
             .eq("city", city)
+            .eq("region_type", region_type)
             .limit(1)
             .execute()
         )
         return result.data[0] if result.data else None
     except Exception as e:
-        logger.error(f"Failed to fetch neighborhood boundary for {neighborhood}, {city}: {e}")
+        logger.error(f"Failed to fetch region boundary for {city} ({region_type}): {e}")
         return None
 
 
-async def store_neighborhood_boundary(
-    neighborhood: str, city: str, source: str, source_url: str, boundary_polygon: list, total_cells: int
+async def store_region_boundary(
+    region_name: str,
+    city: str,
+    region_type: str,
+    source: str,
+    osm_admin_level: str,
+    boundary_polygon: list,
+    total_cells: int,
 ) -> bool:
     """
-    Written only by the offline backend/scripts/map_neighborhood_boundaries.py
-    -- never from a live request path. on_conflict="neighborhood,city" so
-    re-running the script for an already-mapped neighborhood replaces it
-    rather than erroring (migration 032's UNIQUE constraint).
+    Written only by the offline backend/scripts/map_region_boundaries.py
+    -- never from a live request path. on_conflict="region_name,city,region_type"
+    so re-running the script for an already-mapped region replaces it
+    rather than erroring (migration 033's UNIQUE constraint).
 
-    Returns True/False so the caller (a script that may have just spent
-    real OpenAI cost computing this) can tell a genuine save apart from
-    a silent failure (e.g. migration 032 not yet run) instead of
+    Returns True/False so the caller can tell a genuine save apart from
+    a silent failure (e.g. migration 033 not yet run) instead of
     reporting success unconditionally.
     """
     try:
         client = _get_client()
-        client.table("neighborhood_boundaries").upsert(
+        client.table("region_boundaries").upsert(
             {
-                "neighborhood": neighborhood,
+                "region_name": region_name,
                 "city": city,
+                "region_type": region_type,
                 "source": source,
-                "source_url": source_url,
+                "osm_admin_level": osm_admin_level,
                 "boundary_polygon": boundary_polygon,
                 "total_cells": total_cells,
             },
-            on_conflict="neighborhood,city",
+            on_conflict="region_name,city,region_type",
         ).execute()
         return True
     except Exception as e:
-        logger.error(f"Failed to store neighborhood boundary for {neighborhood}, {city}: {e}")
+        logger.error(f"Failed to store region boundary for {region_name}, {city} ({region_type}): {e}")
         return False
 
 

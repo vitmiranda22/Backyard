@@ -524,18 +524,18 @@
     "exitA11y": "Exit museum tour",
     "failedToLoad": "Couldn't load this tour."
   },
-  "neighborhoods": {
-    "openA11y": "See your neighborhoods",
-    "buttonLabel": "Neighborhoods",
-    "title": "Your Neighborhoods",
+  "cities": {
+    "openA11y": "See your cities",
+    "buttonLabel": "Cities",
+    "title": "Your Cities",
     "subtitle": "Sorted by spots explored",
     "spots": "{{count}} spots",
     "spot": "{{count}} spot",
     "percentExplored": "{{percent}}% explored",
     "noBoundaryYet": "no boundary mapped yet",
-    "empty": "Walk somewhere with narration on, and your neighborhoods will show up here.",
-    "loading": "Loading your neighborhoods…",
-    "failedToLoad": "Couldn't load your neighborhoods. Try again in a moment.",
+    "empty": "Walk somewhere with narration on, and your cities will show up here.",
+    "loading": "Loading your cities…",
+    "failedToLoad": "Couldn't load your cities. Try again in a moment.",
     "closeA11y": "Close"
   }
 }

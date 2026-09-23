@@ -524,18 +524,18 @@
     "exitA11y": "Salir del recorrido del museo",
     "failedToLoad": "No se pudo cargar este recorrido."
   },
-  "neighborhoods": {
-    "openA11y": "Ver tus vecindarios",
-    "buttonLabel": "Vecindarios",
-    "title": "Tus Vecindarios",
-    "subtitle": "Ordenados por lugares explorados",
+  "cities": {
+    "openA11y": "Ver tus ciudades",
+    "buttonLabel": "Ciudades",
+    "title": "Tus Ciudades",
+    "subtitle": "Ordenadas por lugares explorados",
     "spots": "{{count}} lugares",
     "spot": "{{count}} lugar",
     "percentExplored": "{{percent}}% explorado",
     "noBoundaryYet": "límites aún no definidos",
-    "empty": "Camina por algún lugar con narración activa y tus vecindarios aparecerán aquí.",
-    "loading": "Cargando tus vecindarios…",
-    "failedToLoad": "No se pudieron cargar tus vecindarios. Intenta de nuevo en un momento.",
+    "empty": "Camina por algún lugar con narración activa y tus ciudades aparecerán aquí.",
+    "loading": "Cargando tus ciudades…",
+    "failedToLoad": "No se pudieron cargar tus ciudades. Intenta de nuevo en un momento.",
     "closeA11y": "Cerrar"
   }
 }

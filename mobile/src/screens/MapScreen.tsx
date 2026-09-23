@@ -9,13 +9,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MapView, { Marker, Circle } from "react-native-maps";
 import RoutePolyline from "../components/RoutePolyline";
 import FogOverlay, { MapRegion } from "../components/FogOverlay";
-import NeighborhoodsSheet from "../components/NeighborhoodsSheet";
+import CitiesSheet from "../components/CitiesSheet";
 import {
   requestLocationPermission,
   getCurrentLocation,
   watchPosition,
 } from "../services/location";
-import { getNearbyRoutes, getTourDetail, getExploredCells, getExploredNeighborhoods, ExploredNeighborhood, NearbyRoute } from "../services/api";
+import { getNearbyRoutes, getTourDetail, getExploredCells, getExploredCities, ExploredCity, NearbyRoute } from "../services/api";
 import { reportIfNewCell } from "../services/exploration";
 import { colors, font, radius, type } from "../theme";
 import { showToast } from "../services/toast";
@@ -67,26 +67,26 @@ export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }:
   const [selectedPath, setSelectedPath] = useState<{ latitude: number; longitude: number }[]>([]);
   const [selectedTourId, setSelectedTourId] = useState<string | null>(null);
 
-  // Neighborhoods sheet -- fetched on demand when opened, not on mount,
-  // since most map visits won't open it and the data can't meaningfully
-  // change within a single short map session anyway.
-  const [neighborhoodsVisible, setNeighborhoodsVisible] = useState(false);
-  const [neighborhoods, setNeighborhoods] = useState<ExploredNeighborhood[]>([]);
-  const [neighborhoodsLoading, setNeighborhoodsLoading] = useState(false);
-  const [neighborhoodsFailed, setNeighborhoodsFailed] = useState(false);
+  // Cities sheet -- fetched on demand when opened, not on mount, since
+  // most map visits won't open it and the data can't meaningfully change
+  // within a single short map session anyway.
+  const [citiesVisible, setCitiesVisible] = useState(false);
+  const [cities, setCities] = useState<ExploredCity[]>([]);
+  const [citiesLoading, setCitiesLoading] = useState(false);
+  const [citiesFailed, setCitiesFailed] = useState(false);
 
-  async function openNeighborhoods() {
-    setNeighborhoodsVisible(true);
-    setNeighborhoodsLoading(true);
-    setNeighborhoodsFailed(false);
+  async function openCities() {
+    setCitiesVisible(true);
+    setCitiesLoading(true);
+    setCitiesFailed(false);
     try {
-      const result = await getExploredNeighborhoods();
-      setNeighborhoods(result.neighborhoods);
+      const result = await getExploredCities();
+      setCities(result.cities);
     } catch (e: any) {
-      console.warn("Failed to load neighborhoods:", e.message);
-      setNeighborhoodsFailed(true);
+      console.warn("Failed to load cities:", e.message);
+      setCitiesFailed(true);
     } finally {
-      setNeighborhoodsLoading(false);
+      setCitiesLoading(false);
     }
   }
 
@@ -340,20 +340,20 @@ export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }:
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={[styles.neighborhoodsBtn, { top: insets.top + 12 }]}
-        onPress={openNeighborhoods}
+        style={[styles.citiesBtn, { top: insets.top + 12 }]}
+        onPress={openCities}
         accessibilityRole="button"
-        accessibilityLabel={t("neighborhoods.openA11y")}
+        accessibilityLabel={t("cities.openA11y")}
       >
-        <Text style={styles.neighborhoodsBtnText}>🏘️ {t("neighborhoods.buttonLabel")}</Text>
+        <Text style={styles.citiesBtnText}>🏙️ {t("cities.buttonLabel")}</Text>
       </TouchableOpacity>
 
-      <NeighborhoodsSheet
-        visible={neighborhoodsVisible}
-        onClose={() => setNeighborhoodsVisible(false)}
-        neighborhoods={neighborhoods}
-        loading={neighborhoodsLoading}
-        failed={neighborhoodsFailed}
+      <CitiesSheet
+        visible={citiesVisible}
+        onClose={() => setCitiesVisible(false)}
+        cities={cities}
+        loading={citiesLoading}
+        failed={citiesFailed}
       />
     </View>
   );
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     color: colors.ink,
   },
-  neighborhoodsBtn: {
+  citiesBtn: {
     position: "absolute",
     right: 16,
     backgroundColor: "rgba(251,247,234,0.92)",
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 4,
   },
-  neighborhoodsBtnText: {
+  citiesBtnText: {
     fontFamily: font.sansBold,
     fontSize: 13,
     color: colors.ink,

@@ -1,8 +1,8 @@
-// Neighborhoods bottom sheet — shows the caller's explored cells grouped
-// by neighborhood (GET /explored-cells/neighborhoods), with a real
-// percentage only when a boundary has been mapped for that neighborhood
-// (see backend/scripts/map_neighborhood_boundaries.py) -- most won't
-// have one yet, which is the expected common state, not an error.
+// Cities bottom sheet — shows the caller's explored cells grouped by
+// city (GET /explored-cells/cities), with a real percentage only when a
+// boundary has been mapped for that city (see
+// backend/scripts/map_region_boundaries.py) -- most won't have one yet,
+// which is the expected common state, not an error.
 // Structurally mirrors ReportModal.tsx (same transparent/slide Modal +
 // scrim + sheet + handle pattern) for visual consistency.
 
@@ -10,17 +10,17 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, ActivityIndicator } from "react-native";
 import { useTranslation } from "react-i18next";
 import { colors, font, radius, type, spacing } from "../theme";
-import { ExploredNeighborhood } from "../services/api";
+import { ExploredCity } from "../services/api";
 
-interface NeighborhoodsSheetProps {
+interface CitiesSheetProps {
   visible: boolean;
   onClose: () => void;
-  neighborhoods: ExploredNeighborhood[];
+  cities: ExploredCity[];
   loading: boolean;
   failed: boolean;
 }
 
-export default function NeighborhoodsSheet({ visible, onClose, neighborhoods, loading, failed }: NeighborhoodsSheetProps) {
+export default function CitiesSheet({ visible, onClose, cities, loading, failed }: CitiesSheetProps) {
   const { t } = useTranslation();
 
   return (
@@ -28,43 +28,42 @@ export default function NeighborhoodsSheet({ visible, onClose, neighborhoods, lo
       <View style={styles.scrim}>
         <View style={styles.sheet}>
           <View style={styles.handle} />
-          <Text style={styles.title}>{t("neighborhoods.title")}</Text>
-          <Text style={styles.subtitle}>{t("neighborhoods.subtitle")}</Text>
+          <Text style={styles.title}>{t("cities.title")}</Text>
+          <Text style={styles.subtitle}>{t("cities.subtitle")}</Text>
 
           {loading ? (
             <View style={styles.stateBox}>
               <ActivityIndicator color={colors.fieldGreen} />
-              <Text style={styles.stateText}>{t("neighborhoods.loading")}</Text>
+              <Text style={styles.stateText}>{t("cities.loading")}</Text>
             </View>
           ) : failed ? (
             <View style={styles.stateBox}>
-              <Text style={styles.stateText}>{t("neighborhoods.failedToLoad")}</Text>
+              <Text style={styles.stateText}>{t("cities.failedToLoad")}</Text>
             </View>
-          ) : neighborhoods.length === 0 ? (
+          ) : cities.length === 0 ? (
             <View style={styles.stateBox}>
-              <Text style={styles.stateText}>{t("neighborhoods.empty")}</Text>
+              <Text style={styles.stateText}>{t("cities.empty")}</Text>
             </View>
           ) : (
             <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-              {neighborhoods.map((n) => (
-                <View key={`${n.neighborhood}-${n.city}`} style={styles.row} testID="neighborhood-row">
+              {cities.map((c) => (
+                <View key={c.city} style={styles.row} testID="city-row">
                   <View style={styles.rowBody}>
-                    <Text style={styles.rowName}>{n.neighborhood}</Text>
-                    <Text style={styles.rowCity}>{n.city}</Text>
-                    {n.percentage !== null && (
+                    <Text style={styles.rowName}>{c.city}</Text>
+                    {c.percentage !== null && (
                       <View style={styles.barTrack}>
-                        <View style={[styles.barFill, { width: `${Math.min(100, Math.max(0, n.percentage))}%` }]} />
+                        <View style={[styles.barFill, { width: `${Math.min(100, Math.max(0, c.percentage))}%` }]} />
                       </View>
                     )}
                   </View>
                   <View style={styles.rowRight}>
-                    <Text style={styles.rowCount}>{t(n.count === 1 ? "neighborhoods.spot" : "neighborhoods.spots", { count: n.count })}</Text>
-                    {n.percentage !== null ? (
+                    <Text style={styles.rowCount}>{t(c.count === 1 ? "cities.spot" : "cities.spots", { count: c.count })}</Text>
+                    {c.percentage !== null ? (
                       <View style={styles.pctBadge}>
-                        <Text style={styles.pctBadgeText}>{t("neighborhoods.percentExplored", { percent: n.percentage })}</Text>
+                        <Text style={styles.pctBadgeText}>{t("cities.percentExplored", { percent: c.percentage })}</Text>
                       </View>
                     ) : (
-                      <Text style={styles.noBoundaryText}>{t("neighborhoods.noBoundaryYet")}</Text>
+                      <Text style={styles.noBoundaryText}>{t("cities.noBoundaryYet")}</Text>
                     )}
                   </View>
                 </View>
@@ -76,9 +75,9 @@ export default function NeighborhoodsSheet({ visible, onClose, neighborhoods, lo
             style={styles.closeBtn}
             onPress={onClose}
             accessibilityRole="button"
-            accessibilityLabel={t("neighborhoods.closeA11y")}
+            accessibilityLabel={t("cities.closeA11y")}
           >
-            <Text style={styles.closeText}>{t("neighborhoods.closeA11y")}</Text>
+            <Text style={styles.closeText}>{t("cities.closeA11y")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -153,11 +152,6 @@ const styles = StyleSheet.create({
     fontFamily: font.sansBold,
     fontSize: type.body,
     color: colors.ink,
-  },
-  rowCity: {
-    fontFamily: font.sans,
-    fontSize: type.caption,
-    color: colors.fieldMuted,
   },
   barTrack: {
     height: 4,

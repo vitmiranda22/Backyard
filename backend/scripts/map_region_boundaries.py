@@ -60,10 +60,13 @@ _HEADERS = {"User-Agent": "BackyardApp/1.0 (tour guide app; contact@backyard.app
 PILOT_CITIES = ["San Francisco", "Chicago", "Los Angeles", "New York"]
 
 # A real city's admin_level varies by place (San Francisco is 6, Chicago
-# and Los Angeles are 8) -- tried in this order, first relation whose
-# name actually matches the target city wins, rather than assuming one
-# fixed level works everywhere.
-_CANDIDATE_ADMIN_LEVELS = ["6", "7", "8"]
+# and Los Angeles are 8, New York City itself is 5 -- confirmed live
+# after this list without "5" first failed to match New York at all,
+# since OSM's "New York" state is admin_level=4 and "New York County" is
+# 6, sandwiching the city's own level) -- tried in this order, first
+# relation whose name actually matches the target city wins, rather than
+# assuming one fixed level works everywhere.
+_CANDIDATE_ADMIN_LEVELS = ["5", "6", "7", "8"]
 
 
 def point_in_polygon(lat: float, lng: float, ring: list) -> bool:

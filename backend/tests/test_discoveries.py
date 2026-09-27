@@ -173,13 +173,34 @@ async def test_two_different_users_share_one_discovery_row_but_each_get_their_ow
 
 
 @pytest.mark.asyncio
-async def test_teaser_is_truncated_to_the_max_length(fake_client):
-    long_text = "A" * 500
+async def test_teaser_is_truncated_with_an_ellipsis_when_over_the_max_length(fake_client):
+    long_text = "A real narration sentence keeps going " * 10  # well over 140 chars, has spaces
     await supabase_db.record_discovery(
         USER_ID, "9q8yyk8", "time_machine", "Polk Street", "Polk Gulch", "San Francisco", long_text,
     )
 
-    assert len(fake_client.store["discoveries"][0]["teaser"]) == 140
+    teaser = fake_client.store["discoveries"][0]["teaser"]
+    body = teaser[:-1]  # strip the ellipsis
+    assert teaser.endswith("…")
+    assert len(teaser) <= 141
+    assert long_text.strip().startswith(body)
+    # Cut at a real word boundary -- the character immediately after the
+    # trimmed body in the source text is a space, not mid-word.
+    assert long_text.strip()[len(body):len(body) + 1] in (" ", "")
+
+
+# --- _truncate_teaser (unit-level, no fake DB needed) ------------------------
+
+def test_truncate_teaser_leaves_short_text_untouched():
+    assert supabase_db._truncate_teaser("Short and sweet.", 140) == "Short and sweet."
+
+
+def test_truncate_teaser_falls_back_to_a_hard_cut_with_no_word_boundary():
+    # No spaces anywhere -- there's no word boundary to trim back to, so
+    # the hard cut is the correct fallback, still marked with an ellipsis.
+    long_text = "A" * 500
+    result = supabase_db._truncate_teaser(long_text, 140)
+    assert result == ("A" * 140) + "…"
 
 
 @pytest.mark.asyncio
@@ -192,6 +213,29 @@ async def test_a_db_failure_never_raises(monkeypatch):
     await supabase_db.record_discovery(
         USER_ID, "9q8yyk8", "time_machine", "Polk Street", "Polk Gulch", "San Francisco", "text",
     )  # must not raise
+
+
+# --- get_user_discoveries_count ----------------------------------------------
+
+@pytest.mark.asyncio
+async def test_get_user_discoveries_count_matches_the_real_row_count(fake_client):
+    await supabase_db.record_discovery(
+        USER_ID, "9q8yyk8", "time_machine", "Polk Street", "Polk Gulch", "San Francisco", "Story A",
+    )
+    await supabase_db.record_discovery(
+        USER_ID, "9q8zn0z", "hidden_city", "Grant Avenue", "Chinatown", "San Francisco", "Story B",
+    )
+    await supabase_db.record_discovery(
+        OTHER_USER_ID, "9q8yyk8", "time_machine", "Polk Street", "Polk Gulch", "San Francisco", "Story A",
+    )
+
+    assert await supabase_db.get_user_discoveries_count(USER_ID) == 2
+    assert await supabase_db.get_user_discoveries_count(OTHER_USER_ID) == 1
+
+
+@pytest.mark.asyncio
+async def test_get_user_discoveries_count_is_zero_for_a_new_user(fake_client):
+    assert await supabase_db.get_user_discoveries_count(USER_ID) == 0
 
 
 # --- get_user_discoveries ---------------------------------------------------
@@ -255,3 +299,31 @@ def test_list_discoveries_endpoint_returns_an_empty_collection_for_a_new_user(cl
 
     assert resp.status_code == 200
     assert resp.json() == {"discoveries": [], "total_count": 0}
+
+
+# --- GET /api/discoveries/count ----------------------------------------------
+
+def test_count_endpoint_returns_just_the_number(client, auth_as, app, monkeypatch):
+    auth_as(app, USER_ID)
+    monkeypatch.setattr(supabase_db, "get_user_discoveries_count", _async(42))
+
+    resp = client.get("/api/discoveries/count")
+
+    assert resp.status_code == 200
+    assert resp.json() == {"total_count": 42}
+
+
+def test_count_endpoint_does_not_call_the_full_list_query(client, auth_as, app, monkeypatch):
+    auth_as(app, USER_ID)
+    monkeypatch.setattr(supabase_db, "get_user_discoveries_count", _async(3))
+
+    called = []
+    async def _track(*args, **kwargs):
+        called.append(args)
+        return [], 0
+    monkeypatch.setattr(supabase_db, "get_user_discoveries", _track)
+
+    resp = client.get("/api/discoveries/count")
+
+    assert resp.status_code == 200
+    assert called == []  # the count endpoint never touches the full-list query

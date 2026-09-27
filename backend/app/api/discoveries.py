@@ -14,12 +14,22 @@ import logging
 from fastapi import APIRouter
 
 from app.api.auth import AuthenticatedUser
-from app.models.schemas import Discovery, DiscoveriesResponse
+from app.models.schemas import Discovery, DiscoveriesResponse, DiscoveriesCountResponse
 from app.services import supabase_db
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.get(
+    "/discoveries/count",
+    response_model=DiscoveriesCountResponse,
+    summary="Just the caller's discovery count -- no teaser text",
+)
+async def count_discoveries(user_id: AuthenticatedUser):
+    total_count = await supabase_db.get_user_discoveries_count(user_id)
+    return DiscoveriesCountResponse(total_count=total_count)
 
 
 @router.get(

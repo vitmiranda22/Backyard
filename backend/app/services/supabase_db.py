@@ -478,6 +478,25 @@ async def get_explored_geohashes(user_id: str) -> list:
 _DISCOVERY_TEASER_MAX_CHARS = 140
 
 
+def _truncate_teaser(narration_text: str, max_chars: int) -> str:
+    """
+    A plain [:max_chars] slice cuts mid-word with no indication anything
+    was trimmed (a real narration block routinely runs 400-900+ chars, so
+    this fires on nearly every discovery) -- trims back to the last whole
+    word before the limit and appends an ellipsis when truncation actually
+    happened. Falls back to the hard cut only if there's no word boundary
+    reasonably close to the limit (a wall of text with no spaces).
+    """
+    text = narration_text.strip()
+    if len(text) <= max_chars:
+        return text
+    truncated = text[:max_chars]
+    last_space = truncated.rfind(" ")
+    if last_space > max_chars * 0.6:
+        truncated = truncated[:last_space]
+    return truncated.rstrip() + "…"
+
+
 async def record_discovery(
     user_id: str,
     geo_hash: str,
@@ -507,7 +526,7 @@ async def record_discovery(
     """
     try:
         client = _get_client()
-        teaser = narration_text.strip()[:_DISCOVERY_TEASER_MAX_CHARS]
+        teaser = _truncate_teaser(narration_text, _DISCOVERY_TEASER_MAX_CHARS)
         discovery = (
             client.table("discoveries")
             .upsert(
@@ -552,6 +571,27 @@ async def record_discovery(
         logger.error(f"Failed to record discovery for user={user_id[:8]}..., {geo_hash}/{mood}: {e}")
 
 
+async def get_user_discoveries_count(user_id: str) -> int:
+    """
+    Just the count -- no discovery rows, no teaser text. Used by the Home
+    screen, which only ever shows a number, not the collection itself; a
+    real user's screen loads shouldn't pull their whole discovery history
+    (teaser text included) just to render "42 collected".
+    """
+    try:
+        client = _get_client()
+        result = (
+            client.table("user_discoveries")
+            .select("user_id", count="exact")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        return result.count or 0
+    except Exception as e:
+        logger.error(f"Failed to count discoveries for user={user_id[:8]}...: {e}")
+        return 0
+
+
 async def get_user_discoveries(user_id: str, limit: int = 200) -> tuple:
     """
     This user's owned discoveries, newest-collected first, plus their real
@@ -579,13 +619,7 @@ async def get_user_discoveries(user_id: str, limit: int = 200) -> tuple:
                 continue
             rows.append({**d, "discovered_at": row["discovered_at"]})
 
-        count_result = (
-            client.table("user_discoveries")
-            .select("user_id", count="exact")
-            .eq("user_id", user_id)
-            .execute()
-        )
-        total_count = count_result.count or 0
+        total_count = await get_user_discoveries_count(user_id)
         return rows, total_count
     except Exception as e:
         logger.error(f"Failed to fetch discoveries for user={user_id[:8]}...: {e}")

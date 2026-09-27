@@ -447,6 +447,15 @@ class DiscoveriesResponse(BaseModel):
     total_count: int
 
 
+class DiscoveriesCountResponse(BaseModel):
+    """
+    GET /api/discoveries/count -- just the number, for Home's collection
+    tile, which never shows the discoveries themselves. Avoids pulling
+    every discovery's teaser text just to render a badge.
+    """
+    total_count: int
+
+
 class RateTourRequest(BaseModel):
     """POST /api/rate-tour"""
     tour_id: str

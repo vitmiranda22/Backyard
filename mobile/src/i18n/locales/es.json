@@ -537,5 +537,17 @@
     "loading": "Cargando tus ciudades…",
     "failedToLoad": "No se pudieron cargar tus ciudades. Intenta de nuevo en un momento.",
     "closeA11y": "Cerrar"
+  },
+  "discoveries": {
+    "openA11y": "Ver tus descubrimientos",
+    "title": "Descubrimientos",
+    "homeCount": "{{count}} recolectados",
+    "statCollected": "Recolectados",
+    "statNeighborhoods": "Vecindarios",
+    "statMoods": "Modos escuchados",
+    "filterAll": "Todos",
+    "empty": "Camina por algún lugar con narración activa y cada historia que escuches se guardará aquí.",
+    "loading": "Cargando tus descubrimientos…",
+    "failedToLoad": "No se pudieron cargar tus descubrimientos. Intenta de nuevo en un momento."
   }
 }

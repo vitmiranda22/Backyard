@@ -51,6 +51,7 @@ import ReplayScreen from "./src/screens/ReplayScreen";
 import RouteRatingScreen from "./src/screens/RouteRatingScreen";
 import PaywallScreen from "./src/screens/PaywallScreen";
 import BadgeGalleryScreen from "./src/screens/BadgeGalleryScreen";
+import DiscoveriesScreen from "./src/screens/DiscoveriesScreen";
 import ToastHost from "./src/components/Toast";
 import ErrorBoundary from "./src/components/ErrorBoundary";
 import ParchmentBackground from "./src/components/ParchmentBackground";
@@ -107,6 +108,7 @@ type Screen =
   | "rate"
   | "paywall"
   | "badgeGallery"
+  | "discoveries"
   | "museumTour";
 
 export default function App() {
@@ -396,6 +398,7 @@ export default function App() {
           onOpenJournal={() => setScreen("journal")}
           onOpenProfile={() => setScreen("profile")}
           onOpenBadges={() => setScreen("badgeGallery")}
+          onOpenDiscoveries={() => setScreen("discoveries")}
         />
       )}
 
@@ -525,6 +528,10 @@ export default function App() {
 
       {screen === "badgeGallery" && (
         <BadgeGalleryScreen onBack={() => setScreen("main")} />
+      )}
+
+      {screen === "discoveries" && (
+        <DiscoveriesScreen onBack={() => setScreen("main")} />
       )}
     </ParchmentBackground>
     </SafeAreaProvider>

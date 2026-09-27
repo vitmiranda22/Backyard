@@ -4,14 +4,16 @@ import { render, fireEvent, waitFor } from "@testing-library/react-native";
 jest.mock("../../services/api", () => ({
   getTours: jest.fn(),
   getUserStats: jest.fn(),
+  getDiscoveries: jest.fn(),
 }));
 jest.mock("../../services/haptics", () => ({ tap: jest.fn() }));
 
 import HomeScreen from "../HomeScreen";
-import { getTours, getUserStats } from "../../services/api";
+import { getTours, getUserStats, getDiscoveries } from "../../services/api";
 
 const mockGetTours = getTours as jest.Mock;
 const mockGetUserStats = getUserStats as jest.Mock;
+const mockGetDiscoveries = getDiscoveries as jest.Mock;
 
 function baseProps(overrides = {}) {
   return {
@@ -21,6 +23,7 @@ function baseProps(overrides = {}) {
     onOpenJournal: jest.fn(),
     onOpenProfile: jest.fn(),
     onOpenBadges: jest.fn(),
+    onOpenDiscoveries: jest.fn(),
     ...overrides,
   };
 }
@@ -42,6 +45,7 @@ describe("HomeScreen", () => {
     jest.clearAllMocks();
     mockGetTours.mockResolvedValue([]);
     mockGetUserStats.mockResolvedValue(NO_STATS);
+    mockGetDiscoveries.mockResolvedValue({ discoveries: [], total_count: 0 });
   });
 
   it("calls onStartTour when the Explore FAB is pressed", async () => {
@@ -153,5 +157,29 @@ describe("HomeScreen", () => {
     fireEvent.press(await findByLabelText("profile.viewAllBadgesA11y"));
 
     expect(props.onOpenBadges).toHaveBeenCalled();
+  });
+
+  it("hides the discoveries section for a caller with none collected yet", async () => {
+    mockGetUserStats.mockResolvedValue({ ...NO_STATS, tours_completed: 1 });
+    mockGetDiscoveries.mockResolvedValue({ discoveries: [], total_count: 0 });
+    const props = baseProps();
+
+    const { findByText, queryByLabelText } = await render(<HomeScreen {...props} />);
+    await findByText("profile.badges"); // wait for the stats-dependent section to settle in
+
+    expect(queryByLabelText("discoveries.openA11y")).toBeNull();
+  });
+
+  it("shows the discoveries count and opens Discoveries when pressed", async () => {
+    mockGetUserStats.mockResolvedValue({ ...NO_STATS, tours_completed: 1 });
+    mockGetDiscoveries.mockResolvedValue({ discoveries: [], total_count: 6 });
+    const props = baseProps();
+
+    const { findByLabelText, findByText } = await render(<HomeScreen {...props} />);
+    expect(await findByText('discoveries.homeCount {"count":6}')).toBeTruthy();
+
+    fireEvent.press(await findByLabelText("discoveries.openA11y"));
+
+    expect(props.onOpenDiscoveries).toHaveBeenCalled();
   });
 });

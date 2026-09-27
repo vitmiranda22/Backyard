@@ -537,5 +537,17 @@
     "loading": "Loading your cities…",
     "failedToLoad": "Couldn't load your cities. Try again in a moment.",
     "closeA11y": "Close"
+  },
+  "discoveries": {
+    "openA11y": "See your discoveries",
+    "title": "Discoveries",
+    "homeCount": "{{count}} collected",
+    "statCollected": "Collected",
+    "statNeighborhoods": "Neighborhoods",
+    "statMoods": "Moods heard",
+    "filterAll": "All",
+    "empty": "Walk somewhere with narration on, and every story you hear will be saved here.",
+    "loading": "Loading your discoveries…",
+    "failedToLoad": "Couldn't load your discoveries. Try again in a moment."
   }
 }

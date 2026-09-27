@@ -511,6 +511,21 @@ export async function getExploredCities(): Promise<{ cities: ExploredCity[] }> {
   return authFetch("/explored-cells/cities");
 }
 
+export interface Discovery {
+  id: string;
+  geo_hash: string;
+  mood: string;
+  street_name: string;
+  neighborhood: string;
+  city: string;
+  teaser: string;
+  discovered_at: string;
+}
+
+export async function getDiscoveries(): Promise<{ discoveries: Discovery[]; total_count: number }> {
+  return authFetch("/discoveries");
+}
+
 export interface RateTourResponse {
   tour_id: string;
   score: number;

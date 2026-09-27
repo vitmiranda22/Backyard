@@ -8,7 +8,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getTours, getUserStats, TourSummary, UserStats } from "../services/api";
+import { getTours, getUserStats, getDiscoveries, TourSummary, UserStats } from "../services/api";
 import { getAllBadges, BadgeStatus } from "../services/badges";
 import { MOOD_ICONS, FALLBACK_MOOD_ICON } from "../services/moods";
 import { colors, font, radius, type, spacing } from "../theme";
@@ -45,6 +45,7 @@ interface HomeScreenProps {
   onOpenJournal: () => void;
   onOpenProfile: () => void;
   onOpenBadges: () => void;
+  onOpenDiscoveries: () => void;
 }
 
 export default function HomeScreen({
@@ -54,12 +55,14 @@ export default function HomeScreen({
   onOpenJournal,
   onOpenProfile,
   onOpenBadges,
+  onOpenDiscoveries,
 }: HomeScreenProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [recentTours, setRecentTours] = useState<TourSummary[] | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [badges, setBadges] = useState<BadgeStatus[]>([]);
+  const [discoveryCount, setDiscoveryCount] = useState<number | null>(null);
 
   useEffect(() => {
     getTours()
@@ -72,6 +75,10 @@ export default function HomeScreen({
         setBadges(getAllBadges(userStats).slice(0, BADGE_PREVIEW_LIMIT));
       })
       .catch((e: any) => console.warn("Failed to load stats:", e.message));
+
+    getDiscoveries()
+      .then((res) => setDiscoveryCount(res.total_count))
+      .catch((e: any) => console.warn("Failed to load discovery count:", e.message));
   }, []);
 
   return (
@@ -131,6 +138,24 @@ export default function HomeScreen({
           </TouchableOpacity>
 
           <View style={styles.divider} />
+
+          {discoveryCount !== null && discoveryCount > 0 && (
+            <>
+              <TouchableOpacity
+                style={styles.discoveriesSection}
+                onPress={onOpenDiscoveries}
+                accessibilityRole="button"
+                accessibilityLabel={t("discoveries.openA11y")}
+              >
+                <Text style={[styles.sectionLabel, styles.centerText]}>{t("discoveries.title")}</Text>
+                <Text style={[styles.discoveriesCount, styles.centerText]}>
+                  {t("discoveries.homeCount", { count: discoveryCount })}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.divider} />
+            </>
+          )}
         </>
       )}
 
@@ -292,6 +317,14 @@ const styles = StyleSheet.create({
   },
   badgesSection: {
     alignItems: "center",
+  },
+  discoveriesSection: {
+    alignItems: "center",
+  },
+  discoveriesCount: {
+    fontFamily: font.heading,
+    fontSize: 28,
+    color: colors.ink,
   },
   badgeRowCentered: {
     flexDirection: "row",

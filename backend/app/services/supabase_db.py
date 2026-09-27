@@ -1200,6 +1200,29 @@ async def get_nearby_events(
         return []
 
 
+async def get_event_by_id(event_id: str):
+    """
+    A single event by id, for GET /api/events/{event_id}. Excludes
+    inactive events -- a manually-killed event (see events.is_active's own
+    comment) shouldn't be reachable by a direct link either, same as it's
+    already excluded from nearby_events()/get_top_events_globally().
+    """
+    try:
+        client = _get_client()
+        result = (
+            client.table("events")
+            .select("*")
+            .eq("id", event_id)
+            .eq("is_active", True)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+    except Exception as e:
+        logger.error(f"Failed to get event {event_id}: {e}")
+        return None
+
+
 # Below this, an event's PredictHQ rank reads as a small private
 # gathering rather than a genuinely public/city-scale happening --
 # confirmed against real synced data (see migrations/027_events_rank.sql's

@@ -81,13 +81,26 @@ def auth_as():
     """
     Override the JWT auth dependency to act as a given user_id, without a
     real Supabase JWT. Usage: auth_as(app, "user-123").
-    Caller is responsible for the fixture teardown being automatic — this
-    clears dependency_overrides after the test via the returned cleanup.
+
+    Cleans up automatically after the test. This matters because `app` is
+    the same cached module-level FastAPI instance across the whole test
+    session (importing app.main again doesn't build a fresh one) — without
+    explicit teardown, an override set here would silently leak into every
+    later test that never calls auth_as at all, making an unauthenticated
+    endpoint look authenticated. Real bug, caught by test_events.py's own
+    "requires auth" tests failing (200/404 instead of 401) purely from
+    dependency_overrides state left behind by an earlier test in the file.
     """
     from app.api.auth import get_current_user_id
 
+    touched_apps = []
+
     def _apply(app: FastAPI, user_id: str):
         app.dependency_overrides[get_current_user_id] = lambda: user_id
+        touched_apps.append(app)
         return user_id
 
     yield _apply
+
+    for touched_app in touched_apps:
+        touched_app.dependency_overrides.pop(get_current_user_id, None)

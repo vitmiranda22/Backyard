@@ -1,13 +1,15 @@
 """
-Backyard Events — helpers shared between the /api/events endpoints and
-narrate.py's active-event check.
+Backyard Events — helpers for app/api/events.py and app/api/public_events.py.
 
 The actual geo/time filtering happens in Postgres (see
-migrations/025_events.sql's nearby_events()/active_event_at_point()
-functions, called via supabase_db.get_nearby_events()/
-get_active_event_near_point()) — this module only labels which phase an
-already-windowed event result is in, for prompt framing and the API
-response.
+migrations/025_events.sql's nearby_events(), called via
+supabase_db.get_nearby_events()) — this module only labels which phase an
+already-windowed event result is in, for the API response.
+
+narrate.py no longer has any active-event check -- that live narration-
+override system (and the active_event_at_point() SQL function backing it)
+was removed in migration 028, replaced by pre-authored curated event
+tours (see backend/scripts/plant_event_tours.py).
 """
 
 import datetime

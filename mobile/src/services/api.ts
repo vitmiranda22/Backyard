@@ -526,6 +526,12 @@ export async function getDiscoveries(): Promise<{ discoveries: Discovery[]; tota
   return authFetch("/discoveries");
 }
 
+// Just the number, for Home's collection tile -- avoids pulling every
+// discovery's teaser text (via getDiscoveries) just to render a count.
+export async function getDiscoveriesCount(): Promise<{ total_count: number }> {
+  return authFetch("/discoveries/count");
+}
+
 export interface RateTourResponse {
   tour_id: string;
   score: number;

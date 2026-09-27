@@ -33,11 +33,40 @@ function formatDate(iso: string) {
 }
 
 // The backend only stores a teaser, not a display name -- deriving one
-// client-side (first clause up to the first period, capped) avoids a
-// second source of truth for something purely presentational.
+// client-side avoids a second source of truth for something purely
+// presentational. Splitting on the first "." alone mis-fires on common
+// abbreviations ("St.", "Ave.", "Dr.") that precede the real sentence end
+// -- e.g. "823 Grant Ave. was once..." would wrongly become "823 Grant
+// Ave". The prefix length alone doesn't distinguish these (a long address
+// still ends in a 3-letter abbreviation), so this checks the single word
+// immediately before each candidate period: a real sentence's last word
+// before a period is rarely 3 characters or shorter, while "St"/"Ave"/
+// "Dr"/"Mr"/"No" all are -- short ones are skipped in favor of the next
+// punctuation mark found.
+const MAX_NAME_LENGTH = 46;
+
 function deriveName(teaser: string): string {
-  const firstSentence = teaser.split(".")[0].trim();
-  return firstSentence.length > 46 ? `${firstSentence.slice(0, 46)}…` : firstSentence;
+  const sentenceEnd = /[.!?]\s/g;
+  let candidate: string | null = null;
+  let match: RegExpExecArray | null;
+  while ((match = sentenceEnd.exec(teaser)) !== null) {
+    const prefix = teaser.slice(0, match.index + 1);
+    const words = prefix.trim().split(/\s+/);
+    const lastWord = words[words.length - 1]?.replace(/[.!?]+$/, "") ?? "";
+    if (lastWord.length > 3) {
+      candidate = prefix.trim();
+      break;
+    }
+  }
+  const name = (candidate ?? teaser).trim();
+  if (name.length <= MAX_NAME_LENGTH) return name;
+
+  // No clean sentence break within range -- trim to the last whole word
+  // instead of cutting mid-word.
+  const truncated = name.slice(0, MAX_NAME_LENGTH);
+  const lastSpace = truncated.lastIndexOf(" ");
+  const body = lastSpace > 20 ? truncated.slice(0, lastSpace) : truncated;
+  return `${body.trim()}…`;
 }
 
 interface DiscoveriesScreenProps {

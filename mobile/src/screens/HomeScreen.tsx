@@ -8,7 +8,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getTours, getUserStats, getDiscoveries, TourSummary, UserStats } from "../services/api";
+import { getTours, getUserStats, getDiscoveriesCount, TourSummary, UserStats } from "../services/api";
 import { getAllBadges, BadgeStatus } from "../services/badges";
 import { MOOD_ICONS, FALLBACK_MOOD_ICON } from "../services/moods";
 import { colors, font, radius, type, spacing } from "../theme";
@@ -76,7 +76,7 @@ export default function HomeScreen({
       })
       .catch((e: any) => console.warn("Failed to load stats:", e.message));
 
-    getDiscoveries()
+    getDiscoveriesCount()
       .then((res) => setDiscoveryCount(res.total_count))
       .catch((e: any) => console.warn("Failed to load discovery count:", e.message));
   }, []);
@@ -138,24 +138,24 @@ export default function HomeScreen({
           </TouchableOpacity>
 
           <View style={styles.divider} />
+        </>
+      )}
 
-          {discoveryCount !== null && discoveryCount > 0 && (
-            <>
-              <TouchableOpacity
-                style={styles.discoveriesSection}
-                onPress={onOpenDiscoveries}
-                accessibilityRole="button"
-                accessibilityLabel={t("discoveries.openA11y")}
-              >
-                <Text style={[styles.sectionLabel, styles.centerText]}>{t("discoveries.title")}</Text>
-                <Text style={[styles.discoveriesCount, styles.centerText]}>
-                  {t("discoveries.homeCount", { count: discoveryCount })}
-                </Text>
-              </TouchableOpacity>
+      {discoveryCount !== null && discoveryCount > 0 && (
+        <>
+          <TouchableOpacity
+            style={styles.discoveriesSection}
+            onPress={onOpenDiscoveries}
+            accessibilityRole="button"
+            accessibilityLabel={t("discoveries.openA11y")}
+          >
+            <Text style={[styles.sectionLabel, styles.centerText]}>{t("discoveries.title")}</Text>
+            <Text style={[styles.discoveriesCount, styles.centerText]}>
+              {t("discoveries.homeCount", { count: discoveryCount })}
+            </Text>
+          </TouchableOpacity>
 
-              <View style={styles.divider} />
-            </>
-          )}
+          <View style={styles.divider} />
         </>
       )}
 

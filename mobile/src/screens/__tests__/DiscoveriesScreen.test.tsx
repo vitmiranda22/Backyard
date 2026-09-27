@@ -75,6 +75,22 @@ describe("DiscoveriesScreen", () => {
     expect(getAllByText("2")).toHaveLength(3);
   });
 
+  it("derives the card name without cutting at a street abbreviation", async () => {
+    // Regression guard: splitting on the first "." alone used to turn
+    // "823 Grant Ave. was once a busy corner store." into the nonsensical
+    // title "823 Grant Ave".
+    const abbreviationCase = {
+      ...ALHAMBRA,
+      id: "d3",
+      teaser: "823 Grant Ave. was once a busy corner store, back before the block changed hands twice.",
+    };
+    mockGetDiscoveries.mockResolvedValue({ discoveries: [abbreviationCase], total_count: 1 });
+    const { findByText, queryByText } = await render(<DiscoveriesScreen {...baseProps()} />);
+
+    await findByText(`“${abbreviationCase.teaser}”`); // wait for the card to render
+    expect(queryByText("823 Grant Ave")).toBeNull();
+  });
+
   it("filters the list when a mood chip is pressed", async () => {
     mockGetDiscoveries.mockResolvedValue({ discoveries: [ALHAMBRA, DRAGON], total_count: 2 });
     const { findByText, findByTestId, getAllByTestId, queryByText } = await render(<DiscoveriesScreen {...baseProps()} />);

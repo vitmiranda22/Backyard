@@ -4,16 +4,16 @@ import { render, fireEvent, waitFor } from "@testing-library/react-native";
 jest.mock("../../services/api", () => ({
   getTours: jest.fn(),
   getUserStats: jest.fn(),
-  getDiscoveries: jest.fn(),
+  getDiscoveriesCount: jest.fn(),
 }));
 jest.mock("../../services/haptics", () => ({ tap: jest.fn() }));
 
 import HomeScreen from "../HomeScreen";
-import { getTours, getUserStats, getDiscoveries } from "../../services/api";
+import { getTours, getUserStats, getDiscoveriesCount } from "../../services/api";
 
 const mockGetTours = getTours as jest.Mock;
 const mockGetUserStats = getUserStats as jest.Mock;
-const mockGetDiscoveries = getDiscoveries as jest.Mock;
+const mockGetDiscoveriesCount = getDiscoveriesCount as jest.Mock;
 
 function baseProps(overrides = {}) {
   return {
@@ -45,7 +45,7 @@ describe("HomeScreen", () => {
     jest.clearAllMocks();
     mockGetTours.mockResolvedValue([]);
     mockGetUserStats.mockResolvedValue(NO_STATS);
-    mockGetDiscoveries.mockResolvedValue({ discoveries: [], total_count: 0 });
+    mockGetDiscoveriesCount.mockResolvedValue({ total_count: 0 });
   });
 
   it("calls onStartTour when the Explore FAB is pressed", async () => {
@@ -161,7 +161,7 @@ describe("HomeScreen", () => {
 
   it("hides the discoveries section for a caller with none collected yet", async () => {
     mockGetUserStats.mockResolvedValue({ ...NO_STATS, tours_completed: 1 });
-    mockGetDiscoveries.mockResolvedValue({ discoveries: [], total_count: 0 });
+    mockGetDiscoveriesCount.mockResolvedValue({ total_count: 0 });
     const props = baseProps();
 
     const { findByText, queryByLabelText } = await render(<HomeScreen {...props} />);
@@ -172,7 +172,7 @@ describe("HomeScreen", () => {
 
   it("shows the discoveries count and opens Discoveries when pressed", async () => {
     mockGetUserStats.mockResolvedValue({ ...NO_STATS, tours_completed: 1 });
-    mockGetDiscoveries.mockResolvedValue({ discoveries: [], total_count: 6 });
+    mockGetDiscoveriesCount.mockResolvedValue({ total_count: 6 });
     const props = baseProps();
 
     const { findByLabelText, findByText } = await render(<HomeScreen {...props} />);
@@ -181,5 +181,17 @@ describe("HomeScreen", () => {
     fireEvent.press(await findByLabelText("discoveries.openA11y"));
 
     expect(props.onOpenDiscoveries).toHaveBeenCalled();
+  });
+
+  it("still shows the discoveries section when getUserStats fails, since it doesn't depend on stats", async () => {
+    // Regression guard: the discoveries section used to be nested inside
+    // the same conditional block as stats/badges, so a stats fetch
+    // failure hid a fully-populated discoveries section along with it.
+    mockGetUserStats.mockRejectedValue(new Error("network error"));
+    mockGetDiscoveriesCount.mockResolvedValue({ total_count: 6 });
+
+    const { findByLabelText } = await render(<HomeScreen {...baseProps()} />);
+
+    expect(await findByLabelText("discoveries.openA11y")).toBeTruthy();
   });
 });

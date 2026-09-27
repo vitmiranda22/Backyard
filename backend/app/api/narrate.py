@@ -454,6 +454,22 @@ async def narrate_block(
     # if it's still looking at this block when it finishes.
     final_narration_text = narration_text
 
+    # Collectible Discoveries (Group B #6) -- the first time ANY user hears
+    # this exact place+mood, it becomes a permanent item; this user is
+    # recorded as owning it. Fire-and-forget background task, same failure
+    # posture as the continuity connector right below -- never blocks or
+    # risks the response a walker is already looking at.
+    background_tasks.add_task(
+        supabase_db.record_discovery,
+        user_id,
+        geo_hash,
+        request.mood.value,
+        street_name,
+        neighborhood,
+        city,
+        final_narration_text,
+    )
+
     if request.tour_id:
         background_tasks.add_task(
             _generate_connector_in_background,

@@ -424,6 +424,29 @@ class ExploredCitiesResponse(BaseModel):
     cities: List[ExploredCityCount]
 
 
+class Discovery(BaseModel):
+    """
+    One collectible discovery this user owns -- a real place+mood
+    combination they've had narrated to them at least once. Identity is
+    (geo_hash, mood), not tied to which of narration_cache's variants
+    generated it. See migrations/034_discoveries.sql.
+    """
+    id: str
+    geo_hash: str
+    mood: Mood
+    street_name: str
+    neighborhood: str
+    city: str
+    teaser: str
+    discovered_at: str
+
+
+class DiscoveriesResponse(BaseModel):
+    """GET /api/discoveries -- the caller's collection, newest first."""
+    discoveries: List[Discovery]
+    total_count: int
+
+
 class RateTourRequest(BaseModel):
     """POST /api/rate-tour"""
     tour_id: str

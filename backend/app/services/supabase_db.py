@@ -475,6 +475,123 @@ async def get_explored_geohashes(user_id: str) -> list:
         return []
 
 
+_DISCOVERY_TEASER_MAX_CHARS = 140
+
+
+async def record_discovery(
+    user_id: str,
+    geo_hash: str,
+    mood: str,
+    street_name: str,
+    neighborhood: str,
+    city: str,
+    narration_text: str,
+) -> None:
+    """
+    Called once per narrate_block response (see narrate.py) -- turns a
+    disposable narration into a permanent, ownable item the first time
+    ANY user hears it, and records THIS user as owning it.
+
+    discoveries is shared/global: on_conflict="geo_hash,mood" with no
+    update fields means the first-ever teaser for a given place+mood
+    sticks forever, never overwritten by a later variant's phrasing
+    (the underlying facts are the same regardless of which narration_cache
+    variant generated it -- see migration 034's own comment).
+
+    user_discoveries is per-user: on_conflict="user_id,discovery_id" makes
+    a repeat visit a no-op rather than erroring or duplicating.
+
+    Never raises -- called as a background task from narrate_block, so a
+    failure here must never affect the narration response a walker is
+    already looking at.
+    """
+    try:
+        client = _get_client()
+        teaser = narration_text.strip()[:_DISCOVERY_TEASER_MAX_CHARS]
+        discovery = (
+            client.table("discoveries")
+            .upsert(
+                {
+                    "geo_hash": geo_hash,
+                    "mood": mood,
+                    "street_name": street_name,
+                    "neighborhood": neighborhood,
+                    "city": city,
+                    "teaser": teaser,
+                },
+                on_conflict="geo_hash,mood",
+                ignore_duplicates=True,
+            )
+            .execute()
+        )
+        discovery_id = discovery.data[0]["id"] if discovery.data else None
+        if not discovery_id:
+            # ignore_duplicates=True returns no row on a conflict -- look
+            # the existing row up directly rather than treating this as a
+            # failure (the common case: this place+mood was already
+            # discovered by someone else first).
+            existing = (
+                client.table("discoveries")
+                .select("id")
+                .eq("geo_hash", geo_hash)
+                .eq("mood", mood)
+                .limit(1)
+                .execute()
+            )
+            discovery_id = existing.data[0]["id"] if existing.data else None
+        if not discovery_id:
+            logger.error(f"record_discovery: no discovery row for {geo_hash}/{mood} after upsert+lookup")
+            return
+
+        client.table("user_discoveries").upsert(
+            {"user_id": user_id, "discovery_id": discovery_id},
+            on_conflict="user_id,discovery_id",
+            ignore_duplicates=True,
+        ).execute()
+    except Exception as e:
+        logger.error(f"Failed to record discovery for user={user_id[:8]}..., {geo_hash}/{mood}: {e}")
+
+
+async def get_user_discoveries(user_id: str, limit: int = 200) -> tuple:
+    """
+    This user's owned discoveries, newest-collected first, plus their real
+    total count (which can exceed `limit` -- the count query is separate
+    and unbounded, matching the same "show N but count everything" shape
+    as other paginated-ish endpoints in this codebase).
+
+    Returns (rows, total_count). Each row already carries the discovery's
+    own display fields via the join -- no second round trip needed per row.
+    """
+    try:
+        client = _get_client()
+        result = (
+            client.table("user_discoveries")
+            .select("discovered_at, discoveries(id, geo_hash, mood, street_name, neighborhood, city, teaser)")
+            .eq("user_id", user_id)
+            .order("discovered_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        rows = []
+        for row in (result.data or []):
+            d = row.get("discoveries")
+            if not d:
+                continue
+            rows.append({**d, "discovered_at": row["discovered_at"]})
+
+        count_result = (
+            client.table("user_discoveries")
+            .select("user_id", count="exact")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        total_count = count_result.count or 0
+        return rows, total_count
+    except Exception as e:
+        logger.error(f"Failed to fetch discoveries for user={user_id[:8]}...: {e}")
+        return [], 0
+
+
 async def get_explored_city_counts(user_id: str) -> list:
     """
     This user's explored cells grouped by city, with a count each --

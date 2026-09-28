@@ -488,7 +488,8 @@
     "readFullStoryA11y": "Read the full story",
     "swipeUpHint": "▲ tap to read the full story",
     "closeFullStoryA11y": "Close full story",
-    "close": "Close"
+    "close": "Close",
+    "alsoNearby": "Also nearby: {{name}} · {{distance}}m"
   },
   "zonePhoto": {
     "closeA11y": "Close photo"

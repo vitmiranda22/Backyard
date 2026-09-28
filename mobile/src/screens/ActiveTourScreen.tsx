@@ -24,7 +24,7 @@ import {
   compassLabel,
   snapSegmentToRoad,
 } from "../services/location";
-import { narrateBlock, prefetchZone, getPendingTransition, saveBlock, startTour, askQuestion, endTour, EndTourResponse, NarrationHighlight, ApiError } from "../services/api";
+import { narrateBlock, prefetchZone, getPendingTransition, saveBlock, startTour, askQuestion, endTour, EndTourResponse, NarrationHighlight, SuggestedPlace, ApiError } from "../services/api";
 import { reportIfNewCell } from "../services/exploration";
 import * as Sentry from "@sentry/react-native";
 import { destinationPoint } from "../utils/geo";
@@ -142,6 +142,9 @@ export default function ActiveTourScreen({
   // instead of prepended.
   const [closingSuffix, setClosingSuffix] = useState<string | null>(null);
   const [highlights, setHighlights] = useState<NarrationHighlight[]>([]);
+  // Informational only -- see SuggestedPlace's own docstring. Never a
+  // compass/directive; NarrationCard just renders one quiet line.
+  const [suggestedNext, setSuggestedNext] = useState<SuggestedPlace | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [blocksVisited, setBlocksVisited] = useState(0);
@@ -482,6 +485,7 @@ export default function ActiveTourScreen({
       setStreetName(result.street_name);
       setNarrationText(result.narration_text);
       setHighlights(result.highlights || []);
+      setSuggestedNext(result.suggested_next || null);
       setAudioUrl(result.audio_url);
       setImageUrl(result.image_url);
       setBlockOrigin({ lat, lng });
@@ -866,6 +870,7 @@ export default function ActiveTourScreen({
         transitionPrefix={transitionPrefix}
         closingSuffix={closingSuffix}
         highlights={highlights}
+        suggestedNext={suggestedNext}
         audioUrl={audioUrl}
         imageUrl={imageUrl}
         onRetry={() => {
@@ -885,6 +890,7 @@ export default function ActiveTourScreen({
           setTransitionPrefix(null);
           setClosingSuffix(null);
           setHighlights([]);
+          setSuggestedNext(null);
           setAudioUrl(null);
           setImageUrl(null);
           setStreetName(null);

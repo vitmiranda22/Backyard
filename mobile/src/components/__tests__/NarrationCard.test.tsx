@@ -91,4 +91,18 @@ describe("NarrationCard", () => {
     expect(getByText(/Meanwhile, a few blocks over,/)).toBeTruthy();
     expect(getByText(/And that's the whole walk, right there\./)).toBeTruthy();
   });
+
+  it("shows the quiet nearby-place line when suggestedNext is present", async () => {
+    const { getByText } = await render(
+      <NarrationCard {...baseProps({ suggestedNext: { name: "Nob Hill Masonic Center", distance_m: 140.4 } })} />
+    );
+
+    expect(getByText('narrationCard.alsoNearby {"name":"Nob Hill Masonic Center","distance":140}')).toBeTruthy();
+  });
+
+  it("renders nothing extra when suggestedNext is absent", async () => {
+    const { queryByText } = await render(<NarrationCard {...baseProps()} />);
+
+    expect(queryByText(/alsoNearby/)).toBeNull();
+  });
 });

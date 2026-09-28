@@ -101,6 +101,16 @@ export interface NarrationHighlight {
   url: string;
 }
 
+// A real nearby place worth walking to next, mined from data already
+// fetched for this exact block -- never a fresh fetch, never a route.
+// Informational only: shown as a quiet line, never a compass/directive.
+export interface SuggestedPlace {
+  name: string;
+  lat: number;
+  lng: number;
+  distance_m: number;
+}
+
 export interface NarrationResponse {
   street_name: string;
   neighborhood: string;
@@ -118,6 +128,9 @@ export interface NarrationResponse {
   // actual wording — empty for free users. See backend's
   // zone_data.find_wikipedia_highlights.
   highlights: NarrationHighlight[];
+  // null whenever nothing nearby qualifies -- the expected common case in
+  // thin zones, not an error.
+  suggested_next: SuggestedPlace | null;
 }
 
 export async function narrateBlock(

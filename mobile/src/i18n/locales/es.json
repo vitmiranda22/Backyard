@@ -488,7 +488,8 @@
     "readFullStoryA11y": "Leer la historia completa",
     "swipeUpHint": "▲ toca para leer la historia completa",
     "closeFullStoryA11y": "Cerrar historia completa",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "alsoNearby": "También cerca: {{name}} · {{distance}}m"
   },
   "zonePhoto": {
     "closeA11y": "Cerrar foto"

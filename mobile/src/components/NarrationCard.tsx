@@ -19,6 +19,14 @@ export interface NarrationHighlight {
   url: string;
 }
 
+// A real nearby place worth walking to next, mined from data already
+// fetched for this exact block. Informational only -- rendered as one
+// quiet line, never a compass/directive/push.
+export interface SuggestedPlace {
+  name: string;
+  distance_m: number;
+}
+
 interface NarrationCardProps {
   isLoading: boolean;
   error: string | null;
@@ -41,6 +49,9 @@ interface NarrationCardProps {
   // renders as plain text with no extra logic needed on this end for tier
   // gating.
   highlights?: NarrationHighlight[] | null;
+  // Informational only -- see SuggestedPlace's own docstring above. null/
+  // undefined (the common case in thin zones) simply renders nothing.
+  suggestedNext?: SuggestedPlace | null;
   onAudioFinished?: () => void;
   onSkip?: () => void;
   onAudioError?: () => void;
@@ -120,6 +131,7 @@ export default function NarrationCard({
   audioUrl,
   imageUrl,
   highlights,
+  suggestedNext,
   onAudioFinished,
   onSkip,
   onAudioError,
@@ -198,6 +210,15 @@ export default function NarrationCard({
             onSkip={onSkip}
             onError={onAudioError}
           />
+
+          {/* Informational only -- see SuggestedPlace's own docstring. A
+              quiet line, not a button/link/compass -- nothing to tap,
+              nowhere it pushes you. */}
+          {suggestedNext && (
+            <Text style={styles.suggestedNextLine}>
+              {t("narrationCard.alsoNearby", { name: suggestedNext.name, distance: Math.round(suggestedNext.distance_m) })}
+            </Text>
+          )}
         </View>
       </View>
 
@@ -315,6 +336,16 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
+  },
+  suggestedNextLine: {
+    fontFamily: font.sans,
+    fontSize: type.caption,
+    color: colors.fieldMuted,
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.fieldBorderSoft,
+    borderStyle: "dashed",
   },
   loadingText: {
     fontFamily: font.headingBold,

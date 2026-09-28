@@ -89,6 +89,7 @@ jest.mock("../../components/NarrationCard", () => {
         {props.streetName && <Text>{props.streetName}</Text>}
         {props.transitionPrefix && <Text>transition:{props.transitionPrefix}</Text>}
         {props.closingSuffix && <Text>closing:{props.closingSuffix}</Text>}
+        {props.suggestedNext && <Text>nearby:{props.suggestedNext.name}:{props.suggestedNext.distance_m}</Text>}
         <TouchableOpacity onPress={props.onAudioFinished}><Text>finish-audio</Text></TouchableOpacity>
         <TouchableOpacity onPress={props.onSkip}><Text>skip-narration</Text></TouchableOpacity>
         <TouchableOpacity onPress={props.onRetry}><Text>retry-narration</Text></TouchableOpacity>
@@ -187,6 +188,24 @@ describe("ActiveTourScreen", () => {
 
     expect(mockStartTour).toHaveBeenCalledWith("time_machine", "neutral", false);
     expect(mockNarrateBlock).toHaveBeenCalledWith(37.77, -122.41, "time_machine", "neutral", false, "auto", "tour-1", false);
+  });
+
+  it("passes suggested_next through to NarrationCard when present", async () => {
+    mockNarrateBlock.mockResolvedValue(narration({
+      suggested_next: { name: "Nob Hill Masonic Center", lat: 37.79, lng: -122.41, distance_m: 140 },
+    }));
+
+    const { findByText } = await renderStarted();
+
+    expect(await findByText("nearby:Nob Hill Masonic Center:140")).toBeTruthy();
+  });
+
+  it("shows nothing extra when suggested_next is null", async () => {
+    mockNarrateBlock.mockResolvedValue(narration({ suggested_next: null }));
+
+    const { queryByText } = await renderStarted();
+
+    expect(queryByText(/^nearby:/)).toBeNull();
   });
 
   it("retries narration at the current location when Retry is pressed after a failure", async () => {

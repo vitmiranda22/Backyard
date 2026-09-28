@@ -113,6 +113,20 @@ class WikipediaHighlight(BaseModel):
     url: str
 
 
+class SuggestedPlace(BaseModel):
+    """
+    A real nearby place worth walking to next, mined from data already
+    fetched for this exact block (see zone_data.pick_suggested_next) —
+    never a fresh fetch, never a route/directive. Purely informational:
+    the client shows a single quiet line ("Also nearby: X · 140m"), never
+    a compass or a push toward it.
+    """
+    name: str
+    lat: float
+    lng: float
+    distance_m: float
+
+
 class NarrateBlockResponse(BaseModel):
     """Response from /api/narrate-block"""
     street_name: str
@@ -130,6 +144,9 @@ class NarrateBlockResponse(BaseModel):
     zone_data_used: Optional[ZoneDataUsed] = None
     # Premium-only (see narrate.py) — always [] for free users, never null.
     highlights: List[WikipediaHighlight] = Field(default_factory=list)
+    # None whenever nothing nearby qualifies -- the expected common case in
+    # thin zones, not an error.
+    suggested_next: Optional[SuggestedPlace] = None
 
 
 class PendingTransitionResponse(BaseModel):

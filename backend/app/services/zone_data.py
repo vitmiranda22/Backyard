@@ -255,8 +255,8 @@ def pick_suggested_next(zone_data: dict, origin_lat: float, origin_lng: float) -
     fetch_osm_buildings in global_sources.py; every other source either
     has no reliable per-item coordinate or is geographically gated).
 
-    Returns {"name", "lat", "lng"} for the closest qualifying item
-    beyond _SUGGESTED_NEXT_MIN_DISTANCE_M, or None if nothing qualifies
+    Returns {"name", "lat", "lng", "distance_m"} for the closest qualifying
+    item beyond _SUGGESTED_NEXT_MIN_DISTANCE_M, or None if nothing qualifies
     -- expected often (thin zones, or neither source returned anything
     with a usable coordinate).
     """
@@ -283,8 +283,8 @@ def pick_suggested_next(zone_data: dict, origin_lat: float, origin_lng: float) -
     if not candidates:
         return None
 
-    _, name, lat, lng = min(candidates, key=lambda c: c[0])
-    return {"name": name, "lat": lat, "lng": lng}
+    dist, name, lat, lng = min(candidates, key=lambda c: c[0])
+    return {"name": name, "lat": lat, "lng": lng, "distance_m": round(dist)}
 
 
 # Tier 3 sources are administrative record-keeping about real people's

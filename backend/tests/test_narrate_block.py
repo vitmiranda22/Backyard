@@ -154,6 +154,45 @@ def test_narration_cache_miss_fetches_zone_data_and_generates(app, client, auth_
     assert resp.json()["narration_text"] == "Generated narration text."
 
 
+# --- suggested_next (Recommendations, informational only) -------------------
+
+def test_suggested_next_included_when_something_qualifies(app, client, auth_as, monkeypatch):
+    monkeypatch.setattr(narrate, "pick_suggested_next", lambda raw_data, lat, lng: {
+        "name": "Nob Hill Masonic Center", "lat": 37.7918, "lng": -122.4118, "distance_m": 140,
+    })
+    auth_as(app, USER_ID)
+
+    resp = client.post("/api/narrate-block", json=_request_body())
+
+    assert resp.status_code == 200
+    assert resp.json()["suggested_next"] == {
+        "name": "Nob Hill Masonic Center", "lat": 37.7918, "lng": -122.4118, "distance_m": 140,
+    }
+
+
+def test_suggested_next_is_null_when_nothing_qualifies(app, client, auth_as, monkeypatch):
+    monkeypatch.setattr(narrate, "pick_suggested_next", lambda raw_data, lat, lng: None)
+    auth_as(app, USER_ID)
+
+    resp = client.post("/api/narrate-block", json=_request_body())
+
+    assert resp.status_code == 200
+    assert resp.json()["suggested_next"] is None
+
+
+def test_suggested_next_failure_never_breaks_the_narration_response(app, client, auth_as, monkeypatch):
+    def _boom(raw_data, lat, lng):
+        raise Exception("unexpected shape in raw_data")
+    monkeypatch.setattr(narrate, "pick_suggested_next", _boom)
+    auth_as(app, USER_ID)
+
+    resp = client.post("/api/narrate-block", json=_request_body())
+
+    assert resp.status_code == 200
+    assert resp.json()["narration_text"] == "Generated narration text."
+    assert resp.json()["suggested_next"] is None
+
+
 def test_generation_failure_returns_408(app, client, auth_as, monkeypatch):
     monkeypatch.setattr(openai_service, "generate_narration", _async(None))
     auth_as(app, USER_ID)

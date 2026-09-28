@@ -31,12 +31,28 @@ arrow." **That's not accurate.** Verified directly against the real code:
   marker" — but the function is **never actually called** anywhere in
   `narrate_block`'s real logic. It's referenced only in that one comment.
 - `NarrateBlockResponse` (`schemas.py:116`) has no `suggested_next` field.
-- Mobile has zero references to a waypoint/suggestion arrow anywhere in
-  `src/`.
 
-So this isn't "generalize an existing single arrow into a list" — it's
-**"wire up dead code for the first time, then generalize it."** Two real
-steps, not one.
+**Correction (added during the real planning pass for this feature,
+2026-09-28):** the line above originally claimed "mobile has zero references
+to a waypoint/suggestion arrow anywhere in `src/`." That was wrong — this
+report's own author didn't grep for it before writing that line.
+`mobile/src/components/WaypointCompass.tsx` is real, live, and has been
+rendering in production since commit `980681e` (2026-07-09), inside
+`ActiveTourScreen.tsx`. It's a real, shipped arrow-and-distance-label
+component. It just points at something unrelated to a suggested next
+place: `blockOrigin`, the spot where the *current* block's own narration
+was triggered, so a walker who wanders while listening can find their way
+back. See `docs/impact-reports/2026-09-28-recommendations.md` for how this
+changed the actual plan (informational text line, not a repurposed compass).
+
+So the backend half of this correction stands (`pick_suggested_next` really
+is dead code, never called), but "wire up dead code, then generalize it"
+undersold what already existed on the mobile side — there was a real,
+reusable UI primitive for "point at a place" already shipped, just aimed at
+a different target. A stale impact report is worse than none — this is
+exactly why the practice includes re-checking citations before building on
+them, and this file is proof it's needed even for reports about to be acted
+on the very next day.
 
 ### What it would actually touch
 

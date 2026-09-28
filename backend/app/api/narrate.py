@@ -52,6 +52,7 @@ from app.models.schemas import (
     AskQuestionResponse,
     ErrorResponse,
     ZoneDataUsed,
+    SuggestedPlace,
     Mood,
     Voice,
 )
@@ -60,6 +61,7 @@ from app.services.zone_data import (
     fetch_all_zone_data,
     format_zone_data_for_prompt,
     find_wikipedia_highlights,
+    pick_suggested_next,
     DATASF_SOURCE_NAMES,
     is_san_francisco,
     should_skip_web_search,
@@ -549,6 +551,19 @@ async def narrate_block(
     # realistic case, so this rarely adds any wait at all.
     image_url, image_r2_key = await photo_task
 
+    # Recommendations (informational only -- never a compass/directive, see
+    # SuggestedPlace's own docstring). Mines raw_data already fetched/cached
+    # for THIS block, no new external calls. Best-effort: a failure here
+    # must never affect the narration response a walker is already looking
+    # at, same posture as the photo/connector additions above.
+    suggested_next = None
+    try:
+        picked = pick_suggested_next(raw_data or {}, request.lat, request.lng)
+        if picked:
+            suggested_next = SuggestedPlace(**picked)
+    except Exception as e:
+        logger.error(f"pick_suggested_next failed, omitting suggested_next: {e}")
+
     return NarrateBlockResponse(
         street_name=street_name,
         neighborhood=neighborhood,
@@ -564,6 +579,7 @@ async def narrate_block(
         cached=was_cached,
         zone_data_used=zone_data_used,
         highlights=highlights,
+        suggested_next=suggested_next,
     )
 
 

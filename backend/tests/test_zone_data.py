@@ -147,6 +147,10 @@ def test_picks_the_closest_qualifying_item_across_wikipedia_and_osm():
     assert result["name"] == "Near OSM Building"
     assert result["lat"] == ORIGIN_LAT + 0.0005
     assert result["lng"] == ORIGIN_LNG
+    # 0.0005 degrees of latitude is ~56m -- a real haversine distance, not
+    # a round number, so this checks a sensible range rather than an exact
+    # float.
+    assert 45 <= result["distance_m"] <= 65
 
 
 def test_excludes_items_too_close_to_origin():

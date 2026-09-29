@@ -524,6 +524,19 @@ export async function getExploredCities(): Promise<{ cities: ExploredCity[] }> {
   return authFetch("/explored-cells/cities");
 }
 
+// Deliberately count-only -- no percentage field at all, unlike
+// ExploredCity. A country's real cell count is orders of magnitude larger
+// than a city's, so a "% explored" figure would always read as
+// ~0.00000x%, not a smaller version of the city stat.
+export interface ExploredCountry {
+  country: string;
+  count: number;
+}
+
+export async function getExploredCountries(): Promise<{ countries: ExploredCountry[] }> {
+  return authFetch("/explored-cells/countries");
+}
+
 export interface Discovery {
   id: string;
   geo_hash: string;

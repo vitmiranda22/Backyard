@@ -6,6 +6,7 @@ import {
   Text,
   Image,
   FlatList,
+  ScrollView,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -15,10 +16,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { getTours, TourSummary, getNearbyRoutes, NearbyRoute } from "../services/api";
+import {
+  getTours, TourSummary, getNearbyRoutes, NearbyRoute,
+  getExploredCities, ExploredCity, getExploredCountries, ExploredCountry,
+} from "../services/api";
 import { requestLocationPermission, getCurrentLocation } from "../services/location";
 import StarRating from "../components/StarRating";
 import EmptyState from "../components/EmptyState";
+import CityRow from "../components/CityRow";
 import { colors, font, radius, type, spacing } from "../theme";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
@@ -47,7 +52,7 @@ function formatDistance(t: TFunction, distanceM: number) {
   return t("tours.distanceAway", { distance });
 }
 
-type Segment = "mine" | "discover";
+type Segment = "mine" | "discover" | "places";
 
 interface ToursScreenProps {
   onSelectRoute: (tourId: string) => void;
@@ -66,6 +71,11 @@ export default function ToursScreen({ onSelectRoute, onBack }: ToursScreenProps)
   const [routes, setRoutes] = useState<NearbyRoute[] | null>(null);
   const [refreshingDiscover, setRefreshingDiscover] = useState(false);
   const [discoverFailed, setDiscoverFailed] = useState(false);
+
+  const [cities, setCities] = useState<ExploredCity[] | null>(null);
+  const [countries, setCountries] = useState<ExploredCountry[] | null>(null);
+  const [refreshingPlaces, setRefreshingPlaces] = useState(false);
+  const [placesFailed, setPlacesFailed] = useState(false);
 
   const loadMine = useCallback(async () => {
     try {
@@ -100,6 +110,21 @@ export default function ToursScreen({ onSelectRoute, onBack }: ToursScreenProps)
     }
   }, []);
 
+  const loadPlaces = useCallback(async () => {
+    try {
+      const [citiesResult, countriesResult] = await Promise.all([getExploredCities(), getExploredCountries()]);
+      setCities(citiesResult.cities);
+      setCountries(countriesResult.countries);
+      setPlacesFailed(false);
+    } catch (e: any) {
+      console.warn("Failed to load places:", e.message);
+      showToast(t("cities.failedToLoad"));
+      setCities([]);
+      setCountries([]);
+      setPlacesFailed(true);
+    }
+  }, []);
+
   useEffect(() => {
     loadMine();
   }, [loadMine]);
@@ -109,6 +134,12 @@ export default function ToursScreen({ onSelectRoute, onBack }: ToursScreenProps)
       loadDiscover();
     }
   }, [segment, routes, loadDiscover]);
+
+  useEffect(() => {
+    if (segment === "places" && cities === null) {
+      loadPlaces();
+    }
+  }, [segment, cities, loadPlaces]);
 
   async function onRefreshMine() {
     setRefreshingMine(true);
@@ -120,6 +151,12 @@ export default function ToursScreen({ onSelectRoute, onBack }: ToursScreenProps)
     setRefreshingDiscover(true);
     await loadDiscover();
     setRefreshingDiscover(false);
+  }
+
+  async function onRefreshPlaces() {
+    setRefreshingPlaces(true);
+    await loadPlaces();
+    setRefreshingPlaces(false);
   }
 
   return (
@@ -153,6 +190,17 @@ export default function ToursScreen({ onSelectRoute, onBack }: ToursScreenProps)
           accessibilityState={{ selected: segment === "discover" }}
         >
           <Text style={[styles.segmentText, segment === "discover" && styles.segmentTextActive]}>{t("tours.discover")}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.segmentBtn, segment === "places" && styles.segmentBtnActive]}
+          onPress={() => {
+            tap();
+            setSegment("places");
+          }}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: segment === "places" }}
+        >
+          <Text style={[styles.segmentText, segment === "places" && styles.segmentTextActive]}>{t("tours.places")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -193,7 +241,8 @@ export default function ToursScreen({ onSelectRoute, onBack }: ToursScreenProps)
             )}
           />
         )
-      ) : routes === null ? (
+      ) : segment === "discover" ? (
+        routes === null ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.ink} />
         </View>
@@ -235,6 +284,51 @@ export default function ToursScreen({ onSelectRoute, onBack }: ToursScreenProps)
             </TouchableOpacity>
           )}
         />
+        )
+      ) : cities === null ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors.ink} />
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.listContent}
+          refreshControl={<RefreshControl refreshing={refreshingPlaces} onRefresh={onRefreshPlaces} />}
+        >
+          {(cities?.length ?? 0) === 0 && (countries?.length ?? 0) === 0 ? (
+            <EmptyState
+              image={MASCOT_IMAGE}
+              imageAccessibilityLabel={t("login.mascotA11y")}
+              imageSize={110}
+              message={placesFailed ? t("cities.failedToLoad") : t("cities.empty")}
+              isError={placesFailed}
+              onRetry={placesFailed ? loadPlaces : undefined}
+            />
+          ) : (
+            <>
+              {cities && cities.length > 0 && (
+                <View style={styles.placesSection}>
+                  <Text style={styles.placesSectionHeading}>{t("cities.title")}</Text>
+                  {cities.map((c) => (
+                    <CityRow key={c.city} city={c} />
+                  ))}
+                </View>
+              )}
+              {countries && countries.length > 0 && (
+                <View style={styles.placesSection}>
+                  <Text style={styles.placesSectionHeading}>{t("tours.countriesHeading")}</Text>
+                  {countries.map((c) => (
+                    <View key={c.country} style={styles.countryRow}>
+                      <Text style={styles.countryName}>{c.country}</Text>
+                      <Text style={styles.countryCount}>
+                        {t(c.count === 1 ? "cities.spot" : "cities.spots", { count: c.count })}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </>
+          )}
+        </ScrollView>
       )}
     </View>
   );
@@ -362,5 +456,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     color: colors.fieldMuted,
+  },
+  placesSection: {
+    marginBottom: spacing.lg,
+  },
+  placesSectionHeading: {
+    fontFamily: font.headingBold,
+    fontSize: 20,
+    lineHeight: 26,
+    color: colors.ink,
+    marginBottom: spacing.xs,
+  },
+  countryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.fieldBorder,
+  },
+  countryName: {
+    fontFamily: font.sansBold,
+    fontSize: type.body,
+    color: colors.ink,
+  },
+  countryCount: {
+    fontFamily: font.sansBold,
+    fontSize: type.label,
+    color: colors.ink,
   },
 });

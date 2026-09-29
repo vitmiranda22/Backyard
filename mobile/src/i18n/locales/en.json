@@ -118,6 +118,8 @@
     "header": "Journal",
     "myTours": "My Walks",
     "discover": "Discover",
+    "places": "Places",
+    "countriesHeading": "Countries",
     "noToursYet": "No walks yet, start one to see it here.",
     "noRoutesNearby": "No public routes near you yet, be the first to share one!",
     "locationRequiredTitle": "Location Required",

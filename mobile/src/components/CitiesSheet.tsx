@@ -11,6 +11,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, ActivityIn
 import { useTranslation } from "react-i18next";
 import { colors, font, radius, type, spacing } from "../theme";
 import { ExploredCity } from "../services/api";
+import CityRow from "./CityRow";
 
 interface CitiesSheetProps {
   visible: boolean;
@@ -47,26 +48,7 @@ export default function CitiesSheet({ visible, onClose, cities, loading, failed 
           ) : (
             <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
               {cities.map((c) => (
-                <View key={c.city} style={styles.row} testID="city-row">
-                  <View style={styles.rowBody}>
-                    <Text style={styles.rowName}>{c.city}</Text>
-                    {c.percentage !== null && (
-                      <View style={styles.barTrack}>
-                        <View style={[styles.barFill, { width: `${Math.min(100, Math.max(0, c.percentage))}%` }]} />
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.rowRight}>
-                    <Text style={styles.rowCount}>{t(c.count === 1 ? "cities.spot" : "cities.spots", { count: c.count })}</Text>
-                    {c.percentage !== null ? (
-                      <View style={styles.pctBadge}>
-                        <Text style={styles.pctBadgeText}>{t("cities.percentExplored", { percent: c.percentage })}</Text>
-                      </View>
-                    ) : (
-                      <Text style={styles.noBoundaryText}>{t("cities.noBoundaryYet")}</Text>
-                    )}
-                  </View>
-                </View>
+                <CityRow key={c.city} city={c} />
               ))}
             </ScrollView>
           )}
@@ -135,62 +117,6 @@ const styles = StyleSheet.create({
   },
   list: {
     marginBottom: spacing.sm,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.fieldBorder,
-    gap: spacing.sm,
-  },
-  rowBody: {
-    flex: 1,
-    minWidth: 0,
-  },
-  rowName: {
-    fontFamily: font.sansBold,
-    fontSize: type.body,
-    color: colors.ink,
-  },
-  barTrack: {
-    height: 4,
-    borderRadius: 4,
-    backgroundColor: colors.fieldBorder,
-    marginTop: spacing.xs,
-    overflow: "hidden",
-  },
-  barFill: {
-    height: "100%",
-    backgroundColor: colors.fieldGreen,
-    borderRadius: 4,
-  },
-  rowRight: {
-    alignItems: "flex-end",
-  },
-  rowCount: {
-    fontFamily: font.sansBold,
-    fontSize: type.label,
-    color: colors.ink,
-  },
-  pctBadge: {
-    marginTop: 3,
-    backgroundColor: "rgba(60, 79, 53, 0.12)",
-    borderRadius: radius.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  pctBadgeText: {
-    fontFamily: font.sansBold,
-    fontSize: 11,
-    color: colors.fieldGreen,
-  },
-  noBoundaryText: {
-    fontFamily: font.sans,
-    fontSize: 11,
-    fontStyle: "italic",
-    color: colors.fieldMuted,
-    marginTop: 3,
   },
   closeBtn: {
     borderRadius: radius.pill,

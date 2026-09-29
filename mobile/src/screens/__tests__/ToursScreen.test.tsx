@@ -5,6 +5,8 @@ import { render, fireEvent, waitFor } from "@testing-library/react-native";
 jest.mock("../../services/api", () => ({
   getTours: jest.fn(),
   getNearbyRoutes: jest.fn(),
+  getExploredCities: jest.fn(),
+  getExploredCountries: jest.fn(),
 }));
 jest.mock("../../services/location", () => ({
   requestLocationPermission: jest.fn(),
@@ -14,12 +16,14 @@ jest.mock("../../services/toast", () => ({ showToast: jest.fn() }));
 jest.mock("../../services/haptics", () => ({ tap: jest.fn() }));
 
 import ToursScreen from "../ToursScreen";
-import { getTours, getNearbyRoutes } from "../../services/api";
+import { getTours, getNearbyRoutes, getExploredCities, getExploredCountries } from "../../services/api";
 import { requestLocationPermission, getCurrentLocation } from "../../services/location";
 import { showToast } from "../../services/toast";
 
 const mockGetTours = getTours as jest.Mock;
 const mockGetNearbyRoutes = getNearbyRoutes as jest.Mock;
+const mockGetExploredCities = getExploredCities as jest.Mock;
+const mockGetExploredCountries = getExploredCountries as jest.Mock;
 const mockRequestPermission = requestLocationPermission as jest.Mock;
 const mockGetCurrentLocation = getCurrentLocation as jest.Mock;
 const mockShowToast = showToast as jest.Mock;
@@ -67,6 +71,8 @@ describe("ToursScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    mockGetExploredCities.mockResolvedValue({ cities: [] });
+    mockGetExploredCountries.mockResolvedValue({ countries: [] });
   });
 
   it("loads and shows the user's own tours on mount", async () => {
@@ -143,5 +149,60 @@ describe("ToursScreen", () => {
     await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith("tours.locationRequiredTitle", "tours.locationRequiredBody"));
     expect(await findByText("tours.noRoutesNearby")).toBeTruthy();
     expect(mockGetNearbyRoutes).not.toHaveBeenCalled();
+  });
+
+  it("switches to Places and loads cities and countries only once selected", async () => {
+    mockGetTours.mockResolvedValue([]);
+    mockGetExploredCities.mockResolvedValue({ cities: [{ city: "San Francisco", count: 25, percentage: 20 }] });
+    mockGetExploredCountries.mockResolvedValue({ countries: [{ country: "United States", count: 25 }] });
+
+    const { getByText, findByText } = await render(<ToursScreen onSelectRoute={jest.fn()} onBack={jest.fn()} />);
+    await findByText("tours.noToursYet");
+    expect(mockGetExploredCities).not.toHaveBeenCalled();
+
+    await fireEvent.press(getByText("tours.places"));
+
+    expect(await findByText("San Francisco")).toBeTruthy();
+    expect(await findByText("United States")).toBeTruthy();
+    expect(mockGetExploredCities).toHaveBeenCalledTimes(1);
+    expect(mockGetExploredCountries).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows an empty state on Places when there are no explored cities or countries yet", async () => {
+    mockGetTours.mockResolvedValue([]);
+
+    const { getByText, findByText } = await render(<ToursScreen onSelectRoute={jest.fn()} onBack={jest.fn()} />);
+    await findByText("tours.noToursYet");
+
+    await fireEvent.press(getByText("tours.places"));
+
+    expect(await findByText("cities.empty")).toBeTruthy();
+  });
+
+  it("shows a failed state and does not crash when loading Places fails", async () => {
+    mockGetTours.mockResolvedValue([]);
+    mockGetExploredCities.mockRejectedValue(new Error("network error"));
+
+    const { getByText, findByText } = await render(<ToursScreen onSelectRoute={jest.fn()} onBack={jest.fn()} />);
+    await findByText("tours.noToursYet");
+
+    await fireEvent.press(getByText("tours.places"));
+
+    expect(await findByText("cities.failedToLoad")).toBeTruthy();
+    expect(mockShowToast).toHaveBeenCalledWith("cities.failedToLoad");
+  });
+
+  it("shows only the Countries section when a user has explored countries but no boundary-mapped cities data", async () => {
+    mockGetTours.mockResolvedValue([]);
+    mockGetExploredCities.mockResolvedValue({ cities: [] });
+    mockGetExploredCountries.mockResolvedValue({ countries: [{ country: "Japan", count: 3 }] });
+
+    const { getByText, findByText, queryByText } = await render(<ToursScreen onSelectRoute={jest.fn()} onBack={jest.fn()} />);
+    await findByText("tours.noToursYet");
+
+    await fireEvent.press(getByText("tours.places"));
+
+    expect(await findByText("Japan")).toBeTruthy();
+    expect(queryByText("cities.empty")).toBeNull();
   });
 });

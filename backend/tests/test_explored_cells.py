@@ -51,11 +51,12 @@ def test_reports_the_geohash_for_the_given_point(client, auth_as, app, monkeypat
     monkeypatch.setattr(supabase_db, "get_cached_zone_data", _async(None))
     captured = {}
 
-    async def _track(user_id, geo_hash, neighborhood=None, city=None):
+    async def _track(user_id, geo_hash, neighborhood=None, city=None, country=None):
         captured["user_id"] = user_id
         captured["geo_hash"] = geo_hash
         captured["neighborhood"] = neighborhood
         captured["city"] = city
+        captured["country"] = country
     monkeypatch.setattr(supabase_db, "mark_cells_explored", _track)
 
     resp = client.post("/api/explored-cells", json={"lat": 37.8087, "lng": -122.4098})
@@ -67,22 +68,24 @@ def test_reports_the_geohash_for_the_given_point(client, auth_as, app, monkeypat
     assert captured["geo_hash"] == expected_hash
     assert captured["neighborhood"] is None
     assert captured["city"] is None
+    assert captured["country"] is None
 
 
-def test_attributes_the_neighborhood_and_city_from_an_already_narrated_cell(client, auth_as, app, monkeypatch):
+def test_attributes_the_neighborhood_city_and_country_from_an_already_narrated_cell(client, auth_as, app, monkeypatch):
     """
     The whole point of this feature: reused from zone_data_cache, never a
     fresh geocode call in this endpoint's own request path.
     """
     auth_as(app, USER_ID)
     monkeypatch.setattr(supabase_db, "get_cached_zone_data", _async({
-        "neighborhood": "Mission", "city": "San Francisco",
+        "neighborhood": "Mission", "city": "San Francisco", "country": "United States",
     }))
     captured = {}
 
-    async def _track(user_id, geo_hash, neighborhood=None, city=None):
+    async def _track(user_id, geo_hash, neighborhood=None, city=None, country=None):
         captured["neighborhood"] = neighborhood
         captured["city"] = city
+        captured["country"] = country
     monkeypatch.setattr(supabase_db, "mark_cells_explored", _track)
 
     resp = client.post("/api/explored-cells", json={"lat": 37.7599, "lng": -122.4148})
@@ -90,6 +93,7 @@ def test_attributes_the_neighborhood_and_city_from_an_already_narrated_cell(clie
     assert resp.status_code == 200
     assert captured["neighborhood"] == "Mission"
     assert captured["city"] == "San Francisco"
+    assert captured["country"] == "United States"
 
 
 def test_rejects_an_out_of_range_coordinate(client, auth_as, app):
@@ -209,7 +213,7 @@ def test_a_plausible_report_with_no_prior_history_is_persisted(client, auth_as, 
     monkeypatch.setattr(supabase_db, "get_cached_zone_data", _async(None))
 
     called = []
-    async def _track_mark(user_id, geo_hash, neighborhood=None, city=None):
+    async def _track_mark(user_id, geo_hash, neighborhood=None, city=None, country=None):
         called.append((user_id, geo_hash))
     monkeypatch.setattr(supabase_db, "mark_cells_explored", _track_mark)
 
@@ -232,7 +236,7 @@ def test_a_plausible_nearby_report_is_persisted(client, auth_as, app, monkeypatc
     monkeypatch.setattr(supabase_db, "get_cached_zone_data", _async(None))
 
     called = []
-    async def _track_mark(user_id, geo_hash, neighborhood=None, city=None):
+    async def _track_mark(user_id, geo_hash, neighborhood=None, city=None, country=None):
         called.append((user_id, geo_hash))
     monkeypatch.setattr(supabase_db, "mark_cells_explored", _track_mark)
 
@@ -318,3 +322,33 @@ def test_looks_up_a_boundary_independently_for_each_distinct_city(client, auth_a
     body = {c["city"]: c["percentage"] for c in resp.json()["cities"]}
     assert body["San Francisco"] == 20
     assert body["Chicago"] is None
+
+
+# --- GET /explored-cells/countries --------------------------------------------
+# Deliberately count-only -- no percentage/boundary anywhere here, unlike
+# cities above (see migration 035's own comment on why).
+
+def test_returns_country_counts_sorted_by_count_descending(client, auth_as, app, monkeypatch):
+    auth_as(app, USER_ID)
+    monkeypatch.setattr(supabase_db, "get_explored_country_counts", _async([
+        {"country": "United States", "count": 30},
+        {"country": "Japan", "count": 5},
+    ]))
+
+    resp = client.get("/api/explored-cells/countries")
+
+    assert resp.status_code == 200
+    assert resp.json() == {"countries": [
+        {"country": "United States", "count": 30},
+        {"country": "Japan", "count": 5},
+    ]}
+
+
+def test_returns_an_empty_list_for_a_user_with_no_narrated_countries(client, auth_as, app, monkeypatch):
+    auth_as(app, USER_ID)
+    monkeypatch.setattr(supabase_db, "get_explored_country_counts", _async([]))
+
+    resp = client.get("/api/explored-cells/countries")
+
+    assert resp.status_code == 200
+    assert resp.json() == {"countries": []}

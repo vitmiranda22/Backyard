@@ -30,6 +30,8 @@ from app.models.schemas import (
     ExploredCellsListResponse,
     ExploredCityCount,
     ExploredCitiesResponse,
+    ExploredCountryCount,
+    ExploredCountriesResponse,
 )
 from app.services import supabase_db
 
@@ -110,8 +112,9 @@ async def report_explored_cell(request: ExploredCellRequest, user_id: Authentica
     cached_zone = await supabase_db.get_cached_zone_data(geo_hash)
     neighborhood = (cached_zone.get("neighborhood") or None) if cached_zone else None
     city = (cached_zone.get("city") or None) if cached_zone else None
+    country = (cached_zone.get("country") or None) if cached_zone else None
 
-    await supabase_db.mark_cells_explored(user_id, geo_hash, neighborhood, city)
+    await supabase_db.mark_cells_explored(user_id, geo_hash, neighborhood, city, country)
     return ExploredCellResponse(geo_hash=geo_hash)
 
 
@@ -150,3 +153,16 @@ async def list_explored_cities(user_id: AuthenticatedUser):
         ))
 
     return ExploredCitiesResponse(cities=results)
+
+
+@router.get(
+    "/explored-cells/countries",
+    response_model=ExploredCountriesResponse,
+    summary="The caller's explored cells grouped by country, with counts",
+)
+async def list_explored_countries(user_id: AuthenticatedUser):
+    raw_counts = await supabase_db.get_explored_country_counts(user_id)
+    return ExploredCountriesResponse(countries=[
+        ExploredCountryCount(country=row["country"], count=row["count"])
+        for row in raw_counts
+    ])

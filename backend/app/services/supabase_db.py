@@ -421,21 +421,25 @@ async def get_zone_richness_batch(geo_hashes: list) -> dict:
         return {}
 
 
-async def mark_cells_explored(user_id: str, geo_hash: str, neighborhood: str = None, city: str = None) -> None:
+async def mark_cells_explored(
+    user_id: str, geo_hash: str, neighborhood: str = None, city: str = None, country: str = None
+) -> None:
     """
     Record that this user has physically been in this geohash cell —
-    powers the Map tab's fog-of-war reveal (see migrations/029_user_explored_cells.sql)
-    and per-neighborhood exploration counts (migrations/031_explored_cell_location.sql).
+    powers the Map tab's fog-of-war reveal (see migrations/029_user_explored_cells.sql),
+    per-neighborhood/city exploration counts (migrations/031_explored_cell_location.sql),
+    and per-country counts (migrations/035_explored_cell_country.sql).
     Permanent: a cell, once explored, is never un-marked.
 
-    neighborhood/city are best-effort, looked up from zone_data_cache by
-    explored.py's report_explored_cell — never freshly geocoded here (see
-    migration 031's own comment on why: reverse_geocode shares one global
-    1 req/sec Nominatim throttle with the live narration pipeline, and
-    this function fires on every new fog-of-war cell across every walking
-    user). None when that exact cell has never been narrated by anyone
-    yet — it still counts as explored for the map either way, it just
-    doesn't attribute to a neighborhood's count until it does.
+    neighborhood/city/country are best-effort, looked up from
+    zone_data_cache by explored.py's report_explored_cell — never freshly
+    geocoded here (see migration 031's own comment on why: reverse_geocode
+    shares one global 1 req/sec Nominatim throttle with the live narration
+    pipeline, and this function fires on every new fog-of-war cell across
+    every walking user). None when that exact cell has never been narrated
+    by anyone yet — it still counts as explored for the map either way, it
+    just doesn't attribute to a neighborhood/city/country's count until it
+    does.
 
     on_conflict="user_id,geo_hash" is required for the same reason
     store_zone_data's on_conflict="geo_hash" is — the table's PRIMARY KEY
@@ -447,7 +451,7 @@ async def mark_cells_explored(user_id: str, geo_hash: str, neighborhood: str = N
     try:
         client = _get_client()
         client.table("user_explored_cells").upsert(
-            {"user_id": user_id, "geo_hash": geo_hash, "neighborhood": neighborhood, "city": city},
+            {"user_id": user_id, "geo_hash": geo_hash, "neighborhood": neighborhood, "city": city, "country": country},
             on_conflict="user_id,geo_hash",
         ).execute()
     except Exception as e:
@@ -654,6 +658,41 @@ async def get_explored_city_counts(user_id: str) -> list:
         ]
     except Exception as e:
         logger.error(f"Failed to fetch explored city counts: {e}")
+        return []
+
+
+async def get_explored_country_counts(user_id: str) -> list:
+    """
+    This user's explored cells grouped by country, with a count each --
+    powers GET /explored-cells/countries. Deliberately count-only, no
+    boundary/percentage lookup at all (see migration 035's own comment:
+    a country's real cell count is orders of magnitude larger than a
+    city's, so a "% of country explored" figure would always read as
+    ~0.00000x%, not a smaller version of the city stat). Cells with no
+    country on file (never narrated by anyone yet, or explored before
+    migration 035) are excluded entirely, not lumped into an "Unknown"
+    bucket -- same shape as get_explored_city_counts, deliberately not
+    sharing code with it since the two are meant to diverge (city can gain
+    real boundaries later; country never will).
+    """
+    try:
+        client = _get_client()
+        result = (
+            client.table("user_explored_cells")
+            .select("country")
+            .eq("user_id", user_id)
+            .not_.is_("country", "null")
+            .execute()
+        )
+        counts: dict = {}
+        for row in (result.data or []):
+            counts[row["country"]] = counts.get(row["country"], 0) + 1
+        return [
+            {"country": c, "count": cnt}
+            for c, cnt in sorted(counts.items(), key=lambda kv: -kv[1])
+        ]
+    except Exception as e:
+        logger.error(f"Failed to fetch explored country counts: {e}")
         return []
 
 

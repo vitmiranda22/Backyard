@@ -441,6 +441,23 @@ class ExploredCitiesResponse(BaseModel):
     cities: List[ExploredCityCount]
 
 
+class ExploredCountryCount(BaseModel):
+    """
+    One country's worth of a user's exploration. Deliberately count-only --
+    no percentage field at all, unlike ExploredCityCount. A country's real
+    cell count is orders of magnitude larger than a city's, so a
+    "% explored" figure would always read as ~0.00000x%, not a smaller
+    version of the city stat.
+    """
+    country: str
+    count: int
+
+
+class ExploredCountriesResponse(BaseModel):
+    """GET /api/explored-cells/countries -- sorted by count descending."""
+    countries: List[ExploredCountryCount]
+
+
 class Discovery(BaseModel):
     """
     One collectible discovery this user owns -- a real place+mood

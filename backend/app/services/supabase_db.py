@@ -630,6 +630,110 @@ async def get_user_discoveries(user_id: str, limit: int = 200) -> tuple:
         return [], 0
 
 
+# =============================================================================
+# Challenges -- weekly goal progress (see app/services/challenges.py for
+# the rotation formula and template definitions; these are the raw,
+# time-windowed queries it calls, one per challenge type).
+# =============================================================================
+
+async def get_weekly_explored_cell_count(user_id: str, week_start_iso: str) -> int:
+    """Cells first explored at/after week_start_iso -- powers the 'explore N new blocks' challenge."""
+    try:
+        client = _get_client()
+        result = (
+            client.table("user_explored_cells")
+            .select("id", count="exact")
+            .eq("user_id", user_id)
+            .gte("first_explored_at", week_start_iso)
+            .execute()
+        )
+        return result.count or 0
+    except Exception as e:
+        logger.error(f"Failed to count weekly explored cells for user={user_id[:8]}...: {e}")
+        return 0
+
+
+async def get_weekly_distance_sum(user_id: str, week_start_iso: str) -> float:
+    """
+    Meters walked across tours created at/after week_start_iso -- powers
+    the 'walk N km' challenge. Same filters get_user_stats already uses
+    for distance (real, completed, non-flagged tours only), so a
+    challenge's progress agrees with the walker's own lifetime stats about
+    what counts as a real walk.
+    """
+    try:
+        client = _get_client()
+        result = (
+            client.table("tours")
+            .select("total_distance_m")
+            .eq("creator_id", user_id)
+            .gt("blocks_visited", 0)
+            .eq("flagged_implausible_speed", False)
+            .gte("created_at", week_start_iso)
+            .execute()
+        )
+        return sum((row.get("total_distance_m") or 0) for row in (result.data or []))
+    except Exception as e:
+        logger.error(f"Failed to sum weekly distance for user={user_id[:8]}...: {e}")
+        return 0.0
+
+
+async def get_weekly_discovery_count(user_id: str, week_start_iso: str) -> int:
+    """Discoveries collected at/after week_start_iso -- powers the 'collect N discoveries' challenge."""
+    try:
+        client = _get_client()
+        result = (
+            client.table("user_discoveries")
+            .select("discovery_id", count="exact")
+            .eq("user_id", user_id)
+            .gte("discovered_at", week_start_iso)
+            .execute()
+        )
+        return result.count or 0
+    except Exception as e:
+        logger.error(f"Failed to count weekly discoveries for user={user_id[:8]}...: {e}")
+        return 0
+
+
+async def record_challenge_completion(user_id: str, challenge_id: str, week_key: str) -> bool:
+    """
+    Records that this user hit this week's challenge goal -- called as a
+    side effect of GET /challenges once progress reaches the goal, never a
+    separate endpoint the client asserts (same shape as record_discovery).
+    on_conflict="user_id,week_key" + ignore_duplicates makes a second call
+    for the same already-completed week a no-op, not an error or a
+    duplicate row (a user completes at most one challenge per week, since
+    only one is ever active -- see migration 036's own comment).
+    """
+    try:
+        client = _get_client()
+        client.table("user_challenge_completions").upsert(
+            {"user_id": user_id, "challenge_id": challenge_id, "week_key": week_key},
+            on_conflict="user_id,week_key",
+            ignore_duplicates=True,
+        ).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to record challenge completion for user={user_id[:8]}...: {e}")
+        return False
+
+
+async def get_challenge_completion_count(user_id: str) -> int:
+    """Total challenges this user has ever completed -- the permanent running count shown on Home."""
+    try:
+        client = _get_client()
+        result = (
+            client.table("user_challenge_completions")
+            .select("week_key", count="exact")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        return result.count or 0
+    except Exception as e:
+        logger.error(f"Failed to count challenge completions for user={user_id[:8]}...: {e}")
+        return 0
+
+
 async def get_explored_city_counts(user_id: str) -> list:
     """
     This user's explored cells grouped by city, with a count each --

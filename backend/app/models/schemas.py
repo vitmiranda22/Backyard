@@ -458,6 +458,19 @@ class ExploredCountriesResponse(BaseModel):
     countries: List[ExploredCountryCount]
 
 
+class ChallengeResponse(BaseModel):
+    """
+    GET /api/challenges -- this week's active challenge and the caller's
+    progress toward it. No display text here, same as badges: the client
+    owns the copy via t(`challenges.${challenge_id}.label`, {count: goal_count}).
+    """
+    challenge_id: str
+    goal_count: int
+    progress: int
+    is_complete: bool
+    total_completed: int
+
+
 class Discovery(BaseModel):
     """
     One collectible discovery this user owns -- a real place+mood

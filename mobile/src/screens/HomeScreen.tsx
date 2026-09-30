@@ -8,7 +8,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getTours, getUserStats, getDiscoveriesCount, TourSummary, UserStats } from "../services/api";
+import { getTours, getUserStats, getDiscoveriesCount, getChallengeProgress, ChallengeProgress, TourSummary, UserStats } from "../services/api";
 import { getAllBadges, BadgeStatus } from "../services/badges";
 import { MOOD_ICONS, FALLBACK_MOOD_ICON } from "../services/moods";
 import { colors, font, radius, type, spacing } from "../theme";
@@ -63,6 +63,7 @@ export default function HomeScreen({
   const [stats, setStats] = useState<UserStats | null>(null);
   const [badges, setBadges] = useState<BadgeStatus[]>([]);
   const [discoveryCount, setDiscoveryCount] = useState<number | null>(null);
+  const [challenge, setChallenge] = useState<ChallengeProgress | null>(null);
 
   useEffect(() => {
     getTours()
@@ -79,6 +80,10 @@ export default function HomeScreen({
     getDiscoveriesCount()
       .then((res) => setDiscoveryCount(res.total_count))
       .catch((e: any) => console.warn("Failed to load discovery count:", e.message));
+
+    getChallengeProgress()
+      .then(setChallenge)
+      .catch((e: any) => console.warn("Failed to load challenge progress:", e.message));
   }, []);
 
   return (
@@ -154,6 +159,35 @@ export default function HomeScreen({
               {t("discoveries.homeCount", { count: discoveryCount })}
             </Text>
           </TouchableOpacity>
+
+          <View style={styles.divider} />
+        </>
+      )}
+
+      {challenge && (
+        <>
+          <View style={styles.challengeCard}>
+            <View style={styles.challengeTop}>
+              <Text style={styles.challengeLabel}>{t("home.challengeHeading")}</Text>
+              <Text style={styles.challengeCompleted}>
+                {t("home.challengeCompleted", { count: challenge.total_completed })}
+              </Text>
+            </View>
+            <Text style={styles.challengeTitle}>
+              {t(`challenges.${challenge.challenge_id}.label`, { count: challenge.goal_count })}
+            </Text>
+            <View style={styles.challengeTrack}>
+              <View
+                style={[
+                  styles.challengeFill,
+                  { width: `${Math.min(100, Math.max(0, (challenge.progress / challenge.goal_count) * 100))}%` },
+                ]}
+              />
+            </View>
+            <Text style={styles.challengeProgressText}>
+              {challenge.progress} / {challenge.goal_count}
+            </Text>
+          </View>
 
           <View style={styles.divider} />
         </>
@@ -347,6 +381,55 @@ const styles = StyleSheet.create({
   },
   badgeEmojiLocked: {
     opacity: 0.35,
+  },
+  challengeCard: {
+    backgroundColor: colors.parchmentSurface,
+    borderWidth: 1.5,
+    borderColor: "#E3B15C",
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  challengeTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: spacing.xs,
+  },
+  challengeLabel: {
+    fontFamily: font.sansBold,
+    fontSize: type.label,
+    color: "#B4791F",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  challengeCompleted: {
+    fontFamily: font.sansMedium,
+    fontSize: type.caption,
+    color: colors.fieldMuted,
+  },
+  challengeTitle: {
+    fontFamily: font.heading,
+    fontSize: 20,
+    color: colors.ink,
+    marginBottom: spacing.sm,
+  },
+  challengeTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.fieldBorderSoft,
+    overflow: "hidden",
+  },
+  challengeFill: {
+    height: "100%",
+    borderRadius: 4,
+    backgroundColor: "#E3B15C",
+  },
+  challengeProgressText: {
+    fontFamily: font.sansMedium,
+    fontSize: type.caption,
+    color: colors.fieldMuted,
+    marginTop: spacing.xs,
+    textAlign: "right",
   },
   // A thin ruled line between sections -- the "lines in a journal" feel,
   // instead of pure whitespace, marking the page as one composed sheet.

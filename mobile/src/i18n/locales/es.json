@@ -112,7 +112,9 @@
     "recentStories": "Historias recientes",
     "noRecentStories": "Tus recorridos aparecerán aquí.",
     "settingsA11y": "Abrir perfil y configuración",
-    "logoA11y": "Backyard"
+    "logoA11y": "Backyard",
+    "challengeHeading": "Desafío de esta semana",
+    "challengeCompleted": "🏆 {{count}} completados"
   },
   "tours": {
     "header": "Diario",
@@ -552,5 +554,16 @@
     "empty": "Camina por algún lugar con narración activa y cada historia que escuches se guardará aquí.",
     "loading": "Cargando tus descubrimientos…",
     "failedToLoad": "No se pudieron cargar tus descubrimientos. Intenta de nuevo en un momento."
+  },
+  "challenges": {
+    "weekly_blocks": {
+      "label": "Explora {{count}} cuadras nuevas esta semana"
+    },
+    "weekly_km": {
+      "label": "Camina {{count}} km esta semana"
+    },
+    "weekly_discoveries": {
+      "label": "Recolecta {{count}} descubrimientos esta semana"
+    }
   }
 }

@@ -537,6 +537,24 @@ export async function getExploredCountries(): Promise<{ countries: ExploredCount
   return authFetch("/explored-cells/countries");
 }
 
+// =============================================================================
+// Challenges -- a rotating weekly goal
+// =============================================================================
+
+// No display text here, same as badges -- the client owns the copy via
+// t(`challenges.${challenge_id}.label`, { count: goal_count }).
+export interface ChallengeProgress {
+  challenge_id: string;
+  goal_count: number;
+  progress: number;
+  is_complete: boolean;
+  total_completed: number;
+}
+
+export async function getChallengeProgress(): Promise<ChallengeProgress> {
+  return authFetch("/challenges");
+}
+
 export interface Discovery {
   id: string;
   geo_hash: string;

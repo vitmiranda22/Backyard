@@ -112,7 +112,9 @@
     "recentStories": "Recent Stories",
     "noRecentStories": "Your walks will show up here.",
     "settingsA11y": "Open profile and settings",
-    "logoA11y": "Backyard"
+    "logoA11y": "Backyard",
+    "challengeHeading": "This Week's Challenge",
+    "challengeCompleted": "🏆 {{count}} completed"
   },
   "tours": {
     "header": "Journal",
@@ -552,5 +554,16 @@
     "empty": "Walk somewhere with narration on, and every story you hear will be saved here.",
     "loading": "Loading your discoveries…",
     "failedToLoad": "Couldn't load your discoveries. Try again in a moment."
+  },
+  "challenges": {
+    "weekly_blocks": {
+      "label": "Explore {{count}} new blocks this week"
+    },
+    "weekly_km": {
+      "label": "Walk {{count}} km this week"
+    },
+    "weekly_discoveries": {
+      "label": "Collect {{count}} discoveries this week"
+    }
   }
 }

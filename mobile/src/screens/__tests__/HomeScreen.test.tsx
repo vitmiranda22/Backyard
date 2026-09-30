@@ -5,15 +5,17 @@ jest.mock("../../services/api", () => ({
   getTours: jest.fn(),
   getUserStats: jest.fn(),
   getDiscoveriesCount: jest.fn(),
+  getChallengeProgress: jest.fn(),
 }));
 jest.mock("../../services/haptics", () => ({ tap: jest.fn() }));
 
 import HomeScreen from "../HomeScreen";
-import { getTours, getUserStats, getDiscoveriesCount } from "../../services/api";
+import { getTours, getUserStats, getDiscoveriesCount, getChallengeProgress } from "../../services/api";
 
 const mockGetTours = getTours as jest.Mock;
 const mockGetUserStats = getUserStats as jest.Mock;
 const mockGetDiscoveriesCount = getDiscoveriesCount as jest.Mock;
+const mockGetChallengeProgress = getChallengeProgress as jest.Mock;
 
 function baseProps(overrides = {}) {
   return {
@@ -46,6 +48,13 @@ describe("HomeScreen", () => {
     mockGetTours.mockResolvedValue([]);
     mockGetUserStats.mockResolvedValue(NO_STATS);
     mockGetDiscoveriesCount.mockResolvedValue({ total_count: 0 });
+    mockGetChallengeProgress.mockResolvedValue({
+      challenge_id: "weekly_blocks",
+      goal_count: 5,
+      progress: 0,
+      is_complete: false,
+      total_completed: 0,
+    });
   });
 
   it("calls onStartTour when the Explore FAB is pressed", async () => {
@@ -193,5 +202,44 @@ describe("HomeScreen", () => {
     const { findByLabelText } = await render(<HomeScreen {...baseProps()} />);
 
     expect(await findByLabelText("discoveries.openA11y")).toBeTruthy();
+  });
+
+  it("shows the challenge card with its label, progress, and completed count", async () => {
+    mockGetChallengeProgress.mockResolvedValue({
+      challenge_id: "weekly_blocks",
+      goal_count: 5,
+      progress: 3,
+      is_complete: false,
+      total_completed: 2,
+    });
+
+    const { findByText } = await render(<HomeScreen {...baseProps()} />);
+
+    expect(await findByText('challenges.weekly_blocks.label {"count":5}')).toBeTruthy();
+    expect(await findByText('home.challengeCompleted {"count":2}')).toBeTruthy();
+    expect(await findByText("3 / 5")).toBeTruthy();
+  });
+
+  it("shows the challenge card at 0 progress too, unlike the Discoveries gating", async () => {
+    mockGetChallengeProgress.mockResolvedValue({
+      challenge_id: "weekly_km",
+      goal_count: 5,
+      progress: 0,
+      is_complete: false,
+      total_completed: 0,
+    });
+
+    const { findByText } = await render(<HomeScreen {...baseProps()} />);
+
+    expect(await findByText('challenges.weekly_km.label {"count":5}')).toBeTruthy();
+  });
+
+  it("doesn't show the challenge card or crash when the fetch fails", async () => {
+    mockGetChallengeProgress.mockRejectedValue(new Error("network error"));
+
+    const { findByText, queryByText } = await render(<HomeScreen {...baseProps()} />);
+
+    await findByText("home.noRecentStories"); // wait for the screen to settle
+    expect(queryByText("home.challengeHeading")).toBeNull();
   });
 });

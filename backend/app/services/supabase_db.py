@@ -1394,7 +1394,12 @@ async def get_top_events_globally(limit_count: int = 6):
             .limit(limit_count)
             .execute()
         )
-        return result.data if result.data else []
+        rows = result.data if result.data else []
+        # The query above selects WHICH events are significant enough to
+        # make this list (by rank); once selected, display them in the
+        # order a visitor actually cares about -- soonest first.
+        rows.sort(key=lambda r: r["start_time"])
+        return rows
     except Exception as e:
         logger.error(f"Failed to get top global events: {e}")
         return []
@@ -1548,9 +1553,9 @@ async def set_premium_status(user_id: str, is_premium: bool) -> bool:
 async def delete_user_account(user_id: str) -> bool:
     """
     Permanently deletes the user's auth record. Every foreign key in the
-    schema (tours, ratings, comments, tour_likes, tour_shares,
-    content_reports, user_rate_limits) cascades from auth.users, so this
-    alone removes all of a user's data cleanly — no separate cleanup needed.
+    schema (tours, ratings, comments, tour_likes, content_reports,
+    user_rate_limits) cascades from auth.users, so this alone removes all
+    of a user's data cleanly — no separate cleanup needed.
     """
     try:
         client = _get_client()

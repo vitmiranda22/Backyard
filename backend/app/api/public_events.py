@@ -131,6 +131,10 @@ async def public_events_by_city(
     ranked_rows = [r for r in rows if (r.get("rank") or 0) >= supabase_db.MIN_PUBLIC_EVENT_RANK]
     ranked_rows.sort(key=_rank_sort_key)
     top_rows = ranked_rows[:TOP_EVENTS_LIMIT]
+    # Rank picks WHICH events are significant enough to show; once that
+    # selection is made, display them in the order a visitor actually
+    # cares about -- soonest first -- not re-sorted back by significance.
+    top_rows.sort(key=lambda r: r["start_time"])
 
     events = [
         NearbyEventSummary(

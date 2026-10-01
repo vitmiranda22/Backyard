@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+backend/venv/
+backend/.env
+backend/scripts/scratch/
+
+# Node / Expo
+node_modules/
+.expo/
+mobile/.env
+
+# Build output
+dist/
+build/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Large/disposable marketing assets -- not meant to live in git history.
+# Raw Reel production files (audio takes, scene clips, final MP4s) live in
+# per-post folders like "marketing/Post 05/" -- excluded as a pattern since
+# a new one gets created for every post in the Corner Takes series.
+marketing/videos/
+marketing/Post*/
+mobile/scratch/

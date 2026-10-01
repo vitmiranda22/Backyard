@@ -1,0 +1,317 @@
+<title>Settings Placement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Libre+Baskerville:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --parchment-bg:#F4EFE1;
+    --parchment-surface:#FBF7EA;
+    --ink:#241D12;
+    --field-muted:#96805F;
+    --field-border:#E2D9C2;
+    --field-border-soft:#EBE3CD;
+    --accent:#3C4F35;
+    --page-bg:#EFE9D8;
+    --card-bg:#ffffff;
+    --card-border:#ddd4bd;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --page-bg:#1c1912;
+      --card-bg:#241f16;
+      --card-border:#3a3325;
+    }
+  }
+  :root[data-theme="dark"]{
+    --page-bg:#1c1912;
+    --card-bg:#241f16;
+    --card-border:#3a3325;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--page-bg);
+    color:var(--ink);
+    font-family:'Libre Baskerville', Georgia, serif;
+    padding:32px 20px 60px;
+  }
+  h1{
+    font-family:'Caveat', cursive;
+    font-weight:700;
+    font-size:clamp(32px,6vw,44px);
+    text-align:center;
+    margin:0 0 6px;
+  }
+  p.sub{
+    text-align:center;
+    color:var(--field-muted);
+    font-style:italic;
+    font-size:15px;
+    max-width:520px;
+    margin:0 auto 40px;
+    line-height:1.5;
+  }
+  .grid{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:28px;
+    max-width:1100px;
+    margin:0 auto;
+  }
+  .option{
+    width:280px;
+    background:var(--card-bg);
+    border:1px solid var(--card-border);
+    border-radius:20px;
+    padding:18px 18px 22px;
+  }
+  .option-label{
+    font-family:'Caveat', cursive;
+    font-weight:700;
+    font-size:24px;
+    text-align:center;
+    margin:0 0 4px;
+  }
+  .option-desc{
+    font-size:13px;
+    color:var(--field-muted);
+    text-align:center;
+    line-height:1.5;
+    margin:0 0 16px;
+    min-height:56px;
+  }
+  .phone{
+    background:var(--parchment-bg);
+    border-radius:24px;
+    border:1px solid var(--field-border);
+    padding:14px 14px 18px;
+    position:relative;
+    overflow:hidden;
+  }
+  .notch{
+    width:70px;height:5px;border-radius:3px;
+    background:var(--field-border);
+    margin:0 auto 14px;
+  }
+
+  /* --- header row --- */
+  .header-row{
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    position:relative;
+    margin-bottom:26px;
+    min-height:34px;
+  }
+  .logo{
+    font-family:'Caveat', cursive;
+    font-weight:700;
+    font-size:26px;
+    color:var(--ink);
+    text-align:center;
+  }
+  .logo small{
+    display:block;
+    font-family:'Libre Baskerville', serif;
+    font-style:italic;
+    font-size:9px;
+    color:var(--field-muted);
+    letter-spacing:1px;
+    text-transform:uppercase;
+  }
+  .corner-btn{
+    position:absolute;
+    right:0;
+    top:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:3px;
+  }
+  .gear-circle{
+    width:26px;height:26px;border-radius:13px;
+    background:var(--parchment-surface);
+    border:1.3px solid var(--field-border);
+    display:flex;align-items:center;justify-content:center;
+    font-size:13px;
+  }
+  .corner-btn .tiny-label{
+    font-family:'Caveat', cursive;
+    font-weight:600;
+    font-size:11px;
+    color:var(--field-muted);
+  }
+
+  /* --- fab row --- */
+  .fab-row{
+    display:flex;
+    justify-content:center;
+    align-items:flex-end;
+    gap:16px;
+  }
+  .fab-row.four{ gap:10px; }
+  .fab-wrap{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:5px;
+  }
+  .fab{
+    width:44px;height:44px;border-radius:22px;
+    background:var(--parchment-surface);
+    border:1.3px solid var(--field-border);
+    display:flex;align-items:center;justify-content:center;
+    font-size:18px;
+  }
+  .fab.primary{
+    width:60px;height:60px;border-radius:30px;
+    background:var(--ink);
+    color:var(--parchment-surface);
+    font-size:22px;
+  }
+  .fab.settings-fab{
+    width:44px;height:44px;
+  }
+  .fab-label{
+    font-family:'Caveat', cursive;
+    font-weight:700;
+    font-size:13px;
+    color:var(--field-muted);
+  }
+  .fab-label.primary{ color:var(--ink); font-size:15px; }
+
+  /* --- option 1 stacked-above-journal (current, for reference) --- */
+  .stacked{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:4px;
+  }
+  .settings-mini{
+    width:22px;height:22px;border-radius:11px;
+    background:var(--parchment-surface);
+    border:1.2px solid var(--field-border);
+    display:flex;align-items:center;justify-content:center;
+    font-size:10px;
+    margin-bottom:2px;
+  }
+
+  /* --- option 3: footer link --- */
+  .footer-link{
+    text-align:center;
+    margin-top:16px;
+    font-family:'Caveat', cursive;
+    font-weight:700;
+    font-size:15px;
+    color:var(--field-muted);
+  }
+
+  .current-tag{
+    display:inline-block;
+    font-family:'Libre Baskerville', serif;
+    font-style:italic;
+    font-size:11px;
+    color:var(--field-muted);
+    text-align:center;
+    width:100%;
+    margin-top:10px;
+  }
+</style>
+
+<h1>Where should Settings go?</h1>
+<p class="sub">Three real placements for the gear icon on Home, each shown with a visible "Settings" label so it reads as its own action instead of a mystery button.</p>
+
+<div class="grid">
+
+  <div class="option">
+    <div class="option-label">Option A</div>
+    <div class="option-desc">A 4th FAB in the bottom row, same treatment as Map and Journal &mdash; Map · Explore · Journal · Settings.</div>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="header-row">
+        <div class="logo">Backyard<small>field guide</small></div>
+      </div>
+      <div style="height:70px"></div>
+      <div class="fab-row four">
+        <div class="fab-wrap">
+          <div class="fab">🗺️</div>
+          <div class="fab-label">Map</div>
+        </div>
+        <div class="fab-wrap">
+          <div class="fab primary">🧭</div>
+          <div class="fab-label primary">Explore</div>
+        </div>
+        <div class="fab-wrap">
+          <div class="fab">📓</div>
+          <div class="fab-label">Journal</div>
+        </div>
+        <div class="fab-wrap">
+          <div class="fab settings-fab">⚙️</div>
+          <div class="fab-label">Settings</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option">
+    <div class="option-label">Option B</div>
+    <div class="option-desc">Top-right corner of the header, next to the logo &mdash; the classic "gear in the corner" spot, with a small label under it.</div>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="header-row">
+        <div class="logo">Backyard<small>field guide</small></div>
+        <div class="corner-btn">
+          <div class="gear-circle">⚙️</div>
+          <div class="tiny-label">Settings</div>
+        </div>
+      </div>
+      <div style="height:70px"></div>
+      <div class="fab-row">
+        <div class="fab-wrap">
+          <div class="fab">🗺️</div>
+          <div class="fab-label">Map</div>
+        </div>
+        <div class="fab-wrap">
+          <div class="fab primary">🧭</div>
+          <div class="fab-label primary">Explore</div>
+        </div>
+        <div class="fab-wrap">
+          <div class="fab">📓</div>
+          <div class="fab-label">Journal</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option">
+    <div class="option-label">Option C</div>
+    <div class="option-desc">FAB row stays exactly as-is (Map · Explore · Journal); a quiet text link sits below it &mdash; deemphasized, since Settings is a rare tap.</div>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="header-row">
+        <div class="logo">Backyard<small>field guide</small></div>
+      </div>
+      <div style="height:70px"></div>
+      <div class="fab-row">
+        <div class="fab-wrap">
+          <div class="fab">🗺️</div>
+          <div class="fab-label">Map</div>
+        </div>
+        <div class="fab-wrap">
+          <div class="fab primary">🧭</div>
+          <div class="fab-label primary">Explore</div>
+        </div>
+        <div class="fab-wrap">
+          <div class="fab">📓</div>
+          <div class="fab-label">Journal</div>
+        </div>
+      </div>
+      <div class="footer-link">⚙ Settings</div>
+    </div>
+  </div>
+
+</div>
+
+<p class="current-tag" style="max-width:700px;margin:36px auto 0;">For reference, the current shipped version stacks a small unlabeled gear directly above the Journal icon &mdash; that's the "weird" one being replaced.</p>

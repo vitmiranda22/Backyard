@@ -58,14 +58,14 @@ export const font = {
   display: Platform.select({ ios: "Georgia", android: "serif", default: "Georgia" }),
 
   // Field Guide type system (see mobile/App.tsx's useFonts call for the
-  // loaded weights). DM Serif Display carries headlines, buttons and
-  // labels -- it ships in one weight only, so heading and headingBold are
-  // the same face (never pair headingBold with a fontWeight, which would
-  // synthesize a fake bold). Cursive (Caveat) was too thin to read
-  // outdoors at small sizes, so it's reserved for the tour narration
-  // script only.
-  heading: "DMSerifDisplay_400Regular",
-  headingBold: "DMSerifDisplay_400Regular",
+  // loaded weights). Patua One carries headlines, buttons and labels --
+  // it ships in one weight only, so heading and headingBold are the same
+  // face (never pair headingBold with a fontWeight, which would
+  // synthesize a fake bold). Cursive (Caveat) stays reserved for the tour
+  // narration script only -- it was too thin to read outdoors at small
+  // sizes for anything else.
+  heading: "PatuaOne_400Regular",
+  headingBold: "PatuaOne_400Regular",
   script: "Caveat_600SemiBold",
   serif: "LibreBaskerville_700Bold",
   serifItalic: "LibreBaskerville_400Regular_Italic",

@@ -14,7 +14,7 @@ import * as Updates from "expo-updates";
 import * as SecureStore from "expo-secure-store";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts, Caveat_600SemiBold } from "@expo-google-fonts/caveat";
-import { DMSerifDisplay_400Regular } from "@expo-google-fonts/dm-serif-display";
+import { PatuaOne_400Regular } from "@expo-google-fonts/patua-one";
 import {
   LibreBaskerville_400Regular,
   LibreBaskerville_700Bold,
@@ -115,7 +115,7 @@ export default function App() {
   const { t } = useTranslation();
   const [fontsLoaded] = useFonts({
     Caveat_600SemiBold,
-    DMSerifDisplay_400Regular,
+    PatuaOne_400Regular,
     LibreBaskerville_400Regular,
     LibreBaskerville_700Bold,
     LibreBaskerville_400Regular_Italic,

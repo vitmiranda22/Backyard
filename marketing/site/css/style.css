@@ -290,6 +290,32 @@ header.site-header nav.auth-nav a.signup-link {
   max-width: 560px;
   margin: 16px auto 28px;
 }
+
+/* Hero grid: text on the left, the actual app shown on the right, so the
+   product is visible before anyone scrolls, not just described in words. */
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  align-items: center;
+  gap: 40px;
+  text-align: left;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.hero-grid .hero-text { text-align: left; }
+.hero-grid .hero-text .lede,
+.hero-grid .hero-text .tagline { margin-left: 0; margin-right: 0; }
+.hero-grid .hero-visual { display: flex; justify-content: center; }
+.hero-grid .hero-visual img {
+  width: 100%;
+  max-width: 280px;
+  border-radius: 28px;
+  box-shadow: 0 24px 60px rgba(36, 29, 18, 0.25);
+}
+@media (max-width: 760px) {
+  .hero-grid { grid-template-columns: 1fr; text-align: center; gap: 28px; }
+  .hero-grid .hero-text { text-align: center; }
+}
 .cta-button {
   display: inline-block;
   background: var(--ink);
@@ -345,6 +371,19 @@ section {
   padding: 48px 0;
   border-top: 1px solid var(--field-border);
 }
+/* Alternating backgrounds so each section reads as its own chapter while
+   scrolling, instead of one flat, undifferentiated page. */
+#moods { background: var(--parchment-surface); }
+#features {
+  background: var(--field-green);
+  color: var(--parchment-surface);
+  border-top-color: var(--field-green);
+}
+#features h2 { color: var(--parchment-surface); }
+#features h3 { color: var(--parchment-surface); }
+#features p { color: var(--parchment-surface); opacity: 0.88; }
+#features .feature-row img { filter: invert(1) brightness(1.3); }
+#screenshots { background: var(--parchment-surface); }
 section h2 {
   font-family: "Caveat", cursive;
   font-weight: 700;

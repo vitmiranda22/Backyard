@@ -437,16 +437,27 @@
       "body": "Camina donde sea, y escucha historias reales sobre las calles, edificios e historia a tu alrededor, narradas mientras avanzas."
     },
     "card2": {
-      "title": "Toca Explorar, elige tu estado de ánimo",
-      "body": "Cada caminata empieza desde Inicio. Elige uno de los cinco estados de ánimo para escuchar las calles de forma distinta."
+      "title": "Comienza una caminata",
+      "body": "Esta es la fila de botones en Inicio. Toca Explorar, elige uno de cinco estados de ánimo, y tu caminata comienza de inmediato.",
+      "callout": "Toca aquí, en Inicio"
     },
     "card3": {
-      "title": "Camina hacia tu punto de partida",
-      "body": "Una brújula te muestra el camino. Cuando estés cerca, las historias se activan automáticamente mientras caminas, toca una palabra para saber más, o simplemente pregunta."
+      "title": "Sigue la brújula",
+      "body": "Esta insignia aparece en tu mapa mientras caminas. Su flecha siempre apunta hacia el lugar del que habla la historia actual, toca una palabra resaltada en esa historia para saber más.",
+      "callout": "Esta insignia, justo en tu mapa"
     },
     "card4": {
+      "title": "Mantén presionado para preguntarle a Bosco",
+      "body": "Este botón de micrófono está en la parte inferior de cada caminata. Mantenlo presionado, pregunta lo que quieras sobre dónde estás, y Bosco te responderá en voz alta.",
+      "callout": "Parte inferior de cada caminata"
+    },
+    "card5": {
+      "title": "Colecciona mientras avanzas",
+      "body": "Esto está en Inicio. Cada caminata puede ganarte una insignia, un descubrimiento, o progreso en el desafío de esta semana."
+    },
+    "card6": {
       "title": "¿Listo para explorar?",
-      "body": "Termina una caminata para calificarla, guárdala en tu diario, y desbloquea insignias mientras avanzas."
+      "body": "Califica tu caminata al terminar, y se guarda automáticamente en tu diario, lista para revisar cuando quieras."
     }
   },
   "tabBar": {

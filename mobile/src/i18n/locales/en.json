@@ -437,16 +437,27 @@
       "body": "Walk anywhere, and hear real stories about the streets, buildings, and history around you, narrated as you go."
     },
     "card2": {
-      "title": "Tap Explore, pick your mood",
-      "body": "Every walk starts from Home. Choose one of five moods to hear the streets differently."
+      "title": "Start a tour",
+      "body": "This is the row of buttons on Home. Tap Explore, pick one of five moods, and your tour begins right away.",
+      "callout": "Tap this, on Home"
     },
     "card3": {
-      "title": "Walk to your starting point",
-      "body": "A compass points the way. Once you're close, stories trigger automatically as you walk, tap a word to learn more, or just ask."
+      "title": "Follow the compass",
+      "body": "This badge sits on your map while you walk. Its arrow always points toward the spot the current story is about, tap a highlighted word in that story to go deeper.",
+      "callout": "This badge, right on your map"
     },
     "card4": {
+      "title": "Hold to ask Bosco",
+      "body": "This mic button sits at the bottom of every tour. Hold it down, ask anything about where you're standing, and Bosco answers back out loud.",
+      "callout": "Bottom of every tour screen"
+    },
+    "card5": {
+      "title": "Collect as you go",
+      "body": "This sits on Home. Every walk can earn a badge, a discovery, or progress on this week's challenge."
+    },
+    "card6": {
       "title": "Ready to explore?",
-      "body": "Finish a walk to rate it, save it to your journal, and unlock badges as you go."
+      "body": "Rate your walk when you finish, and it's automatically saved to your journal, ready to revisit anytime."
     }
   },
   "tabBar": {

@@ -4,7 +4,7 @@
 // for the main actions, and a preview of the walker's own recent stories.
 
 import React, { useState, useEffect } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -87,7 +87,11 @@ export default function HomeScreen({
   }, []);
 
   return (
-    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Image
           source={require("../../assets/lOGOBACKYARD.png")}
@@ -284,7 +288,7 @@ export default function HomeScreen({
           <Text style={styles.fabLabel}>{t("home.journal")}</Text>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -292,6 +296,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "transparent",
+  },
+  scrollContent: {
     paddingHorizontal: spacing.lg,
   },
   // Settings now lives on the Journal screen instead -- this header is
@@ -514,11 +520,8 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     color: colors.ink,
   },
-  // Claims whatever vertical space is left between Badges and the FAB row
-  // pinned at the bottom -- without this, a short (or empty) story list
-  // left a big dead gap instead of the FAB row sitting flush at the bottom.
   storiesSection: {
-    flex: 1,
+    marginBottom: spacing.sm,
   },
   sectionLabel: {
     fontFamily: font.headingBold,
@@ -528,10 +531,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   emptyFill: {
-    flex: 1,
     alignItems: "center",
-    justifyContent: "center",
-    paddingBottom: spacing.xl,
+    paddingVertical: spacing.xl,
   },
   emptyImage: {
     width: 130,

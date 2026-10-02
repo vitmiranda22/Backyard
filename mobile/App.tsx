@@ -56,7 +56,10 @@ import ToastHost from "./src/components/Toast";
 import ErrorBoundary from "./src/components/ErrorBoundary";
 import ParchmentBackground from "./src/components/ParchmentBackground";
 
-const ONBOARDING_KEY = "onboarding_complete";
+// Bumped to _v2 to retrigger the rebuilt onboarding (compass, ask button,
+// badges/challenges) for every existing user on their next app open -- the
+// old key's stored "true" is real content now missing, not stale data.
+const ONBOARDING_KEY = "onboarding_complete_v2";
 
 initSentry();
 initAnalytics();

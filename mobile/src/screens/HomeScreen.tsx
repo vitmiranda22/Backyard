@@ -87,9 +87,10 @@ export default function HomeScreen({
   }, []);
 
   return (
+    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
     <ScrollView
-      style={styles.container}
-      contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}
+      style={styles.scroll}
+      contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
@@ -228,6 +229,7 @@ export default function HomeScreen({
           ))
         )}
       </View>
+    </ScrollView>
 
       <View style={styles.fabRow}>
         <View style={styles.fabWrap}>
@@ -288,7 +290,7 @@ export default function HomeScreen({
           <Text style={styles.fabLabel}>{t("home.journal")}</Text>
         </View>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -296,9 +298,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "transparent",
+    paddingHorizontal: spacing.lg,
+  },
+  // Only this scrolls -- the FAB row below is a fixed sibling, not part of
+  // the scroll content, so nothing ever renders underneath the icons.
+  scroll: {
+    flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   // Settings now lives on the Journal screen instead -- this header is
   // just the centered logo.

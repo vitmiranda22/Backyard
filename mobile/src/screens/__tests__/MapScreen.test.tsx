@@ -1,32 +1,27 @@
 import React from "react";
-import { AppState } from "react-native";
 import { render, waitFor, fireEvent, act } from "@testing-library/react-native";
 
 jest.mock("../../services/location", () => ({
   requestLocationPermission: jest.fn(),
   getCurrentLocation: jest.fn(),
-  watchPosition: jest.fn(),
 }));
 jest.mock("../../services/api", () => ({
   getNearbyRoutes: jest.fn(),
   getTourDetail: jest.fn(),
   getExploredCells: jest.fn(),
   getExploredCities: jest.fn(),
-  reportExploredCell: jest.fn(),
 }));
 jest.mock("../../services/toast", () => ({ showToast: jest.fn() }));
 
 import MapScreen from "../MapScreen";
-import { requestLocationPermission, getCurrentLocation, watchPosition } from "../../services/location";
-import { getNearbyRoutes, getExploredCells, getExploredCities, reportExploredCell } from "../../services/api";
+import { requestLocationPermission, getCurrentLocation } from "../../services/location";
+import { getNearbyRoutes, getExploredCells, getExploredCities } from "../../services/api";
 
 const mockRequestLocationPermission = requestLocationPermission as jest.Mock;
 const mockGetCurrentLocation = getCurrentLocation as jest.Mock;
 const mockGetNearbyRoutes = getNearbyRoutes as jest.Mock;
-const mockWatchPosition = watchPosition as jest.Mock;
 const mockGetExploredCells = getExploredCells as jest.Mock;
 const mockGetExploredCities = getExploredCities as jest.Mock;
-const mockReportExploredCell = reportExploredCell as jest.Mock;
 
 const MUSEUM_TOUR = {
   tour_id: "museum-tour-1",
@@ -61,12 +56,6 @@ beforeEach(() => {
   mockGetNearbyRoutes.mockResolvedValue([]);
   mockGetExploredCells.mockResolvedValue({ geo_hashes: [] });
   mockGetExploredCities.mockResolvedValue({ cities: [] });
-  mockReportExploredCell.mockResolvedValue({ geo_hash: "9q8yyk8" });
-  mockWatchPosition.mockResolvedValue({ remove: jest.fn() });
-  // The RN jest mock ships AppState.currentState as an unconfigured
-  // jest.fn(), not the real string property -- force it foreground for
-  // these tests, matching what a real running app would have.
-  (AppState as any).currentState = "active";
 });
 
 describe("MapScreen", () => {
@@ -127,101 +116,16 @@ describe("MapScreen", () => {
     expect(queryAllByTestId(/^route-marker-museum-/)).toHaveLength(0);
   });
 
-  describe("Terra Incognita fog-of-war tracking", () => {
-    it("hydrates the caller's explored history and starts foreground tracking once mounted", async () => {
+  describe("Terra Incognita fog-of-war", () => {
+    it("hydrates the caller's explored history on mount, with no live GPS tracking of its own", async () => {
+      // Fog only ever clears from actually walking a tour (see
+      // ActiveTourScreen's own reportIfNewCell) -- this screen just
+      // displays whatever's already been recorded, once, on mount.
       mockGetExploredCells.mockResolvedValue({ geo_hashes: ["9q8yyk8"] });
 
       render(<MapScreen {...defaultProps()} />);
 
-      await waitFor(() => {
-        expect(mockGetExploredCells).toHaveBeenCalled();
-        expect(mockWatchPosition).toHaveBeenCalled();
-      });
-    });
-
-    it("stops tracking when the app backgrounds, and resumes when it returns to active", async () => {
-      const removeSpy = jest.fn();
-      mockWatchPosition.mockResolvedValue({ remove: removeSpy });
-      const addEventListenerSpy = jest.spyOn(AppState, "addEventListener");
-
-      render(<MapScreen {...defaultProps()} />);
-
-      await waitFor(() => expect(mockWatchPosition).toHaveBeenCalledTimes(1));
-
-      const onChange = addEventListenerSpy.mock.calls.find(([event]) => event === "change")?.[1];
-      expect(onChange).toBeDefined();
-
-      onChange!("background");
-      await waitFor(() => expect(removeSpy).toHaveBeenCalledTimes(1));
-
-      onChange!("active");
-      await waitFor(() => expect(mockWatchPosition).toHaveBeenCalledTimes(2));
-    });
-
-    it("removes the subscription instead of leaking it if the screen unmounts before watchPosition resolves", async () => {
-      // Regression test: watchPosition's underlying GPS/provider startup
-      // isn't instant -- if the screen unmounts while that await is still
-      // pending, the effect's cleanup used to run before watchSubRef.current
-      // was ever set, so stopFogTracking found nothing to remove, and the
-      // subscription that landed afterward was stored with nothing left to
-      // ever clean it up again (a leaked live GPS listener).
-      const removeSpy = jest.fn();
-      let resolveWatch: (sub: { remove: () => void }) => void;
-      mockWatchPosition.mockReturnValue(
-        new Promise((resolve) => {
-          resolveWatch = resolve;
-        })
-      );
-
-      const { unmount } = await render(<MapScreen {...defaultProps()} />);
-      await waitFor(() => expect(mockWatchPosition).toHaveBeenCalledTimes(1));
-
-      unmount();
-      resolveWatch!({ remove: removeSpy });
-      await waitFor(() => expect(removeSpy).toHaveBeenCalledTimes(1));
-    });
-
-    it("skips revealing fog for a degraded GPS fix (e.g. riding a bus, not walking)", async () => {
-      // Regression test: a real report traced overly-wide fog reveals to
-      // riding a bus -- a degraded fix (metal body/glass causing more
-      // multipath, higher speed giving the receiver less time to settle)
-      // can land tens of meters off the true road, enough to reveal a
-      // geohash cell (~153m per side) never actually visited.
-      let positionCallback: (lat: number, lng: number, accuracyM: number | null) => void = () => {};
-      mockWatchPosition.mockImplementation(async (cb: any) => {
-        positionCallback = cb;
-        return { remove: jest.fn() };
-      });
-
-      render(<MapScreen {...defaultProps()} />);
-      await waitFor(() => expect(mockWatchPosition).toHaveBeenCalled());
-
-      await act(async () => {
-        positionCallback(37.78, -122.42, 45); // worse than FOG_MAX_ACCURACY_M (30m)
-      });
-
-      expect(mockReportExploredCell).not.toHaveBeenCalled();
-    });
-
-    it("still reveals fog for a good fix, and for a fix with unknown accuracy", async () => {
-      let positionCallback: (lat: number, lng: number, accuracyM: number | null) => void = () => {};
-      mockWatchPosition.mockImplementation(async (cb: any) => {
-        positionCallback = cb;
-        return { remove: jest.fn() };
-      });
-
-      render(<MapScreen {...defaultProps()} />);
-      await waitFor(() => expect(mockWatchPosition).toHaveBeenCalled());
-
-      await act(async () => {
-        positionCallback(37.78, -122.42, 12); // well within FOG_MAX_ACCURACY_M
-      });
-      expect(mockReportExploredCell).toHaveBeenCalledTimes(1);
-
-      await act(async () => {
-        positionCallback(37.79, -122.43, null); // unknown accuracy -- fails open
-      });
-      expect(mockReportExploredCell).toHaveBeenCalledTimes(2);
+      await waitFor(() => expect(mockGetExploredCells).toHaveBeenCalledTimes(1));
     });
   });
 

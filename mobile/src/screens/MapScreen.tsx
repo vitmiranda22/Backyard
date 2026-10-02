@@ -2,25 +2,19 @@
 // used to be this screen directly) so Home is free to be the journal-cover
 // landing page instead of a map; reached from Home's "Map" FAB.
 
-import React, { useState, useEffect, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, AppState } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Image } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MapView, { Marker, Circle } from "react-native-maps";
 import RoutePolyline from "../components/RoutePolyline";
 import FogOverlay, { MapRegion } from "../components/FogOverlay";
 import CitiesSheet from "../components/CitiesSheet";
-import {
-  requestLocationPermission,
-  getCurrentLocation,
-  watchPosition,
-} from "../services/location";
+import { requestLocationPermission, getCurrentLocation } from "../services/location";
 import { getNearbyRoutes, getTourDetail, getExploredCells, getExploredCities, ExploredCity, NearbyRoute } from "../services/api";
-import { reportIfNewCell } from "../services/exploration";
 import { colors, font, radius, type } from "../theme";
 import { showToast } from "../services/toast";
 import { MOOD_ICONS, FALLBACK_MOOD_ICON } from "../services/moods";
-import { FOG_MAX_ACCURACY_M } from "../config";
 
 // No dedicated museum icon exists yet either -- reuse the same fallback
 // tour icon rather than block shipping on new art.
@@ -40,25 +34,13 @@ export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }:
   const [nearbyRoutes, setNearbyRoutes] = useState<NearbyRoute[]>([]);
   const [museumTours, setMuseumTours] = useState<NearbyRoute[]>([]);
 
-  // Terra Incognita fog-of-war: exploredCells drives both FogOverlay's
-  // holes and reportIfNewCell's dedupe (kept in sync via the ref -- state
-  // triggers the re-render FogOverlay needs, the ref is what the
-  // watchPosition callback's closure actually reads/mutates).
+  // Terra Incognita fog-of-war: drives FogOverlay's holes. Seeded once on
+  // mount from this user's recorded exploration history -- fog only ever
+  // clears from actually walking during a tour (see ActiveTourScreen's own
+  // reportIfNewCell), never from just having this screen open, so there's
+  // no live tracking here.
   const [exploredCells, setExploredCells] = useState<Set<string>>(new Set());
-  const exploredCellsRef = useRef<Set<string>>(new Set());
   const [region, setRegion] = useState<MapRegion | null>(null);
-  const watchSubRef = useRef<{ remove: () => void } | null>(null);
-  // Guards startFogTracking's own await: watchPosition's underlying
-  // Location.watchPositionAsync isn't instant (real GPS/provider
-  // cold-start), so if the screen unmounts (or the app backgrounds)
-  // while that's still pending, the effect's cleanup runs before
-  // watchSubRef.current is ever set -- stopFogTracking finds nothing to
-  // remove, and the subscription that lands afterward is stored with
-  // nothing left to ever clean it up, leaking a live GPS listener (and
-  // its battery/network cost) for as long as the app process runs. Each
-  // start attempt captures its own generation number and only commits
-  // to watchSubRef if nothing superseded it while it was still starting.
-  const trackingGenerationRef = useRef(0);
 
   // The full walked path of whichever pin was last tapped, drawn directly
   // on this map. Fetched on demand (nearby-route pins only carry a single
@@ -88,42 +70,6 @@ export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }:
     } finally {
       setCitiesLoading(false);
     }
-  }
-
-  // Terra Incognita: continuous foreground-only GPS tracking, separate
-  // from ActiveTourScreen's own -- this is what makes the fog clear while
-  // just browsing the map, not only during an active tour. No-op if
-  // already running.
-  async function startFogTracking() {
-    if (watchSubRef.current) return;
-    const myGeneration = ++trackingGenerationRef.current;
-    const sub = await watchPosition((lat, lng, accuracyM) => {
-      // A degraded fix (common on a bus/car -- metal body and glass cause
-      // more multipath, and higher speed gives the receiver less time to
-      // settle) can land tens of meters off the true road, enough to
-      // reveal a cell you were never actually in. Skip it entirely rather
-      // than trusting every fix as ground truth; unknown accuracy (null
-      // on some platforms) fails open, same as this app's other
-      // GPS-plausibility checks (see explored.py's teleport check).
-      if (accuracyM !== null && accuracyM > FOG_MAX_ACCURACY_M) return;
-      const newHash = reportIfNewCell(lat, lng, exploredCellsRef.current);
-      if (newHash) setExploredCells(new Set(exploredCellsRef.current));
-    });
-    if (trackingGenerationRef.current !== myGeneration) {
-      // Superseded by a stop (unmount/background) -- or another start --
-      // while this was still starting up. Don't store a subscription
-      // nothing will ever track; just remove the listener it already
-      // registered so it doesn't keep firing forever.
-      sub.remove();
-      return;
-    }
-    watchSubRef.current = sub;
-  }
-
-  function stopFogTracking() {
-    trackingGenerationRef.current++;
-    watchSubRef.current?.remove();
-    watchSubRef.current = null;
   }
 
   async function handlePinPress(route: NearbyRoute) {
@@ -160,11 +106,7 @@ export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }:
           // once, so already-explored ground (including anything backfilled
           // from their own past tours) starts revealed rather than fogged.
           getExploredCells()
-            .then(({ geo_hashes }) => {
-              const seeded = new Set(geo_hashes);
-              exploredCellsRef.current = seeded;
-              setExploredCells(new Set(seeded));
-            })
+            .then(({ geo_hashes }) => setExploredCells(new Set(geo_hashes)))
             .catch((e) => console.warn("Failed to load explored cells:", e.message));
 
           // Fetches more than the 10 walking pins actually shown, then
@@ -194,32 +136,6 @@ export default function MapScreen({ onSelectRoute, onSelectMuseumTour, onBack }:
     }
     init();
   }, []);
-
-  // Terra Incognita: only ever tracks while this screen is mounted AND the
-  // app is actually foregrounded on screen -- not "resting" backgrounded,
-  // which is why this needs AppState rather than just the mount lifecycle
-  // above. Gated on hasPermission so it never starts before the user has
-  // actually granted location access.
-  useEffect(() => {
-    if (!hasPermission) return;
-
-    if (AppState.currentState === "active") {
-      startFogTracking();
-    }
-
-    const sub = AppState.addEventListener("change", (nextState) => {
-      if (nextState === "active") {
-        startFogTracking();
-      } else {
-        stopFogTracking();
-      }
-    });
-
-    return () => {
-      sub.remove();
-      stopFogTracking();
-    };
-  }, [hasPermission]);
 
   return (
     <View style={styles.container}>

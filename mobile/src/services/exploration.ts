@@ -1,10 +1,10 @@
 // Terra Incognita -- fog-of-war map discovery
 //
-// Shared by MapScreen (fog clears while the screen is open and the app is
-// foregrounded) and ActiveTourScreen (fog clears during an active tour's
-// own GPS tracking) -- the same "is this a new geohash cell" shape as
-// useZoneTracker, but reporting discovery to the backend instead of
-// triggering narration.
+// Used by ActiveTourScreen's own GPS tracking during an active tour --
+// fog only ever clears from actually walking a tour, never from just
+// having MapScreen open (see its own comment). Same "is this a new
+// geohash cell" shape as useZoneTracker, but reporting discovery to the
+// backend instead of triggering narration.
 
 import ngeohash from "ngeohash";
 import { GEOHASH_PRECISION } from "../config";

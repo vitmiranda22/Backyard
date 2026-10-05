@@ -1,6 +1,7 @@
 {
   "common": {
     "cancel": "Cancel",
+    "save": "Save",
     "error": "Error",
     "success": "Success",
     "tryAgain": "Please try again",
@@ -323,6 +324,12 @@
     "gettingLocation": "Getting location...",
     "endTourA11y": "End tour",
     "dismissAnswer": "Dismiss answer",
+    "notes": "Notes",
+    "notesA11y": "Write a note for this spot",
+    "notesTitleFallback": "Your note",
+    "notesSubtitle": "Your note for this spot",
+    "notesPlaceholder": "What do you want to remember here?",
+    "noteSaveError": "Couldn't save that note. Try again in a moment.",
     "blocksCount": "{{count}} blocks",
     "autoCompleteFree": "Tour complete! Come back tomorrow, or upgrade for 3 tours a day.",
     "autoCompletePremium": "Tour complete! Start another, up to 3 tours a day.",
@@ -371,6 +378,7 @@
     "emptyTourButtonA11y": "Continue"
   },
   "routeDetail": {
+    "yourNote": "Your note",
     "failedToLoad": "Failed to load route",
     "couldntUpdateLike": "Couldn't update your like.",
     "by": "By {{name}}",

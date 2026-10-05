@@ -414,6 +414,9 @@ export interface TourBlockDetail {
   image_url: string | null;
   voice: string;
   mood: string;
+  // Only ever populated on your own tours -- the backend never sends
+  // another walker's notes for a route you're replaying.
+  note_text: string | null;
 }
 
 export interface TourDetail {
@@ -619,6 +622,18 @@ export interface Comment {
 
 export async function getComments(tourId: string): Promise<Comment[]> {
   return authFetch(`/tours/${tourId}/comments`);
+}
+
+export interface NoteResult {
+  sequence: number;
+  note_text: string;
+}
+
+export async function saveNote(tourId: string, sequence: number, noteText: string): Promise<NoteResult> {
+  return authFetch(`/tours/${tourId}/notes`, {
+    method: "POST",
+    body: JSON.stringify({ sequence, note_text: noteText }),
+  });
 }
 
 export async function postComment(tourId: string, body: string, isAnonymous = false): Promise<Comment> {

@@ -1,6 +1,7 @@
 {
   "common": {
     "cancel": "Cancelar",
+    "save": "Guardar",
     "error": "Error",
     "success": "Éxito",
     "tryAgain": "Por favor, inténtalo de nuevo",
@@ -323,6 +324,12 @@
     "gettingLocation": "Obteniendo ubicación...",
     "endTourA11y": "Finalizar recorrido",
     "dismissAnswer": "Descartar respuesta",
+    "notes": "Notas",
+    "notesA11y": "Escribir una nota para este lugar",
+    "notesTitleFallback": "Tu nota",
+    "notesSubtitle": "Tu nota para este lugar",
+    "notesPlaceholder": "¿Qué quieres recordar aquí?",
+    "noteSaveError": "No se pudo guardar la nota. Inténtalo de nuevo en un momento.",
     "blocksCount": "{{count}} cuadras",
     "autoCompleteFree": "¡Recorrido completo! Vuelve mañana, o mejora a Explorador para 3 recorridos al día.",
     "autoCompletePremium": "¡Recorrido completo! Empieza otro, hasta 3 recorridos al día.",
@@ -371,6 +378,7 @@
     "emptyTourButtonA11y": "Continuar"
   },
   "routeDetail": {
+    "yourNote": "Tu nota",
     "failedToLoad": "No se pudo cargar la ruta",
     "couldntUpdateLike": "No se pudo actualizar tu me gusta.",
     "by": "Por {{name}}",

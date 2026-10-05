@@ -44,7 +44,7 @@ function baseTour(overrides = {}) {
     creator_avatar_url: null,
     created_at: "2026-07-01T00:00:00Z",
     blocks: [
-      { block_id: "b1", sequence: 1, street_name: "24th St", neighborhood: "Mission", lat: 37.75, lng: -122.41, narration_text: "Some history.", audio_url: "https://x/audio.mp3", image_url: null, voice: "neutral", mood: "hidden_city" },
+      { block_id: "b1", sequence: 1, street_name: "24th St", neighborhood: "Mission", lat: 37.75, lng: -122.41, narration_text: "Some history.", audio_url: "https://x/audio.mp3", image_url: null, voice: "neutral", mood: "hidden_city", note_text: null },
     ],
     like_count: 2,
     liked_by_me: false,
@@ -165,6 +165,36 @@ describe("RouteDetailScreen", () => {
     expect(queryByText("routeDetail.tourScript")).toBeNull();
   });
 
+  it("shows a block's own note alongside it, when one exists", async () => {
+    mockGetTourDetail.mockResolvedValue(
+      baseTour({
+        is_own_tour: true,
+        blocks: [{
+          block_id: "b1", sequence: 1, street_name: "24th St", neighborhood: "Mission",
+          lat: 37.75, lng: -122.41, narration_text: "Some history.", audio_url: null, image_url: null,
+          voice: "neutral", mood: "hidden_city", note_text: "the old theater used to be here",
+        }],
+      })
+    );
+    const { findByText } = await render(
+      <RouteDetailScreen tourId="tour-1" onStartReplay={jest.fn()} onBack={jest.fn()} />
+    );
+    await findByText("Mission Murals");
+
+    expect(await findByText("routeDetail.yourNote")).toBeTruthy();
+    expect(await findByText("the old theater used to be here")).toBeTruthy();
+  });
+
+  it("shows no note section at all when a block has none", async () => {
+    mockGetTourDetail.mockResolvedValue(baseTour({ is_own_tour: true }));
+    const { findByText, queryByText } = await render(
+      <RouteDetailScreen tourId="tour-1" onStartReplay={jest.fn()} onBack={jest.fn()} />
+    );
+    await findByText("Mission Murals");
+
+    expect(queryByText("routeDetail.yourNote")).toBeNull();
+  });
+
   it("submits a report with the chosen reason and shows a confirmation toast", async () => {
     mockGetTourDetail.mockResolvedValue(baseTour());
     mockReportTour.mockResolvedValue({ report_id: "r1", target_type: "tour", target_id: "tour-1", reason: "spam", status: "pending" });
@@ -198,7 +228,7 @@ describe("RouteDetailScreen", () => {
 
   it("shows the audio-unavailable warning when no block has audio", async () => {
     mockGetTourDetail.mockResolvedValue(
-      baseTour({ blocks: [{ block_id: "b1", sequence: 1, street_name: "24th St", neighborhood: "Mission", lat: 37.75, lng: -122.41, narration_text: "x", audio_url: null, image_url: null, voice: "neutral", mood: "hidden_city" }] })
+      baseTour({ blocks: [{ block_id: "b1", sequence: 1, street_name: "24th St", neighborhood: "Mission", lat: 37.75, lng: -122.41, narration_text: "x", audio_url: null, image_url: null, voice: "neutral", mood: "hidden_city", note_text: null }] })
     );
 
     const { findByText } = await render(

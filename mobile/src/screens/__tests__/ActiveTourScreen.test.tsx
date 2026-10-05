@@ -44,6 +44,7 @@ jest.mock("../../services/api", () => {
     prefetchZone: jest.fn().mockResolvedValue(undefined),
     getPendingTransition: jest.fn().mockResolvedValue({ ready: false, transition_text: null }),
     saveBlock: jest.fn(),
+    saveNote: jest.fn(),
     askQuestion: jest.fn(),
     endTour: jest.fn(),
     reportExploredCell: jest.fn().mockResolvedValue({ geo_hash: "u0" }),
@@ -101,15 +102,17 @@ jest.mock("../../components/WaypointCompass", () => () => null);
 jest.mock("../../components/AudioPlayer", () => () => null);
 
 import ActiveTourScreen from "../ActiveTourScreen";
-import { startTour, narrateBlock, getPendingTransition, saveBlock, askQuestion, endTour, reportExploredCell, ApiError } from "../../services/api";
+import { startTour, narrateBlock, getPendingTransition, saveBlock, saveNote, askQuestion, endTour, reportExploredCell, ApiError } from "../../services/api";
 import * as Sentry from "@sentry/react-native";
 import { watchPosition, watchHeading, getCurrentLocation, snapSegmentToRoad } from "../../services/location";
 import { startRecording, stopRecording } from "../../services/recording";
+import { showToast } from "../../services/toast";
 
 const mockStartTour = startTour as jest.Mock;
 const mockNarrateBlock = narrateBlock as jest.Mock;
 const mockGetPendingTransition = getPendingTransition as jest.Mock;
 const mockSaveBlock = saveBlock as jest.Mock;
+const mockSaveNote = saveNote as jest.Mock;
 const mockAskQuestion = askQuestion as jest.Mock;
 const mockEndTour = endTour as jest.Mock;
 const mockWatchPosition = watchPosition as jest.Mock;
@@ -119,6 +122,7 @@ const mockGetCurrentLocation = getCurrentLocation as jest.Mock;
 const mockStartRecording = startRecording as jest.Mock;
 const mockStopRecording = stopRecording as jest.Mock;
 const mockReportExploredCell = reportExploredCell as jest.Mock;
+const mockShowToast = showToast as jest.Mock;
 
 const removeSpy = jest.fn();
 
@@ -174,6 +178,7 @@ describe("ActiveTourScreen", () => {
     mockWatchHeading.mockResolvedValue({ remove: removeSpy });
     mockNarrateBlock.mockResolvedValue(narration());
     mockSaveBlock.mockResolvedValue({ block_id: "b1", sequence: 1 });
+    mockSaveNote.mockResolvedValue({ sequence: 1, note_text: "" });
     // No outro by default -- playOutro() is only exercised by the
     // dedicated auto-complete test below, which overrides this.
     mockEndTour.mockResolvedValue({ mood: "time_machine", outro_audio_url: null });
@@ -628,6 +633,79 @@ describe("ActiveTourScreen", () => {
 
     expect(await findByText("“What happened here?”")).toBeTruthy();
     expect(await findByText("Something interesting.")).toBeTruthy();
+  });
+
+  describe("Notes", () => {
+    it("opens the notepad sheet showing the current block's street name", async () => {
+      const { findByLabelText, findByText, findAllByText } = await renderStarted();
+
+      await fireEvent.press(await findByLabelText("activeTour.notesA11y"));
+
+      expect(await findByText("activeTour.notesSubtitle")).toBeTruthy();
+      // "24th St" already appears once for the narration card itself (see
+      // renderStarted) -- the sheet's own header is a second instance.
+      expect((await findAllByText("24th St")).length).toBe(2);
+    });
+
+    it("saves a note for the current block and shows the unsaved-note dot afterward", async () => {
+      const { findByLabelText, getByPlaceholderText, queryByTestId } = await renderStarted();
+      expect(queryByTestId("notes-dot")).toBeNull();
+
+      await fireEvent.press(await findByLabelText("activeTour.notesA11y"));
+      fireEvent.changeText(getByPlaceholderText("activeTour.notesPlaceholder"), "the old theater used to be here");
+      await fireEvent.press(await findByLabelText("common.save"));
+
+      await waitFor(() => expect(mockSaveNote).toHaveBeenCalledWith("tour-1", 1, "the old theater used to be here"));
+      expect(queryByTestId("notes-dot")).toBeTruthy();
+    });
+
+    it("re-opens the sheet pre-filled with the already-saved note for that block", async () => {
+      const { findByLabelText, getByPlaceholderText, getByDisplayValue } = await renderStarted();
+
+      await fireEvent.press(await findByLabelText("activeTour.notesA11y"));
+      fireEvent.changeText(getByPlaceholderText("activeTour.notesPlaceholder"), "my first draft");
+      await fireEvent.press(await findByLabelText("common.save"));
+      await waitFor(() => expect(mockSaveNote).toHaveBeenCalled());
+
+      await fireEvent.press(await findByLabelText("activeTour.notesA11y"));
+
+      expect(getByDisplayValue("my first draft")).toBeTruthy();
+    });
+
+    it("discards the draft without saving when Cancel is pressed", async () => {
+      const { findByLabelText, getByPlaceholderText, queryByPlaceholderText } = await renderStarted();
+
+      await fireEvent.press(await findByLabelText("activeTour.notesA11y"));
+      fireEvent.changeText(getByPlaceholderText("activeTour.notesPlaceholder"), "a draft I regret");
+      await fireEvent.press(await findByLabelText("common.cancel"));
+
+      expect(mockSaveNote).not.toHaveBeenCalled();
+      expect(queryByPlaceholderText("activeTour.notesPlaceholder")).toBeNull();
+    });
+
+    it("shows a toast and keeps the sheet open when saving a note fails", async () => {
+      mockSaveNote.mockRejectedValue(new Error("network error"));
+      const { findByLabelText, getByPlaceholderText } = await renderStarted();
+
+      await fireEvent.press(await findByLabelText("activeTour.notesA11y"));
+      fireEvent.changeText(getByPlaceholderText("activeTour.notesPlaceholder"), "something");
+      await fireEvent.press(await findByLabelText("common.save"));
+
+      await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith("activeTour.noteSaveError"));
+      expect(getByPlaceholderText("activeTour.notesPlaceholder")).toBeTruthy();
+    });
+
+    it("disables Save while the draft is empty", async () => {
+      const { findByLabelText, getByPlaceholderText } = await renderStarted();
+
+      await fireEvent.press(await findByLabelText("activeTour.notesA11y"));
+      await fireEvent.press(await findByLabelText("common.save"));
+
+      // The button is disabled (empty draft) -- pressing it is a no-op,
+      // the sheet stays open with nothing saved.
+      expect(mockSaveNote).not.toHaveBeenCalled();
+      expect(getByPlaceholderText("activeTour.notesPlaceholder")).toBeTruthy();
+    });
   });
 
   it("calls onEndTour with the current block count and path when End is pressed, without calling /end-tour or playing an outro (the walker chose to stop, not the app)", async () => {

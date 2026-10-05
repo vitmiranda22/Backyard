@@ -292,6 +292,12 @@ export default function RouteDetailScreen({ tourId, onStartReplay, onBack }: Rou
                     </Text>
                   </View>
                   <Text style={styles.logText}>{block.narration_text}</Text>
+                  {!!block.note_text && (
+                    <View style={styles.logNote}>
+                      <Text style={styles.logNoteLabel}>{t("routeDetail.yourNote")}</Text>
+                      <Text style={styles.logNoteText}>{block.note_text}</Text>
+                    </View>
+                  )}
                 </View>
               </View>
             ))}
@@ -548,6 +554,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.fieldMuted,
     lineHeight: 21,
+  },
+  logNote: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.fieldBorderSoft,
+    borderStyle: "dashed",
+  },
+  logNoteLabel: {
+    fontFamily: font.sansBold,
+    fontSize: 11,
+    color: colors.fieldGreen,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  logNoteText: {
+    fontFamily: font.script,
+    fontSize: 19,
+    color: colors.ink,
+    lineHeight: 24,
   },
   footer: {
     padding: 20,

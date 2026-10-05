@@ -6,7 +6,22 @@
 // - Debounce on zone changes prevents rapid re-fires
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { View, Text, Image, TouchableOpacity, Pressable, StyleSheet, Alert, Animated, Easing, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  Pressable,
+  StyleSheet,
+  Alert,
+  Animated,
+  Easing,
+  ActivityIndicator,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import MapView from "react-native-maps";
@@ -24,7 +39,7 @@ import {
   compassLabel,
   snapSegmentToRoad,
 } from "../services/location";
-import { narrateBlock, prefetchZone, getPendingTransition, saveBlock, startTour, askQuestion, endTour, EndTourResponse, NarrationHighlight, SuggestedPlace, ApiError } from "../services/api";
+import { narrateBlock, prefetchZone, getPendingTransition, saveBlock, saveNote, startTour, askQuestion, endTour, EndTourResponse, NarrationHighlight, SuggestedPlace, ApiError } from "../services/api";
 import { reportIfNewCell } from "../services/exploration";
 import * as Sentry from "@sentry/react-native";
 import { destinationPoint } from "../utils/geo";
@@ -168,6 +183,21 @@ export default function ActiveTourScreen({
     answerText: string;
     audioUrl: string | null;
   } | null>(null);
+
+  // Notes -- keyed by block sequence, entirely local until Save (see
+  // handleSaveNote). A block only ever gets a note by the walker writing
+  // one themselves this tour, so there's no fetch-on-mount: the green dot
+  // and the sheet's pre-filled text both just read this same map.
+  const [notes, setNotes] = useState<Record<number, string>>({});
+  const [notesSheetOpen, setNotesSheetOpen] = useState(false);
+  const [draftNote, setDraftNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+  // Captured when the sheet opens, not read fresh at save time -- if the
+  // tour somehow advances to a new block while the sheet is still open,
+  // the note must still land on the block it was actually written for.
+  const [editingNoteBlock, setEditingNoteBlock] = useState<{ sequence: number; streetName: string | null } | null>(
+    null
+  );
 
   const { checkZone, commitZone, reset: resetZones } = useZoneTracker();
   const sequenceRef = useRef(0);
@@ -665,6 +695,37 @@ export default function ActiveTourScreen({
     }
   }
 
+  function handleOpenNotes() {
+    tap();
+    const sequence = sequenceRef.current;
+    setEditingNoteBlock({ sequence, streetName });
+    setDraftNote(notes[sequence] ?? "");
+    setNotesSheetOpen(true);
+  }
+
+  function handleCancelNotes() {
+    setNotesSheetOpen(false);
+  }
+
+  async function handleSaveNote() {
+    const block = editingNoteBlock;
+    const text = draftNote.trim();
+    if (!text || !block || !tourIdRef.current) {
+      setNotesSheetOpen(false);
+      return;
+    }
+    setSavingNote(true);
+    try {
+      await saveNote(tourIdRef.current, block.sequence, text);
+      setNotes((prev) => ({ ...prev, [block.sequence]: text }));
+      setNotesSheetOpen(false);
+    } catch (e: any) {
+      showToast(t("activeTour.noteSaveError"));
+    } finally {
+      setSavingNote(false);
+    }
+  }
+
   async function handleAskPressIn() {
     if (qaState !== "idle") return;
     if (!isPremium) {
@@ -917,36 +978,109 @@ export default function ActiveTourScreen({
         </View>
       )}
 
-      {/* Hold-to-ask */}
+      {/* Hold-to-ask, plus Notes right beside it */}
       <View style={styles.footer}>
-        <Pressable
-          onPressIn={handleAskPressIn}
-          onPressOut={handleAskPressOut}
-          disabled={qaState === "thinking" || isLoading}
-          accessibilityRole="button"
-          accessibilityLabel={isPremium ? t("activeTour.holdToAsk") : t("activeTour.askPremiumA11y")}
-        >
-          <Animated.View
-            style={[
-              styles.askBtn,
-              qaState === "recording" && styles.askBtnRecording,
-              { transform: [{ scale: pulseAnim }] },
-            ]}
-          >
-            {qaState === "thinking" ? (
-              <ActivityIndicator color={colors.parchmentSurface} />
-            ) : (
-              <Image source={require("../../assets/icons/ask_question_mic.png")} style={styles.askBtnIcon} resizeMode="contain" />
-            )}
-          </Animated.View>
-          {!isPremium && (
-            <View style={styles.askProBadge}>
-              <Text style={styles.askProBadgeText}>{t("common.pro")}</Text>
-            </View>
-          )}
-        </Pressable>
-        <Text style={styles.footerHint}>{askCaption}</Text>
+        <View style={styles.askCluster}>
+          <View style={styles.askColumn}>
+            <Pressable
+              onPressIn={handleAskPressIn}
+              onPressOut={handleAskPressOut}
+              disabled={qaState === "thinking" || isLoading}
+              accessibilityRole="button"
+              accessibilityLabel={isPremium ? t("activeTour.holdToAsk") : t("activeTour.askPremiumA11y")}
+            >
+              <Animated.View
+                style={[
+                  styles.askBtn,
+                  qaState === "recording" && styles.askBtnRecording,
+                  { transform: [{ scale: pulseAnim }] },
+                ]}
+              >
+                {qaState === "thinking" ? (
+                  <ActivityIndicator color={colors.parchmentSurface} />
+                ) : (
+                  <Image source={require("../../assets/icons/ask_question_mic.png")} style={styles.askBtnIcon} resizeMode="contain" />
+                )}
+              </Animated.View>
+              {!isPremium && (
+                <View style={styles.askProBadge}>
+                  <Text style={styles.askProBadgeText}>{t("common.pro")}</Text>
+                </View>
+              )}
+            </Pressable>
+            <Text style={styles.footerHint}>{askCaption}</Text>
+          </View>
+
+          <View style={styles.notesColumn}>
+            <TouchableOpacity
+              onPress={handleOpenNotes}
+              disabled={!tourIdRef.current}
+              accessibilityRole="button"
+              accessibilityLabel={t("activeTour.notesA11y")}
+            >
+              <View style={styles.notesBtn}>
+                <Image source={require("../../assets/icons/journal.png")} style={styles.notesBtnIcon} resizeMode="contain" />
+                {!!notes[sequenceRef.current] && <View testID="notes-dot" style={styles.notesDot} />}
+              </View>
+            </TouchableOpacity>
+            <Text style={styles.notesLabel}>{t("activeTour.notes")}</Text>
+          </View>
+        </View>
       </View>
+
+      <Modal visible={notesSheetOpen} transparent animationType="slide" onRequestClose={handleCancelNotes}>
+        <KeyboardAvoidingView
+          style={styles.notesScrim}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <View style={styles.notesSheet}>
+            <View style={styles.notesHandle} />
+            <View style={styles.notesSheetHeadRow}>
+              <Image source={LOCATION_ICON} style={styles.notesSheetHeadIcon} resizeMode="contain" />
+              <Text style={styles.notesSheetTitle} numberOfLines={1}>
+                {editingNoteBlock?.streetName || t("activeTour.notesTitleFallback")}
+              </Text>
+            </View>
+            <Text style={styles.notesSheetSubtitle}>{t("activeTour.notesSubtitle")}</Text>
+
+            <TextInput
+              style={styles.notesInput}
+              value={draftNote}
+              onChangeText={setDraftNote}
+              placeholder={t("activeTour.notesPlaceholder")}
+              placeholderTextColor={colors.fieldMuted}
+              multiline
+              autoFocus
+              maxLength={2000}
+            />
+
+            <View style={styles.notesActions}>
+              <TouchableOpacity
+                style={styles.notesCancelBtn}
+                onPress={handleCancelNotes}
+                disabled={savingNote}
+                accessibilityRole="button"
+                accessibilityLabel={t("common.cancel")}
+              >
+                <Text style={styles.notesCancelBtnText}>{t("common.cancel")}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.notesSaveBtn}
+                onPress={handleSaveNote}
+                disabled={savingNote || !draftNote.trim()}
+                accessibilityRole="button"
+                accessibilityLabel={t("common.save")}
+              >
+                {savingNote ? (
+                  <ActivityIndicator color={colors.parchmentSurface} />
+                ) : (
+                  <Text style={styles.notesSaveBtnText}>{t("common.save")}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -1106,5 +1240,141 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
     color: colors.fieldMuted,
+  },
+  // Ask stays the bigger, dominant circle; Notes is a smaller satellite
+  // right beside it, both centered together as one cluster.
+  askCluster: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 14,
+  },
+  askColumn: {
+    alignItems: "center",
+  },
+  notesColumn: {
+    alignItems: "center",
+    paddingTop: 9,
+  },
+  notesBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.parchmentBg,
+    borderWidth: 1.5,
+    borderColor: colors.fieldBorder,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  notesBtnIcon: {
+    width: 18,
+    height: 18,
+    tintColor: colors.ink,
+    opacity: 0.8,
+  },
+  notesDot: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: colors.fieldGreen,
+    borderWidth: 1.5,
+    borderColor: colors.parchmentSurface,
+  },
+  notesLabel: {
+    fontFamily: font.headingBold,
+    marginTop: spacing.sm,
+    fontSize: 11,
+    color: colors.fieldMuted,
+  },
+  notesScrim: {
+    flex: 1,
+    backgroundColor: "rgba(36, 29, 18, 0.5)",
+    justifyContent: "flex-end",
+  },
+  notesSheet: {
+    backgroundColor: colors.parchmentSurface,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    padding: 20,
+  },
+  notesHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.fieldBorder,
+    alignSelf: "center",
+    marginBottom: 14,
+  },
+  notesSheetHeadRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginBottom: 4,
+  },
+  notesSheetHeadIcon: {
+    width: 18,
+    height: 18,
+    tintColor: colors.ink,
+  },
+  notesSheetTitle: {
+    flex: 1,
+    fontFamily: font.headingBold,
+    fontSize: 22,
+    lineHeight: 29,
+    color: colors.ink,
+  },
+  notesSheetSubtitle: {
+    fontFamily: font.serifItalic,
+    fontSize: 13,
+    color: colors.fieldMuted,
+    marginBottom: 14,
+  },
+  notesInput: {
+    backgroundColor: colors.parchmentBg,
+    borderWidth: 1,
+    borderColor: colors.fieldBorder,
+    borderRadius: radius.md,
+    padding: 14,
+    minHeight: 120,
+    maxHeight: 220,
+    marginBottom: spacing.md,
+    fontFamily: font.script,
+    fontSize: 21,
+    color: colors.ink,
+    textAlignVertical: "top",
+  },
+  notesActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  notesCancelBtn: {
+    flex: 1,
+    backgroundColor: colors.parchmentBg,
+    borderWidth: 1,
+    borderColor: colors.fieldBorder,
+    borderRadius: radius.md,
+    padding: 14,
+  },
+  notesCancelBtnText: {
+    fontFamily: font.headingBold,
+    fontSize: 17,
+    lineHeight: 23,
+    color: colors.fieldMuted,
+    textAlign: "center",
+  },
+  notesSaveBtn: {
+    flex: 1,
+    backgroundColor: colors.ink,
+    borderRadius: radius.md,
+    padding: 14,
+  },
+  notesSaveBtnText: {
+    fontFamily: font.headingBold,
+    fontSize: 17,
+    lineHeight: 23,
+    color: colors.parchmentSurface,
+    textAlign: "center",
   },
 });

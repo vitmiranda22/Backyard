@@ -43,8 +43,8 @@ const mockShowToast = showToast as jest.Mock;
 
 // Block coordinates near San Francisco, spaced far enough apart (~1km+)
 // that being "close" to one means being far from the others.
-const BLOCK_A = { block_id: "b1", sequence: 1, street_name: "24th St", neighborhood: "", lat: 37.75, lng: -122.41, narration_text: "History A", audio_url: "https://x/a.mp3", image_url: null, voice: "neutral", mood: "hidden_city" };
-const BLOCK_B = { block_id: "b2", sequence: 2, street_name: "Valencia St", neighborhood: "", lat: 37.76, lng: -122.42, narration_text: "History B", audio_url: "https://x/b.mp3", image_url: null, voice: "neutral", mood: "hidden_city" };
+const BLOCK_A = { block_id: "b1", sequence: 1, street_name: "24th St", neighborhood: "", lat: 37.75, lng: -122.41, narration_text: "History A", audio_url: "https://x/a.mp3", image_url: null, voice: "neutral", mood: "hidden_city", note_text: null };
+const BLOCK_B = { block_id: "b2", sequence: 2, street_name: "Valencia St", neighborhood: "", lat: 37.76, lng: -122.42, narration_text: "History B", audio_url: "https://x/b.mp3", image_url: null, voice: "neutral", mood: "hidden_city", note_text: null };
 
 function baseTour(overrides = {}) {
   return {

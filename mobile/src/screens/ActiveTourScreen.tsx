@@ -755,7 +755,8 @@ export default function ActiveTourScreen({
         location.lng,
         mood,
         voice,
-        tourIdRef.current || undefined
+        tourIdRef.current || undefined,
+        contentSafety
       );
       setQaAnswer({
         question: result.question_text,

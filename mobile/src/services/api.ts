@@ -226,6 +226,7 @@ export async function askQuestion(
   mood: string,
   voice: string,
   tourId?: string,
+  contentSafety = false,
   isRetry = false
 ): Promise<AskQuestionResponse> {
   const token = getToken();
@@ -244,6 +245,7 @@ export async function askQuestion(
   form.append("mood", mood);
   form.append("voice", voice);
   if (tourId) form.append("tour_id", tourId);
+  form.append("content_safety", String(contentSafety));
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -268,7 +270,7 @@ export async function askQuestion(
   if (response.status === 401 && !isRetry) {
     try {
       await refreshToken();
-      return askQuestion(audioUri, lat, lng, mood, voice, tourId, true);
+      return askQuestion(audioUri, lat, lng, mood, voice, tourId, contentSafety, true);
     } catch {
       // Fall through to the normal error handling below.
     }

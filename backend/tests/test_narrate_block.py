@@ -555,7 +555,11 @@ def test_tts_failure_returns_text_only_response(app, client, auth_as, monkeypatc
     assert body["audio_url"] is None
 
 
-def test_underage_user_gets_content_safety_forced_on_even_when_requesting_it_off(app, client, auth_as, monkeypatch):
+def test_underage_user_gets_content_safety_forced_to_restricted_even_when_requesting_mature(app, client, auth_as, monkeypatch):
+    # content_safety=True means mature content is allowed (see prompts.py's
+    # _SAFETY_ON/_SAFETY_OFF) -- an underage/unverified-age account
+    # requesting it must be forced back to restricted (False), not the
+    # other way around.
     monkeypatch.setattr(supabase_db, "is_user_underage", _async(True))
     captured = {}
 
@@ -565,11 +569,11 @@ def test_underage_user_gets_content_safety_forced_on_even_when_requesting_it_off
     monkeypatch.setattr(openai_service, "generate_narration", _track_generate)
 
     auth_as(app, USER_ID)
-    resp = client.post("/api/narrate-block", json=_request_body(content_safety=False))
+    resp = client.post("/api/narrate-block", json=_request_body(content_safety=True))
 
     assert resp.status_code == 200
-    assert resp.json()["content_safety_applied"] is True
-    assert captured["content_safety"] is True
+    assert resp.json()["content_safety_applied"] is False
+    assert captured["content_safety"] is False
 
 
 def test_adult_users_content_safety_choice_passes_through_untouched(app, client, auth_as, monkeypatch):
@@ -582,16 +586,17 @@ def test_adult_users_content_safety_choice_passes_through_untouched(app, client,
     monkeypatch.setattr(openai_service, "generate_narration", _track_generate)
 
     auth_as(app, USER_ID)
-    resp = client.post("/api/narrate-block", json=_request_body(content_safety=False))
+    resp = client.post("/api/narrate-block", json=_request_body(content_safety=True))
 
     assert resp.status_code == 200
-    assert resp.json()["content_safety_applied"] is False
-    assert captured["content_safety"] is False
+    assert resp.json()["content_safety_applied"] is True
+    assert captured["content_safety"] is True
 
 
-def test_underage_user_who_already_requested_safety_on_is_unaffected(app, client, auth_as, monkeypatch):
+def test_underage_user_who_already_requested_restricted_content_is_unaffected(app, client, auth_as, monkeypatch):
     # is_user_underage should never even need to be consulted when the
-    # client already asked for safety on -- there's nothing to force.
+    # client already asked for restricted (non-mature) content -- there's
+    # nothing to force.
     checked = []
     async def _track_underage(*args, **kwargs):
         checked.append(True)
@@ -599,10 +604,10 @@ def test_underage_user_who_already_requested_safety_on_is_unaffected(app, client
     monkeypatch.setattr(supabase_db, "is_user_underage", _track_underage)
 
     auth_as(app, USER_ID)
-    resp = client.post("/api/narrate-block", json=_request_body(content_safety=True))
+    resp = client.post("/api/narrate-block", json=_request_body(content_safety=False))
 
     assert resp.status_code == 200
-    assert resp.json()["content_safety_applied"] is True
+    assert resp.json()["content_safety_applied"] is False
     assert checked == []
 
 

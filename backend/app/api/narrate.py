@@ -242,12 +242,22 @@ async def narrate_block(
             )
 
     # --- Step 0.6: Age gate ---
-    # A ceiling, not a full override -- an adult's actual content_safety
-    # preference (on OR off) passes through untouched. Only forces safety
-    # ON when the client asked for it off and the account isn't a
-    # confirmed adult, regardless of what the request claims.
-    if not request.content_safety and await supabase_db.is_user_underage(user_id):
-        request.content_safety = True
+    # content_safety=True means MATURE content is allowed (see prompts.py's
+    # _SAFETY_ON/_SAFETY_OFF and openai_service.generate_narration's own
+    # docstring) -- a ceiling, not a full override, so an adult's actual
+    # preference (mature OR restricted) passes through untouched. Only
+    # forces content_safety back to False (restricted) when the client
+    # requested mature content and the account isn't a confirmed adult,
+    # regardless of what the request claims.
+    #
+    # Fixed 2026-10: this previously read `if not request.content_safety`,
+    # which forced content_safety to True (mature) for an underage/
+    # unverified-age account whose request already correctly defaulted to
+    # False (restricted) -- the exact opposite of the intended protection,
+    # and the path every real minor account with the mature-content toggle
+    # left off (the default) was actually hitting.
+    if request.content_safety and await supabase_db.is_user_underage(user_id):
+        request.content_safety = False
 
     # --- Step 1: Compute geohash ---
     # Two different precisions on purpose -- geo_hash (narration/zone-data,

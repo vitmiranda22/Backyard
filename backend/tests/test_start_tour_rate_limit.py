@@ -125,7 +125,10 @@ def test_start_tour_intro_has_no_greeting_when_display_name_is_blank(app, client
     assert "Hey" not in captured["text"].split(".")[0]
 
 
-def test_start_tour_underage_user_gets_content_safety_forced_on(app, client, auth_as, monkeypatch):
+def test_start_tour_underage_user_gets_content_safety_forced_to_restricted(app, client, auth_as, monkeypatch):
+    # content_safety=True means mature content is allowed (see prompts.py's
+    # _SAFETY_ON/_SAFETY_OFF) -- an underage account requesting it must be
+    # forced back to restricted (False), not the other way around.
     monkeypatch.setattr(supabase_db, "check_minute_rate_limit", _async((True, "")))
     _mock_intro_pipeline(monkeypatch)
 
@@ -137,10 +140,10 @@ def test_start_tour_underage_user_gets_content_safety_forced_on(app, client, aut
     monkeypatch.setattr(supabase_db, "is_user_underage", _async(True))
     auth_as(app, USER_ID)
 
-    resp = client.post("/api/start-tour", json={"mood": "time_machine", "content_safety": False})
+    resp = client.post("/api/start-tour", json={"mood": "time_machine", "content_safety": True})
 
     assert resp.status_code == 200
-    assert captured["content_safety"] is True
+    assert captured["content_safety"] is False
 
 
 def test_allowlisted_test_account_bypasses_the_minute_rate_limit(app, client, auth_as, monkeypatch):

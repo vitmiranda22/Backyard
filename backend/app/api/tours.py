@@ -51,6 +51,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 GEOHASH_PRECISION = 7  # must match backend/app/api/narrate.py
+PHOTO_GEOHASH_PRECISION = 8  # must match backend/app/api/narrate.py -- see that constant's own comment
 
 # One named guide persona per premium mood — gives the tour a proper
 # opening instead of the first block's raw narration cold-opening the
@@ -209,13 +210,23 @@ def _expected_r2_keys(tour_id: str, lat: float, lng: float, mood: str, voice: st
     block, so save-block can confirm a client-supplied audio_r2_key/
     image_r2_key actually points at real Backyard-issued storage for this
     location/tour rather than an arbitrary client-supplied string.
+
+    Two different precisions on purpose, matching narrate.py's own split:
+    audio is keyed at GEOHASH_PRECISION (~153m, shared per narration zone),
+    but a photo is viewpoint-specific, so it's keyed at the much finer
+    PHOTO_GEOHASH_PRECISION (~19m) -- see narrate.py's _resolve_zone_photo.
+    Bug fixed 2026-10: this used GEOHASH_PRECISION for the image key too,
+    so every real (correctly fine-grained) image_r2_key a client sent back
+    silently failed this check and got dropped, meaning saved tours never
+    kept their photo.
     """
     geo_hash = geohash2.encode(lat, lng, precision=GEOHASH_PRECISION)
     valid_audio_keys = {
         r2.build_r2_key(geo_hash, mood, content_safety, voice),
         r2.build_tour_r2_key(tour_id, geo_hash, content_safety, voice),
     }
-    valid_image_key = r2.build_image_r2_key(geo_hash)
+    photo_geo_hash = geohash2.encode(lat, lng, precision=PHOTO_GEOHASH_PRECISION)
+    valid_image_key = r2.build_image_r2_key(photo_geo_hash)
     return valid_audio_keys, valid_image_key
 
 
@@ -342,13 +353,18 @@ async def start_tour(
             },
         )
 
-    # Age gate: a ceiling, not a full override -- an adult's actual
-    # content_safety preference passes through untouched. Only forces
-    # safety ON when the client asked for it off and the account isn't a
-    # confirmed adult (see supabase_db.is_user_underage's fail-closed
-    # behavior for accounts with no date_of_birth on file).
-    if not request.content_safety and await supabase_db.is_user_underage(user_id):
-        request.content_safety = True
+    # Age gate: content_safety=True means mature content is allowed (see
+    # narrate.py's own fix for this exact bug, 2026-10, and prompts.py's
+    # _SAFETY_ON/_SAFETY_OFF) -- a ceiling, not a full override, so an
+    # adult's actual preference passes through untouched. Only forces
+    # content_safety back to False (restricted) when the client requested
+    # mature content and the account isn't a confirmed adult (see
+    # supabase_db.is_user_underage's fail-closed behavior for accounts with
+    # no date_of_birth on file). This previously read `if not
+    # request.content_safety`, which forced mature content ON for an
+    # underage account that had already correctly defaulted to restricted.
+    if request.content_safety and await supabase_db.is_user_underage(user_id):
+        request.content_safety = False
 
     tour = await supabase_db.create_tour(
         creator_id=user_id,

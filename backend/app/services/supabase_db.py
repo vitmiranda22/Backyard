@@ -1165,6 +1165,49 @@ async def get_tour_blocks(tour_id: str):
         return []
 
 
+async def upsert_tour_block_note(tour_id: str, sequence: int, user_id: str, note_text: str):
+    """
+    Writes this walker's note for one block of their own tour, overwriting
+    whatever was there before (on_conflict="tour_id,sequence" — see
+    migration 038). Caller (tours.py's save_note) has already confirmed
+    the tour belongs to user_id before this is called.
+    """
+    try:
+        client = _get_client()
+        result = (
+            client.table("tour_block_notes")
+            .upsert(
+                {
+                    "tour_id": tour_id,
+                    "sequence": sequence,
+                    "user_id": user_id,
+                    "note_text": note_text,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                },
+                on_conflict="tour_id,sequence",
+            )
+            .execute()
+        )
+        return result.data[0] if result.data else None
+    except Exception as e:
+        logger.error(f"Failed to upsert tour block note: {e}")
+        return None
+
+
+async def get_tour_block_notes(tour_id: str) -> dict:
+    """{sequence: note_text} for every block of this tour that has a note.
+    Called only for the tour's own owner (see tours.py's get_tour_detail) --
+    notes are personal and never shown to anyone walking someone else's
+    published route."""
+    try:
+        client = _get_client()
+        result = client.table("tour_block_notes").select("sequence, note_text").eq("tour_id", tour_id).execute()
+        return {row["sequence"]: row["note_text"] for row in (result.data or [])}
+    except Exception as e:
+        logger.error(f"Failed to get tour block notes: {e}")
+        return {}
+
+
 async def end_tour(
     tour_id: str,
     title: str,

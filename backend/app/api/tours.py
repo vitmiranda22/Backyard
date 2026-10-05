@@ -22,6 +22,8 @@ from app.models.schemas import (
     StartTourResponse,
     SaveBlockRequest,
     SaveBlockResponse,
+    SaveNoteRequest,
+    SaveNoteResponse,
     EndTourRequest,
     EndTourResponse,
     TourSummary,
@@ -500,6 +502,41 @@ async def save_block(
 
 
 @router.post(
+    "/tours/{tour_id}/notes",
+    response_model=SaveNoteResponse,
+    responses={
+        403: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+    summary="Save or update your own note for one block of your tour",
+)
+async def save_note(tour_id: str, request: SaveNoteRequest, user_id: AuthenticatedUser):
+    await _enforce_minute_rate_limit(user_id)
+
+    tour = await supabase_db.get_tour(tour_id)
+    if not tour:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Tour not found.", "code": "tour_not_found", "retry": False},
+        )
+    if tour["creator_id"] != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "This tour doesn't belong to you.", "code": "forbidden", "retry": False},
+        )
+
+    note = await supabase_db.upsert_tour_block_note(tour_id, request.sequence, user_id, request.note_text)
+    if not note:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Failed to save note.", "code": "note_save_failed", "retry": True},
+        )
+
+    return SaveNoteResponse(sequence=request.sequence, note_text=request.note_text)
+
+
+@router.post(
     "/end-tour",
     response_model=EndTourResponse,
     responses={
@@ -874,6 +911,9 @@ async def get_tour_detail(tour_id: str, user_id: AuthenticatedUser):
         )
 
     blocks = await supabase_db.get_tour_blocks(tour_id)
+    # Personal, never shown to anyone walking someone else's published
+    # route -- only fetched for the tour's own owner.
+    notes_by_sequence = await supabase_db.get_tour_block_notes(tour_id) if is_own_tour else {}
     block_details = []
     for b in blocks:
         audio_url = r2.generate_signed_url(b["audio_r2_key"], expires_in=14400) if b.get("audio_r2_key") else None
@@ -890,6 +930,7 @@ async def get_tour_detail(tour_id: str, user_id: AuthenticatedUser):
             image_url=image_url,
             voice=b.get("voice", "neutral"),
             mood=b.get("mood", "time_machine"),
+            note_text=notes_by_sequence.get(b["sequence"]),
         ))
 
     is_anonymous = tour.get("is_anonymous", False)

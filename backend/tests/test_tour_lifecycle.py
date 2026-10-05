@@ -115,6 +115,58 @@ def test_save_block_500s_cleanly_when_persistence_fails(app, client, auth_as, mo
     assert resp.status_code == 500
 
 
+# --- save-note ---
+
+def test_save_note_rejects_non_owner(app, client, auth_as, monkeypatch):
+    monkeypatch.setattr(supabase_db, "get_tour", _async(_own_tour()))
+    auth_as(app, OTHER_ID)
+
+    resp = client.post(f"/api/tours/{TOUR_ID}/notes", json={"sequence": 1, "note_text": "hi"})
+
+    assert resp.status_code == 403
+
+
+def test_save_note_404s_on_missing_tour(app, client, auth_as, monkeypatch):
+    monkeypatch.setattr(supabase_db, "get_tour", _async(None))
+    auth_as(app, OWNER_ID)
+
+    resp = client.post(f"/api/tours/{TOUR_ID}/notes", json={"sequence": 1, "note_text": "hi"})
+
+    assert resp.status_code == 404
+
+
+def test_save_note_persists_sequence_and_text(app, client, auth_as, monkeypatch):
+    monkeypatch.setattr(supabase_db, "get_tour", _async(_own_tour()))
+    captured = {}
+
+    async def _fake_upsert(tour_id, sequence, user_id, note_text):
+        captured.update(tour_id=tour_id, sequence=sequence, user_id=user_id, note_text=note_text)
+        return {"id": "note-1"}
+    monkeypatch.setattr(supabase_db, "upsert_tour_block_note", _fake_upsert)
+    auth_as(app, OWNER_ID)
+
+    resp = client.post(f"/api/tours/{TOUR_ID}/notes", json={"sequence": 2, "note_text": "the old theater used to be here"})
+
+    assert resp.status_code == 200
+    assert resp.json() == {"sequence": 2, "note_text": "the old theater used to be here"}
+    assert captured == {
+        "tour_id": TOUR_ID,
+        "sequence": 2,
+        "user_id": OWNER_ID,
+        "note_text": "the old theater used to be here",
+    }
+
+
+def test_save_note_500s_cleanly_when_persistence_fails(app, client, auth_as, monkeypatch):
+    monkeypatch.setattr(supabase_db, "get_tour", _async(_own_tour()))
+    monkeypatch.setattr(supabase_db, "upsert_tour_block_note", _async(None))
+    auth_as(app, OWNER_ID)
+
+    resp = client.post(f"/api/tours/{TOUR_ID}/notes", json={"sequence": 1, "note_text": "hi"})
+
+    assert resp.status_code == 500
+
+
 # --- end-tour ---
 
 def test_end_tour_rejects_non_owner(app, client, auth_as, monkeypatch):
@@ -293,3 +345,65 @@ def test_publish_tour_rejects_when_no_blocks_were_narrated(app, client, auth_as,
 
     assert resp.status_code == 400
     assert resp.json()["detail"]["code"] == "empty_tour"
+
+
+# --- get-tour-detail (notes visibility) ---
+
+def _tour_with_creator(**overrides):
+    tour = {
+        "id": TOUR_ID,
+        "creator_id": OWNER_ID,
+        "is_public": True,
+        "is_hidden": False,
+        "title": "A Walk",
+        "mood": MOOD,
+        "tour_type": "walking",
+        "city": "San Francisco",
+        "avg_rating": 0,
+        "rating_count": 0,
+        "blocks_visited": 1,
+        "total_distance_m": None,
+        "duration_sec": None,
+        "is_anonymous": False,
+        "users": {"display_name": "Explorer"},
+        "created_at": "2026-10-05T00:00:00+00:00",
+        "path_points": [],
+    }
+    tour.update(overrides)
+    return tour
+
+
+_ONE_BLOCK = [{
+    "id": "block-1", "sequence": 1, "street_name": "Main St", "neighborhood": "",
+    "lat": LAT, "lng": LNG, "narration_text": "Some narration.", "voice": VOICE, "mood": MOOD,
+}]
+
+
+def test_get_tour_detail_includes_the_owners_own_note(app, client, auth_as, monkeypatch):
+    monkeypatch.setattr(supabase_db, "get_tour_with_creator", _async(_tour_with_creator()))
+    monkeypatch.setattr(supabase_db, "get_tour_blocks", _async(_ONE_BLOCK))
+    monkeypatch.setattr(supabase_db, "get_tour_block_notes", _async({1: "the old theater used to be here"}))
+    monkeypatch.setattr(supabase_db, "get_like_status", _async((0, False)))
+    auth_as(app, OWNER_ID)
+
+    resp = client.get(f"/api/tours/{TOUR_ID}")
+
+    assert resp.status_code == 200
+    assert resp.json()["blocks"][0]["note_text"] == "the old theater used to be here"
+
+
+def test_get_tour_detail_never_shows_notes_to_a_non_owner_viewing_a_public_tour(app, client, auth_as, monkeypatch):
+    monkeypatch.setattr(supabase_db, "get_tour_with_creator", _async(_tour_with_creator(is_public=True)))
+    monkeypatch.setattr(supabase_db, "get_tour_blocks", _async(_ONE_BLOCK))
+    # If the endpoint ever queried notes for a non-owner, this would be
+    # the first sign -- the real get_tour_block_notes is never called at
+    # all for a non-owner, but asserting the response stays None either
+    # way pins the actual contract that matters.
+    monkeypatch.setattr(supabase_db, "get_tour_block_notes", _async({1: "should never leak"}))
+    monkeypatch.setattr(supabase_db, "get_like_status", _async((0, False)))
+    auth_as(app, OTHER_ID)
+
+    resp = client.get(f"/api/tours/{TOUR_ID}")
+
+    assert resp.status_code == 200
+    assert resp.json()["blocks"][0]["note_text"] is None

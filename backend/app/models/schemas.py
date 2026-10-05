@@ -236,6 +236,17 @@ class SaveBlockResponse(BaseModel):
     sequence: int
 
 
+class SaveNoteRequest(BaseModel):
+    """POST /api/tours/{tour_id}/notes"""
+    sequence: int = Field(..., ge=1, description="Which block this note is for")
+    note_text: str = Field(..., min_length=1, max_length=2000, description="The walker's own note for this block")
+
+
+class SaveNoteResponse(BaseModel):
+    sequence: int
+    note_text: str
+
+
 class PathPoint(BaseModel):
     lat: float
     lng: float
@@ -305,6 +316,9 @@ class TourBlockDetail(BaseModel):
     image_url: Optional[str] = None
     voice: str
     mood: str
+    # Only populated when the caller owns this tour (see get_tour_detail) --
+    # never shown to anyone walking someone else's published route.
+    note_text: Optional[str] = None
 
 
 class TourDetailResponse(BaseModel):

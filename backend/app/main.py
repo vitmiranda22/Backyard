@@ -180,10 +180,11 @@ app.include_router(admin.router, tags=["Admin"])
 
 
 # =============================================================================
-# Privacy policy / terms of service — moved to the marketing site (same
-# branded domain as everything else) on 2026-10-04. Permanent redirects so
-# the App Store Connect submission, any already-indexed search results, and
-# anything else already pointing at these backend URLs keep working.
+# Privacy policy / terms of service / support — moved to the marketing site
+# (same branded domain as everything else) on 2026-10-04/05. Permanent
+# redirects so the App Store Connect submission, any already-indexed search
+# results, and anything else already pointing at these backend URLs keep
+# working.
 # =============================================================================
 
 @app.get("/privacy", include_in_schema=False)
@@ -198,7 +199,7 @@ async def terms_of_service():
 
 @app.get("/support", include_in_schema=False)
 async def support():
-    return FileResponse(os.path.join(STATIC_DIR, "support.html"))
+    return RedirectResponse(url="https://backyardexplorer.org/support", status_code=301)
 
 
 # =============================================================================

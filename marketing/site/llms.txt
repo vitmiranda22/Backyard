@@ -32,4 +32,4 @@ Backyard is a mobile app (iOS) in the Travel/Navigation category. It is free to 
 - [Where Was the V-J Day Kiss Photo Taken?](https://backyardexplorer.org/times-square-vj-day-kiss-history.html): the real history of the exact Times Square sidewalk where Alfred Eisenstaedt's 1945 photograph was taken, and what stands there today
 - [Privacy Policy](https://backyardexplorer.org/privacy)
 - [Terms of Service](https://backyardexplorer.org/terms)
-- [Support](https://backyard-api.onrender.com/support)
+- [Support](https://backyardexplorer.org/support)

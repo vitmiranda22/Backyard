@@ -1,0 +1,5 @@
+# Clean URLs for the legal pages (Netlify rewrite, not a redirect -- the
+# browser URL stays /privacy and /terms, matching what's already linked
+# from the app, App Store Connect, and everywhere else on this site).
+/privacy   /privacy.html   200
+/terms     /terms.html     200

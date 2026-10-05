@@ -22,7 +22,7 @@ from contextlib import asynccontextmanager
 import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
 
 from app.api import health, narrate, tours, settings as settings_api, webhooks, admin, public_events, explored, discoveries, events, challenges
 from app.config import settings
@@ -180,17 +180,20 @@ app.include_router(admin.router, tags=["Admin"])
 
 
 # =============================================================================
-# Privacy policy / terms of service — static pages, no auth required
+# Privacy policy / terms of service — moved to the marketing site (same
+# branded domain as everything else) on 2026-10-04. Permanent redirects so
+# the App Store Connect submission, any already-indexed search results, and
+# anything else already pointing at these backend URLs keep working.
 # =============================================================================
 
 @app.get("/privacy", include_in_schema=False)
 async def privacy_policy():
-    return FileResponse(os.path.join(STATIC_DIR, "privacy.html"))
+    return RedirectResponse(url="https://backyardexplorer.org/privacy", status_code=301)
 
 
 @app.get("/terms", include_in_schema=False)
 async def terms_of_service():
-    return FileResponse(os.path.join(STATIC_DIR, "terms.html"))
+    return RedirectResponse(url="https://backyardexplorer.org/terms", status_code=301)
 
 
 @app.get("/support", include_in_schema=False)

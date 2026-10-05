@@ -36,7 +36,7 @@ Travel / Navigation
 
 ## Privacy policy URL
 
-`https://backyard-api.onrender.com/privacy`
+`https://backyardexplorer.org/privacy`
 
 ## Support URL
 

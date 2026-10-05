@@ -63,6 +63,23 @@ async def fetch_street_view_image(lat: float, lng: float) -> bytes:
                 logger.info(f"No Street View coverage at ({lat}, {lng}): {metadata.get('status')}")
                 return None
 
+            # `source=outdoor` above doesn't reliably exclude business-
+            # contributed 360 tours (a pro photographer's indoor shoot for
+            # a hotel/restaurant can still come back tagged "outdoor").
+            # A genuine Google-captured street-level photo's copyright
+            # field says "Google"; anything else (confirmed in production:
+            # a Las Vegas Strip resort's metadata came back with the
+            # photographer's initials instead) is someone's own photosphere
+            # and just as likely to be an interior shot nowhere near what
+            # the narration is actually describing.
+            copyright_field = metadata.get("copyright") or ""
+            if "google" not in copyright_field.lower():
+                logger.info(
+                    f"Rejecting non-Google Street View imagery at ({lat}, {lng}): "
+                    f"copyright={copyright_field!r}"
+                )
+                return None
+
             image_response = await client.get(
                 STREETVIEW_IMAGE_URL,
                 params={

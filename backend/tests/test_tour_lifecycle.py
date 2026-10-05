@@ -86,6 +86,54 @@ def test_save_block_accepts_a_genuinely_backyard_issued_key(app, client, auth_as
     assert captured["audio_r2_key"] == real_key
 
 
+def test_save_block_accepts_a_genuinely_backyard_issued_image_key(app, client, auth_as, monkeypatch):
+    """Regression test: image_r2_key is keyed at PHOTO_GEOHASH_PRECISION (8,
+    ~19m), finer than audio's GEOHASH_PRECISION (7, ~153m) -- see narrate.py's
+    _resolve_zone_photo. _expected_r2_keys previously validated the image key
+    against the coarse precision instead, so every real image_r2_key a client
+    ever sent back failed this check and was silently dropped."""
+    monkeypatch.setattr(supabase_db, "get_tour", _async(_own_tour()))
+    captured = {}
+
+    async def _fake_save(**kwargs):
+        captured.update(kwargs)
+        return {"id": "block-1"}
+    monkeypatch.setattr(supabase_db, "save_tour_block", _fake_save)
+    auth_as(app, OWNER_ID)
+
+    import geohash2
+    photo_geo_hash = geohash2.encode(LAT, LNG, precision=8)
+    real_image_key = r2.build_image_r2_key(photo_geo_hash)
+
+    resp = client.post("/api/save-block", json=_save_block_body(image_r2_key=real_image_key))
+
+    assert resp.status_code == 200
+    assert captured["image_r2_key"] == real_image_key
+
+
+def test_save_block_drops_an_image_key_built_from_the_coarse_audio_precision(app, client, auth_as, monkeypatch):
+    """The exact shape of the fixed bug: a key that LOOKS plausible (it's a
+    real geohash, just the wrong one) must still be rejected, not silently
+    accepted because it happens to match some other valid zone."""
+    monkeypatch.setattr(supabase_db, "get_tour", _async(_own_tour()))
+    captured = {}
+
+    async def _fake_save(**kwargs):
+        captured.update(kwargs)
+        return {"id": "block-1"}
+    monkeypatch.setattr(supabase_db, "save_tour_block", _fake_save)
+    auth_as(app, OWNER_ID)
+
+    import geohash2
+    coarse_geo_hash = geohash2.encode(LAT, LNG, precision=7)
+    wrong_precision_key = r2.build_image_r2_key(coarse_geo_hash)
+
+    resp = client.post("/api/save-block", json=_save_block_body(image_r2_key=wrong_precision_key))
+
+    assert resp.status_code == 200
+    assert captured["image_r2_key"] is None
+
+
 def test_save_block_drops_a_forged_audio_key(app, client, auth_as, monkeypatch):
     """The actual regression this endpoint exists to prevent: an
     attacker-supplied (or simply stale/mismatched) R2 key must be silently

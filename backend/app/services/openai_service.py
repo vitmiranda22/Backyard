@@ -553,12 +553,25 @@ async def transcribe_audio(audio_bytes: bytes, filename: str = "question.m4a") -
         return ""
 
 
+_QUESTION_SAFETY_ON = (
+    "The walker has mature content enabled: graphic history, real violence, crime "
+    "details, and adult themes are fine if the question calls for them. Stay factual, "
+    "don't invent gore."
+)
+_QUESTION_SAFETY_OFF = (
+    "Keep the answer appropriate for a 13-year-old: no graphic violence, no sexual "
+    "content, no drug references. If the honest answer involves something dark, you can "
+    "say it happened without describing it graphically — imply rather than detail it."
+)
+
+
 async def answer_question(
     question: str,
     street: str,
     neighborhood: str,
     city: str,
     mood: str,
+    content_safety: bool,
     recent_narration: str = None,
 ) -> str:
     """
@@ -567,6 +580,13 @@ async def answer_question(
     narration-length story. Short and conversational, with web_search for
     grounding since a specific factual question deserves a real answer,
     not a guess.
+
+    content_safety: True = mature content allowed, False = family-friendly
+    -- same meaning and same caller-side age-gate as narrate_block's own
+    content_safety (see narrate.py's Step 0.6). A free-form question has
+    no fixed topic the way narration does, so without this, a walker could
+    ask their way around the age gate entirely; this is ask-question's own
+    enforcement of the exact same policy, not a reuse of narration's.
 
     Returns the answer text, or None if generation failed.
     """
@@ -581,7 +601,8 @@ async def answer_question(
         f"'{mood}' tone of the tour they're on. Answer directly and conversationally in "
         f"2-4 sentences — this is spoken aloud, not read, so no headers, lists, citations, "
         f"or markdown. If you don't know the specific answer, say so briefly rather than "
-        f"inventing details, and offer whatever related fact you're confident about instead."
+        f"inventing details, and offer whatever related fact you're confident about instead. "
+        f"{_QUESTION_SAFETY_ON if content_safety else _QUESTION_SAFETY_OFF}"
     )
 
     try:

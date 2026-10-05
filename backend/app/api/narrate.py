@@ -873,6 +873,7 @@ async def ask_question(
     mood: Mood = Form(Mood.TIME_MACHINE),
     voice: Voice = Form(Voice.NEUTRAL),
     tour_id: str = Form(None),
+    content_safety: bool = Form(False),
 ):
     """
     Hold-to-ask voice question — transcribes the recording, answers it
@@ -898,13 +899,19 @@ async def ask_question(
             },
         )
 
-    # Unlike narrate-block, this has zero caching (fresh Whisper + GPT + TTS
-    # on every call), so it gets its own tighter daily ceiling rather than
-    # sharing the narration pool — still shares the minute limit, since
-    # that's about rapid-fire abuse, not daily cost. (Kept as a backstop
-    # even though free users never reach it now that the whole feature is
-    # premium-gated above — cheap insurance if that gate ever regresses.)
+    # Hardened 2026-10: this comment used to claim the minute limit was
+    # already shared here -- it never actually was, so nothing stopped a
+    # premium user from spending their whole daily question quota in a
+    # handful of seconds. Same shared per-minute bucket prefetch-zone and
+    # start-tour use, not the daily question pool.
     if user_id not in UNLIMITED_TEST_ACCOUNT_IDS:
+        allowed, _ = await supabase_db.check_minute_rate_limit(user_id, settings.MINUTE_NARRATION_LIMIT)
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail={"error": "Slow down a bit and try again in a moment.", "code": "minute_limit_exceeded", "retry": True},
+            )
+
         allowed, reason = await supabase_db.check_question_rate_limit(
             user_id,
             daily_limit=settings.DAILY_QUESTION_LIMIT_PREMIUM if is_premium else settings.DAILY_QUESTION_LIMIT_FREE,
@@ -918,6 +925,15 @@ async def ask_question(
                     "retry": False,
                 },
             )
+
+    # content_safety=True means mature content is allowed (see narrate_block's
+    # own Step 0.6 and openai_service.answer_question's docstring). A
+    # free-form question has no fixed topic the way narration does, so
+    # without this check a walker could ask their way around the age gate
+    # entirely -- this endpoint needs its own enforcement, not a reuse of
+    # narration's.
+    if content_safety and await supabase_db.is_user_underage(user_id):
+        content_safety = False
 
     # Defense-in-depth, same as narrate-block: the client is expected to
     # gate premium moods/voices before ever reaching here, so this only
@@ -991,6 +1007,7 @@ async def ask_question(
         neighborhood=neighborhood,
         city=city,
         mood=mood,
+        content_safety=content_safety,
         recent_narration=recent_narration,
     )
 

@@ -38,8 +38,8 @@ import BoscoHero from "../components/BoscoHero";
 const MASCOT_IMAGE = require("../../assets/bosco-sendoff.jpg");
 const CALENDAR_ICON = require("../../assets/icons/calendar.png");
 
-const PRIVACY_URL = "https://backyard-api.onrender.com/privacy";
-const TERMS_URL = "https://backyard-api.onrender.com/terms";
+const PRIVACY_URL = "https://backyardexplorer.org/privacy";
+const TERMS_URL = "https://backyardexplorer.org/terms";
 
 // COPPA: 13 is the floor for creating an account at all (separate from
 // is_user_underage's 18+ gate on mature content). Real enforcement is

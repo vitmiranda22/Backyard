@@ -23,8 +23,8 @@ import { track } from "../services/analytics";
 // Same hosted pages linked from SignupScreen's privacy checkbox -- required
 // here too per App Store Guideline 3.1.2: any screen offering an
 // auto-renewable subscription must link both, not just the signup flow.
-const PRIVACY_URL = "https://backyard-api.onrender.com/privacy";
-const TERMS_URL = "https://backyard-api.onrender.com/terms";
+const PRIVACY_URL = "https://backyardexplorer.org/privacy";
+const TERMS_URL = "https://backyardexplorer.org/terms";
 
 const PERK_KEYS = [
   { icon: require("../../assets/icons/dark_side.png"), key: "paywall.perkMoods" },

@@ -279,7 +279,7 @@ describe("SignupScreen", () => {
     await fireEvent.press(getByText("signup.privacyPolicy"));
     await fireEvent.press(getByText("signup.termsOfService"));
 
-    expect(Linking.openURL).toHaveBeenCalledWith("https://backyard-api.onrender.com/privacy");
-    expect(Linking.openURL).toHaveBeenCalledWith("https://backyard-api.onrender.com/terms");
+    expect(Linking.openURL).toHaveBeenCalledWith("https://backyardexplorer.org/privacy");
+    expect(Linking.openURL).toHaveBeenCalledWith("https://backyardexplorer.org/terms");
   });
 });

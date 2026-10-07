@@ -67,7 +67,7 @@
 
 <section>
   <div class="wrap legal-doc">
-    <p class="updated">Last updated: July 2026</p>
+    <p class="updated">Last updated: October 2026</p>
 
     <p class="font-serif">Backyard ("we," "us") is an AI-narrated walking tour app. This page explains what information we collect, why, and how it's handled.</p>
 
@@ -82,6 +82,8 @@
 
     <h2>Tours and narration</h2>
     <p class="font-serif">When you take a tour, we send your location and mood preference to OpenAI to generate narration text, and to Google Cloud Text-to-Speech to turn it into audio. We also use the Google Street View Static API to fetch a photo of the location. None of these providers receive your account identity — only the coordinates and preferences needed to generate that specific piece of content. Generated narration, audio, and photos may be cached and reused for other users requesting the same location and mood, since the content itself isn't personal to you.</p>
+    <p class="font-serif">If you use the hold-to-ask question feature (Backyard Explorer), your spoken question is recorded and sent to OpenAI's Whisper API to transcribe it into text. The audio recording itself is used only to produce that transcription and is not stored or retained afterward.</p>
+    <p class="font-serif">Narration occasionally touches on real history involving real people, including, in some narration styles, unverified or disputed claims presented as local lore or legend rather than confirmed fact. It's AI-generated from public sources and may be incomplete or inaccurate — see our <a href="terms.html">Terms of Service</a> for how we treat accuracy. If you believe narration makes a false and damaging claim about a real, identifiable person or business, contact us at the address below and we'll review and correct it.</p>
 
     <h2>Published routes</h2>
     <p class="font-serif">If you choose to publish a tour as a public route, its title, stops, narration, and audio become visible to other users, along with your display name (or "Anonymous Explorer" if you've enabled anonymous publishing). You can control this per-tour when you save it.</p>
@@ -96,6 +98,12 @@
 
     <h2>Storage</h2>
     <p class="font-serif">Account and tour data is stored with Supabase (PostgreSQL). Audio and photo files are stored with Cloudflare R2. Both are standard infrastructure providers, not data buyers.</p>
+
+    <h2>International users &amp; data transfers</h2>
+    <p class="font-serif">Backyard is available worldwide, and the service providers listed on this page (Supabase, OpenAI, Google, Cloudflare, Sentry, PostHog, RevenueCat) are based in, or process data in, the United States. If you're in the EU, UK, or another region with its own data protection law, using Backyard means your data is transferred to and processed in the US, under those providers' own standard data-transfer safeguards. We process your data on two legal bases: your consent, given when you accept this policy at signup, and our need to perform the service you've asked for — generating and delivering narration for the tour you're on.</p>
+
+    <h2>Your rights</h2>
+    <p class="font-serif">Depending on where you live, you may have the right to: access the personal data we hold about you, correct inaccurate data, delete your data, receive a copy of it in a portable format, and object to or restrict certain processing. If you're a California (or other US state) resident, you additionally have the right to know what categories of data we collect and why, and to request deletion or correction of it. We don't sell or share personal information for cross-context behavioral advertising, so there's no "opt out of sale" to act on. To exercise any of these rights, contact us at the address below — we respond to every request.</p>
 
     <h2>What we don't do</h2>
     <ul class="font-serif">

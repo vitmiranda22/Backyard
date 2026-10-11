@@ -96,6 +96,17 @@ jest.mock("expo-crypto", () => ({
     const nodeCrypto = require("crypto");
     return Promise.resolve(new Uint8Array(nodeCrypto.randomBytes(byteCount)));
   }),
+  randomUUID: jest.fn(() => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const nodeCrypto = require("crypto");
+    return nodeCrypto.randomUUID();
+  }),
+  digestStringAsync: jest.fn((_algorithm: string, data: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const nodeCrypto = require("crypto");
+    return Promise.resolve(nodeCrypto.createHash("sha256").update(data).digest("hex"));
+  }),
+  CryptoDigestAlgorithm: { SHA256: "SHA-256" },
 }));
 jest.mock("@react-native-google-signin/google-signin", () => ({
   GoogleSignin: {
@@ -161,10 +172,23 @@ describe("auth service", () => {
       expect(mockAuth.signInWithIdToken).toHaveBeenCalledWith({
         provider: "apple",
         token: "apple-id-token",
+        nonce: expect.any(String),
       });
       expect(mockAuth.updateUser).toHaveBeenCalledWith({ data: { full_name: "Ada Lovelace" } });
       expect(auth.getToken()).toBe("apple-token");
       expect(result.user).toEqual({ id: "u1" });
+
+      // The raw nonce Supabase received must be the SHA-256 preimage of the
+      // hashed nonce Apple received -- Apple embeds the hash as-is into the
+      // identity token's `nonce` claim, and Supabase re-hashes the raw value
+      // to compare. Passing the same value to both, or mismatched ones, is
+      // exactly what produces "passed nonce and nonce in id token should
+      // either both exist or not."
+      const rawNonce = mockAuth.signInWithIdToken.mock.calls[0][0].nonce;
+      const hashedNonceSentToApple = (AppleAuthentication.signInAsync as jest.Mock).mock.calls[0][0].nonce;
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const nodeCrypto = require("crypto");
+      expect(hashedNonceSentToApple).toBe(nodeCrypto.createHash("sha256").update(rawNonce).digest("hex"));
     });
 
     it("skips updateUser when Apple doesn't return a name (every sign-in after the first)", async () => {

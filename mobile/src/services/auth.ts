@@ -208,11 +208,18 @@ export async function signIn(email: string, password: string) {
 // email signup, but will be null on every subsequent sign-in, which is
 // expected, not a bug.
 export async function signInWithApple() {
+  // Supabase requires the raw nonce it's given to hash-match the `nonce`
+  // claim Apple embeds in the identity token -- so the RAW value goes to
+  // Supabase below, and its SHA-256 HASH goes to Apple here (Apple embeds
+  // whatever nonce it's given as-is, it does not hash it itself).
+  const rawNonce = Crypto.randomUUID();
+  const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
   const credential = await AppleAuthentication.signInAsync({
     requestedScopes: [
       AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
       AppleAuthentication.AppleAuthenticationScope.EMAIL,
     ],
+    nonce: hashedNonce,
   });
   if (!credential.identityToken) {
     throw new Error("Apple sign-in did not return an identity token.");
@@ -223,6 +230,7 @@ export async function signInWithApple() {
   const { data, error } = await supabase.auth.signInWithIdToken({
     provider: "apple",
     token: credential.identityToken,
+    nonce: rawNonce,
   });
   if (error) throw error;
   if (fullName && data.user) {

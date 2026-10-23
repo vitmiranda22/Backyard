@@ -1,9 +1,15 @@
 services:
   - type: web
     name: backyard-marketing
-    runtime: static
-    buildCommand: echo "plain static HTML, no build step"
-    staticPublishPath: ./marketing/site
+    runtime: python
+    # Was a static site, but pure static hosting has no server-side
+    # component and can't branch a response on the Accept header, which
+    # Markdown content negotiation (acceptmarkdown.com) requires on the
+    # homepage and on 404s -- see marketing/server/app.py. Everything else
+    # is served byte-for-byte identical to the old static files.
+    buildCommand: pip install -r marketing/server/requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT --app-dir marketing/server
+    healthCheckPath: /
 
   - type: web
     name: backyard-api

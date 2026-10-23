@@ -5,6 +5,7 @@ __pycache__/
 backend/venv/
 backend/.env
 backend/scripts/scratch/
+marketing/server/venv/
 
 # Node / Expo
 node_modules/

@@ -3,6 +3,9 @@ Tests for the marketing site server. Run from this directory:
     pip install -r requirements-dev.txt && pytest -q
 """
 
+import json
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -151,3 +154,32 @@ def test_static_files_are_served(path, content_type):
 
 def test_head_on_a_static_file_succeeds():
     assert client.head("/about.html").status_code == 200
+
+
+# --- homepage structured data ------------------------------------------------------
+
+def _homepage_json_ld() -> dict:
+    html = (SITE_DIR / "index.html").read_text(encoding="utf-8")
+    blocks = re.findall(r'<script type="application/ld\+json">(.*?)</script>', html, re.S)
+    return {block["@type"]: block for block in map(json.loads, blocks)}
+
+
+def test_homepage_json_ld_is_valid_and_complete():
+    ld = _homepage_json_ld()
+
+    app_entity, org = ld["SoftwareApplication"], ld["Organization"]
+    assert app_entity["url"] == "https://backyardexplorer.org/"
+    assert org["contactPoint"]["email"]
+    assert org["contactPoint"]["contactType"]
+    for entity in (app_entity, org):
+        for url in entity.get("sameAs", []):
+            assert url.startswith("https://"), url
+
+
+def test_wikidata_link_is_on_the_app_not_the_organization():
+    # The Wikidata item (Q141612761) is a "mobile app" entity, and a one-digit
+    # typo once pointed Organization.sameAs at an unrelated scholarly article.
+    ld = _homepage_json_ld()
+
+    assert "https://www.wikidata.org/wiki/Q141612761" in ld["SoftwareApplication"]["sameAs"]
+    assert not any("wikidata" in url for url in ld["Organization"].get("sameAs", []))

@@ -5,111 +5,135 @@ Render's static-site hosting has no server-side component -- it can only
 serve one fixed file per path, with path-based header rules at most. It
 cannot inspect the Accept header and branch the response body, which is
 required for Markdown content negotiation (acceptmarkdown.com) on the
-homepage and on 404s. This tiny server exists for exactly that: everything
-else is served byte-for-byte identical to the old static site.
+homepage and on errors. This tiny server exists for exactly that:
+everything else is served byte-for-byte identical to the old static site.
 
 Deliberately not using Starlette's StaticFiles mount for the whole site --
-the Markdown 404 body requirement means 404 handling needs to be ours, not
-the framework's default, so the catch-all route below resolves files from
-disk itself rather than delegating to a mount.
+error responses need to be negotiated (Markdown/JSON/HTML), so 404 handling
+has to be ours, not the framework's default.
 """
 
+import json
 import mimetypes
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, PlainTextResponse, Response
+from fastapi.responses import FileResponse, Response
 
 SITE_DIR = Path(__file__).parent.parent / "site"
 HOMEPAGE_MD = (Path(__file__).parent / "homepage.md").read_text(encoding="utf-8")
 
-# Netlify-style rewrites from the old _redirects file: the browser URL stays
-# /privacy, /terms, /support (that's what's linked from the app, App Store
-# Connect, and everywhere else), serving the matching .html file at 200.
+# Clean URLs from the old static site's _redirects file: the browser URL
+# stays /privacy, /terms, /support (what's linked from the app and App Store
+# Connect), serving the matching .html file at 200 -- a rewrite, not a redirect.
 CLEAN_URL_REWRITES = {
     "/privacy": "privacy.html",
     "/terms": "terms.html",
     "/support": "support.html",
 }
 
-NOT_FOUND_MD = """# 404 Not Found
+HTML, MARKDOWN, JSON = "text/html", "text/markdown", "application/json"
+SITE = "https://backyardexplorer.org"
+ERROR_HINT = f"See {SITE}/sitemap.xml for every page, or {SITE}/llms.txt for agent guidance."
 
-The page you requested doesn't exist on backyardexplorer.org.
-
-See [the sitemap](https://backyardexplorer.org/sitemap.xml) for all pages,
-or [llms.txt](https://backyardexplorer.org/llms.txt) for agent-oriented
-guidance on this site.
-"""
-
-app = FastAPI()
+# This is a website, not an API: FastAPI's default /docs, /redoc and
+# /openapi.json would publish a meaningless spec for these two routes, and
+# agent-readiness scanners read that as "this site offers an API".
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 
-def wants_markdown(request: Request) -> bool:
+def negotiate(accept: str, offered: list[str]) -> str | None:
     """
-    True if, per RFC 9110 Accept-header precedence (highest q-value wins,
-    an exact match outranks a wildcard at equal q), the client prefers
-    text/markdown over text/html for this request.
-    """
-    accept = request.headers.get("accept", "")
-    if not accept:
-        return False
+    Pick the best of `offered` for an Accept header (RFC 9110 §12.5.1).
 
-    best_type, best_q, best_specificity = None, -1.0, -1
+    Each offered type takes its quality from the most specific range that
+    matches it (type/subtype beats type/* beats */*), so an explicit q=0
+    excludes a type even when a wildcard would allow it. Highest quality
+    wins; ties go to the more specific match, then the client's listing
+    order, then the server's order in `offered` (offered[0] is the default,
+    which is what a bare */* resolves to). Returns None if nothing offered
+    is acceptable (406).
+    """
+    if not accept.strip():
+        return offered[0]
+
+    ranges = []
     for part in accept.split(","):
-        part = part.strip()
-        if not part:
+        media_range, *params = [p.strip() for p in part.split(";")]
+        if not media_range:
             continue
-        media_range, *params = part.split(";")
-        media_range = media_range.strip().lower()
         q = 1.0
         for param in params:
-            param = param.strip()
-            if param.startswith("q="):
+            if param.lower().startswith("q="):
                 try:
                     q = float(param[2:])
                 except ValueError:
-                    q = 1.0
+                    pass
+        ranges.append((media_range.lower(), q))
 
-        for candidate, specificity in (("text/markdown", 2), ("text/html", 2)):
-            if media_range == candidate:
-                matched, this_specificity = candidate, specificity
-                break
-            if media_range == "text/*" and candidate.startswith("text/"):
-                matched, this_specificity = candidate, 1
-                break
-            if media_range == "*/*":
-                matched, this_specificity = candidate, 0
-                break
-        else:
+    best_score, best_type = None, None
+    for offered_index, media_type in enumerate(offered):
+        wildcard_subtype = media_type.split("/")[0] + "/*"
+        specificity, quality, position = -1, 0.0, 0
+        for range_index, (media_range, q) in enumerate(ranges):
+            if media_range == media_type:
+                this = 2
+            elif media_range == wildcard_subtype:
+                this = 1
+            elif media_range == "*/*":
+                this = 0
+            else:
+                continue
+            if this > specificity:
+                specificity, quality, position = this, q, range_index
+        if specificity < 0 or quality <= 0:
             continue
+        score = (quality, specificity, -position, -offered_index)
+        if best_score is None or score > best_score:
+            best_score, best_type = score, media_type
+    return best_type
 
-        if q > best_q or (q == best_q and this_specificity > best_specificity):
-            best_type, best_q, best_specificity = matched, q, this_specificity
 
-    return best_type == "text/markdown"
+def error_response(request: Request, status: int, code: str, message: str) -> Response:
+    """
+    Errors are negotiated too: agents that ask for JSON get a structured
+    error envelope (same shape as backyard-api's), Markdown clients get
+    Markdown, browsers get the plain page they always got. A client that
+    accepts none of those still gets JSON -- an error has to say something
+    machine-readable.
+    """
+    headers = {"Vary": "Accept"}
+    chosen = negotiate(request.headers.get("accept", ""), [HTML, MARKDOWN, JSON]) or JSON
 
-
-@app.get("/")
-def homepage(request: Request):
-    if wants_markdown(request):
-        return Response(
-            content=HOMEPAGE_MD,
-            media_type="text/markdown; charset=utf-8",
-            headers={"Vary": "Accept"},
+    if chosen == JSON:
+        body = {"detail": {"error": message, "code": code, "retry": False, "hint": ERROR_HINT}}
+        return Response(json.dumps(body), status_code=status, media_type=JSON, headers=headers)
+    if chosen == MARKDOWN:
+        body = (
+            f"# {status} {message}\n\n"
+            f"See [the sitemap]({SITE}/sitemap.xml) for every page on backyardexplorer.org,\n"
+            f"or [llms.txt]({SITE}/llms.txt) for agent-oriented guidance on this site.\n"
         )
-    return FileResponse(
-        SITE_DIR / "index.html",
-        media_type="text/html",
-        headers={"Vary": "Accept"},
-    )
+        return Response(body, status_code=status, media_type="text/markdown; charset=utf-8", headers=headers)
+    return Response(f"{status} {message}", status_code=status, media_type=HTML, headers=headers)
 
 
-@app.get("/{path:path}")
+@app.api_route("/", methods=["GET", "HEAD"])
+def homepage(request: Request):
+    chosen = negotiate(request.headers.get("accept", ""), [HTML, MARKDOWN])
+    if chosen == MARKDOWN:
+        return Response(HOMEPAGE_MD, media_type="text/markdown; charset=utf-8", headers={"Vary": "Accept"})
+    if chosen == HTML:
+        return FileResponse(SITE_DIR / "index.html", media_type=HTML, headers={"Vary": "Accept"})
+    return error_response(request, 406, "not_acceptable", "Not Acceptable: this page is available as text/html or text/markdown")
+
+
+@app.api_route("/{path:path}", methods=["GET", "HEAD"])
 def catch_all(path: str, request: Request):
     url_path = "/" + path
 
     if url_path in CLEAN_URL_REWRITES:
-        return FileResponse(SITE_DIR / CLEAN_URL_REWRITES[url_path], media_type="text/html")
+        return FileResponse(SITE_DIR / CLEAN_URL_REWRITES[url_path], media_type=HTML)
 
     file_path = (SITE_DIR / path).resolve()
     # Refuse anything that escapes SITE_DIR (path traversal via ../).
@@ -117,11 +141,4 @@ def catch_all(path: str, request: Request):
         content_type, _ = mimetypes.guess_type(str(file_path))
         return FileResponse(file_path, media_type=content_type or "application/octet-stream")
 
-    if wants_markdown(request):
-        return PlainTextResponse(
-            NOT_FOUND_MD,
-            status_code=404,
-            media_type="text/markdown; charset=utf-8",
-            headers={"Vary": "Accept"},
-        )
-    return PlainTextResponse("404 Not Found", status_code=404, media_type="text/html")
+    return error_response(request, 404, "not_found", "Not Found")

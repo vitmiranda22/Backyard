@@ -78,8 +78,8 @@ async def fetch_landmarks(lat: float, lng: float, client: httpx.AsyncClient) -> 
 
 
 async def fetch_cultural_districts(lat: float, lng: float, client: httpx.AsyncClient) -> list:
-    """Cultural districts. ID: v5dn-kg7e"""
-    return await _query_soda_simple("v5dn-kg7e", {"$limit": "10"}, client)
+    """Cultural districts. ID: 5xmc-5bjj"""
+    return await _query_soda_simple("5xmc-5bjj", {"$limit": "10"}, client)
 
 
 async def fetch_building_permits(lat: float, lng: float, client: httpx.AsyncClient) -> list:
@@ -145,20 +145,20 @@ async def fetch_fire_incidents(lat: float, lng: float, client: httpx.AsyncClient
 
 
 async def fetch_civic_art(lat: float, lng: float, client: httpx.AsyncClient) -> list:
-    """Civic Art Collection. ID: zfw6-95su"""
-    return await _query_soda_simple("zfw6-95su", {"$limit": "10"}, client)
+    """Civic Art Collection. ID: r7bn-7v9c"""
+    return await _query_soda_simple("r7bn-7v9c", {"$limit": "10"}, client)
 
 
 async def fetch_addresses(lat: float, lng: float, client: httpx.AsyncClient) -> list:
     """
-    Enterprise addressing — active addresses. ID: dv2e-n9cv
+    Enterprise addressing — active addresses. ID: 3mea-di5p
 
     Box half-width ~0.0009deg (~100m) — sized to match one geohash-7 zone,
     same reasoning as RADIUS_METERS above. Used to be 0.002deg (~444m x
     222m box), wide enough to overlap adjacent zones and pull the same
     address into two different blocks' data.
     """
-    return await _query_soda_simple("dv2e-n9cv", {
+    return await _query_soda_simple("3mea-di5p", {
         "$where": f"latitude > {lat - 0.0009} AND latitude < {lat + 0.0009} AND longitude > {lng - 0.0009} AND longitude < {lng + 0.0009}",
     }, client)
 

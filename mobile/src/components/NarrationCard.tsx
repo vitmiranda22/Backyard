@@ -56,6 +56,9 @@ interface NarrationCardProps {
   onSkip?: () => void;
   onAudioError?: () => void;
   onRetry?: () => void;
+  audioPaused?: boolean;
+  // Extra content under the story (ActiveTourScreen's "Go deeper" button).
+  children?: React.ReactNode;
 }
 
 // Splits narration text around each highlight's exact substring (already
@@ -136,6 +139,8 @@ export default function NarrationCard({
   onSkip,
   onAudioError,
   onRetry,
+  audioPaused,
+  children,
 }: NarrationCardProps) {
   const { t } = useTranslation();
   const [fullTextOpen, setFullTextOpen] = useState(false);
@@ -209,6 +214,7 @@ export default function NarrationCard({
             onFinished={onAudioFinished}
             onSkip={onSkip}
             onError={onAudioError}
+            paused={audioPaused}
           />
 
           {/* Informational only -- see SuggestedPlace's own docstring. A
@@ -219,6 +225,8 @@ export default function NarrationCard({
               {t("narrationCard.alsoNearby", { name: suggestedNext.name, distance: Math.round(suggestedNext.distance_m) })}
             </Text>
           )}
+
+          {children}
         </View>
       </View>
 

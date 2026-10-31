@@ -134,7 +134,7 @@ async def check_question_rate_limit(user_id: str, daily_limit: int) -> tuple:
 # Narration cache operations (Week 1)
 # =============================================================================
 
-MAX_NARRATION_VARIANTS = 4
+MAX_NARRATION_VARIANTS = 5
 
 
 async def get_cached_narration(geo_hash: str, mood: str, content_safety: bool):
@@ -159,7 +159,6 @@ async def get_cached_narration(geo_hash: str, mood: str, content_safety: bool):
             .eq("geo_hash", geo_hash)
             .eq("mood", mood)
             .eq("content_safety", content_safety)
-            .gt("expires_at", datetime.now(timezone.utc).isoformat())
             .execute()
         )
         rows = result.data or []
@@ -182,8 +181,9 @@ async def store_narration(
     highlights: list = None,
 ):
     """
-    Store a freshly generated narration variant in the cache (expires in
-    30 days). variant_index should be the existing_variant_count returned
+    Store a freshly generated narration variant in the cache. Kept forever
+    (expires_at NULL, migration 041): a block's history doesn't go stale, and
+    every variant we keep is one we never pay to generate again. variant_index should be the existing_variant_count returned
     by get_cached_narration's miss path, so it lands in the next free slot.
 
     highlights: the matched-Wikipedia-links list from
@@ -202,7 +202,6 @@ async def store_narration(
     on zone_data_cache's equivalent upsert calls — see store_zone_data
     below).
     """
-    expires_at = datetime.now(timezone.utc) + timedelta(days=30)
     try:
         client = _get_client()
         result = (
@@ -214,7 +213,6 @@ async def store_narration(
                 "narration_text": narration_text,
                 "variant_index": variant_index,
                 "highlights": highlights or [],
-                "expires_at": expires_at.isoformat(),
             }, on_conflict="geo_hash,mood,content_safety,variant_index")
             .execute()
         )
@@ -240,7 +238,6 @@ async def get_cached_audio(narration_cache_id: str, voice: str):
             .select("*")
             .eq("narration_cache_id", narration_cache_id)
             .eq("voice", voice)
-            .gt("expires_at", datetime.now(timezone.utc).isoformat())
             .limit(1)
             .execute()
         )
@@ -267,8 +264,8 @@ async def store_audio_file(
     on_conflict="narration_cache_id,voice" — same reasoning as
     store_narration above: the table's PRIMARY KEY is a separate `id`
     UUID, not the real UNIQUE(narration_cache_id, voice) constraint.
+    Kept forever, like its narration (migration 041).
     """
-    expires_at = datetime.now(timezone.utc) + timedelta(days=30)
     try:
         client = _get_client()
         result = (
@@ -281,7 +278,6 @@ async def store_audio_file(
                 "file_size_bytes": file_size_bytes,
                 "duration_ms": duration_ms,
                 "tts_provider": tts_provider,
-                "expires_at": expires_at.isoformat(),
             }, on_conflict="narration_cache_id,voice")
             .execute()
         )

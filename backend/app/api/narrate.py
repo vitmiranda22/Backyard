@@ -290,6 +290,10 @@ async def narrate_block(
     # narration-cache-HIT path, which otherwise never touches raw_data at
     # all.
     raw_data = cached_zone.get("raw_data") if cached_zone else None
+    # Same reasoning: the cache-miss branch below overwrites these, and the
+    # narration-cache-HIT path still needs them for deep_dive_available.
+    zone_hit_count = cached_zone.get("sources_hit_count") if cached_zone else None
+    zone_eligible_count = cached_zone.get("sources_eligible_count") if cached_zone else None
 
     # The actual photo fetch/upload (on a cache miss) shares no data
     # dependency with narration generation below, so it runs as a
@@ -312,6 +316,7 @@ async def narrate_block(
 
     narration_text = None
     narration_cache_id = None
+    variant_index = existing_variant_count
     street_name = ""
     neighborhood = ""
     city = ""
@@ -323,6 +328,7 @@ async def narrate_block(
     if cached_narration:
         narration_text = cached_narration["narration_text"]
         narration_cache_id = cached_narration["id"]
+        variant_index = cached_narration.get("variant_index", 0)
         highlights = cached_narration.get("highlights") or []
         was_cached = True
 
@@ -512,6 +518,7 @@ async def narrate_block(
         mood=request.mood.value,
         content_safety=request.content_safety,
         voice=cache_voice,
+        variant_index=variant_index,
     )
 
     # Only reuse R2 audio when the DB confirms it was generated for THIS
@@ -525,7 +532,9 @@ async def narrate_block(
     if narration_cache_id:
         cached_audio = await supabase_db.get_cached_audio(narration_cache_id, cache_voice)
 
-    if cached_audio:
+    # A row recorded under the old shared (pre-variant) key may point at
+    # another variant's audio, so it only counts if it is this variant's key.
+    if cached_audio and cached_audio.get("r2_key") == r2_key:
         audio_url = r2.generate_signed_url(r2_key)
         audio_duration_ms = cached_audio.get("duration_ms") or tts.estimate_duration_ms(
             final_narration_text, request.voice.value
@@ -590,6 +599,7 @@ async def narrate_block(
         zone_data_used=zone_data_used,
         highlights=highlights,
         suggested_next=suggested_next,
+        deep_dive_available=should_skip_web_search(zone_hit_count, zone_eligible_count),
     )
 
 

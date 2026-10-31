@@ -8,13 +8,17 @@ Zone data from 34 sources is fed directly into the prompt so the model
 uses REAL facts about the location instead of generic filler.
 """
 
+import json
 import logging
 import random
 import re
 from openai import AsyncOpenAI
 
 from app.config import settings
-from app.core.prompts import build_prompt, build_connector_prompt, build_closing_beat_prompt, CONNECTOR_OPENER_CATEGORIES, MOVE_POOLS
+from app.core.prompts import (
+    build_prompt, build_connector_prompt, build_closing_beat_prompt, CONNECTOR_OPENER_CATEGORIES, MOVE_POOLS,
+    build_deep_dive_outline_prompt, build_deep_dive_chapter_prompt,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -642,4 +646,90 @@ async def answer_question(
 
     except Exception as e:
         logger.error(f"Question answering failed: {e}")
+        return None
+
+
+def _response_text(response) -> str:
+    """output_text, falling back to joining message parts (same as the functions above)."""
+    try:
+        if response.output_text:
+            return response.output_text
+    except Exception:
+        pass
+    parts = []
+    for item in response.output or []:
+        if getattr(item, "type", None) == "message":
+            for part in getattr(item, "content", []):
+                if getattr(part, "text", None):
+                    parts.append(part.text)
+    return " ".join(parts)
+
+
+DEEP_DIVE_CHAPTER_COUNT = 4
+
+
+async def generate_deep_dive_outline(street: str, neighborhood: str, city: str, mood: str, zone_data: str):
+    """
+    Plan a "Go deeper" story for one rich place: {"place", "title", "chapters"}.
+    No web_search: the outline only has to pick a subject from data we
+    already have; each chapter does its own grounding. Returns None on failure.
+    """
+    prompt = build_deep_dive_outline_prompt(street, neighborhood, city, mood, zone_data, DEEP_DIVE_CHAPTER_COUNT)
+    schema = {
+        "type": "object",
+        "properties": {
+            "place": {"type": "string"},
+            "title": {"type": "string"},
+            "chapters": {"type": "array", "items": {"type": "string"}},
+        },
+        "required": ["place", "title", "chapters"],
+        "additionalProperties": False,
+    }
+    try:
+        response = await client.responses.create(
+            model=MODEL,
+            input=prompt,
+            temperature=0.7,
+            max_output_tokens=512,
+            text={"format": {"type": "json_schema", "name": "deep_dive_outline", "schema": schema, "strict": True}},
+        )
+        outline = json.loads(_response_text(response))
+        chapters = [c.strip()[:120] for c in outline["chapters"] if c.strip()][:DEEP_DIVE_CHAPTER_COUNT]
+        if len(chapters) < 2 or not outline["title"].strip():
+            logger.warning(f"Deep dive outline unusable: {outline}")
+            return None
+        return {"place": outline["place"].strip()[:120], "title": outline["title"].strip()[:120], "chapters": chapters}
+    except Exception as e:
+        logger.error(f"Deep dive outline failed: {e}")
+        return None
+
+
+async def generate_deep_dive_chapter(
+    street: str, neighborhood: str, city: str, mood: str, content_safety: bool,
+    zone_data: str, title: str, chapters: list, index: int,
+):
+    """
+    Write one ~2 minute chapter of a "Go deeper" story. Generated only when
+    the walker reaches it, so nobody pays for chapters nobody hears.
+    content_safety has the same meaning (and the same caller-side age gate)
+    as narrate_block's. Returns the text, or None on failure.
+    """
+    prompt = build_deep_dive_chapter_prompt(
+        street, neighborhood, city, mood, content_safety, zone_data, title, chapters, index
+    )
+    try:
+        response = await client.responses.create(
+            model=MODEL,
+            input=prompt,
+            tools=[{"type": "web_search"}],
+            temperature=0.8,
+            max_output_tokens=2048,
+        )
+        text = _strip_citations(_response_text(response))
+        if len(text) < 50:
+            logger.warning(f"Deep dive chapter {index} came back empty for '{title}'")
+            return None
+        return text
+    except Exception as e:
+        logger.error(f"Deep dive chapter failed: {e}")
         return None

@@ -720,3 +720,30 @@ def test_quota_reports_full_for_the_unlimited_test_allowlist(app, client, auth_a
     assert resp.json() == {"remaining": 5, "daily_limit": 5}
 
 
+
+
+def test_each_cached_variant_gets_its_own_audio_file(app, client, auth_as, monkeypatch):
+    """Every variant used to share one R2 key, so a newer variant's audio
+    overwrote an older one's and text/audio disagreed. An audio row recorded
+    under the old shared key must not be reused; it gets regenerated."""
+    monkeypatch.setattr(
+        supabase_db, "get_cached_narration",
+        _async(({"id": "n-3", "narration_text": "Variant three.", "variant_index": 3}, 5)),
+    )
+    monkeypatch.setattr(
+        supabase_db, "get_cached_audio",
+        _async({"r2_key": "audio/old/time_machine/off/neutral.mp3", "duration_ms": 4000}),
+    )
+    uploaded = []
+
+    async def _upload(data, key):
+        uploaded.append(key)
+        return True
+    monkeypatch.setattr(r2, "upload_audio", _upload)
+    auth_as(app, USER_ID)
+
+    resp = client.post("/api/narrate-block", json=_request_body())
+
+    assert resp.status_code == 200
+    assert len(uploaded) == 1 and uploaded[0].endswith("-v3.mp3")
+    assert resp.json()["audio_r2_key"] == uploaded[0]

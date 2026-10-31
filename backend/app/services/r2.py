@@ -54,7 +54,7 @@ def _get_s3_client():
     return _s3_client
 
 
-def build_r2_key(geo_hash: str, mood: str, content_safety: bool, voice: str) -> str:
+def build_r2_key(geo_hash: str, mood: str, content_safety: bool, voice: str, variant_index: int = 0) -> str:
     """
     Build the R2 object key for an audio file.
 
@@ -67,12 +67,15 @@ def build_r2_key(geo_hash: str, mood: str, content_safety: bool, voice: str) -> 
         mood: "time_machine", "hidden_city", "dark_side", "behind_scenes", "unfiltered"
         content_safety: True = mature content, False = family-friendly
         voice: "neutral", "dramatic", "warm"
+        variant_index: which narration_cache variant this audio speaks. Each
+            variant needs its own file: without it every variant of a block
+            overwrote the same object, so text and audio could disagree.
 
     Returns:
-        R2 object key, e.g., "audio/9q8yyk8/dark_side/off/dramatic.mp3"
+        R2 object key, e.g., "audio/9q8yyk8/dark_side/off/dramatic-v2.mp3"
     """
     safety_str = "on" if content_safety else "off"
-    return f"audio/{geo_hash}/{mood}/{safety_str}/{voice}.mp3"
+    return f"audio/{geo_hash}/{mood}/{safety_str}/{voice}-v{variant_index}.mp3"
 
 
 def build_tour_r2_key(tour_id: str, geo_hash: str, content_safety: bool, voice: str) -> str:

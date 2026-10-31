@@ -147,6 +147,9 @@ class NarrateBlockResponse(BaseModel):
     # None whenever nothing nearby qualifies -- the expected common case in
     # thin zones, not an error.
     suggested_next: Optional[SuggestedPlace] = None
+    # True when this block's zone data is rich enough to offer "Go deeper"
+    # (the same richness bar should_skip_web_search uses).
+    deep_dive_available: bool = False
 
 
 class PendingTransitionResponse(BaseModel):
@@ -178,6 +181,38 @@ class AskQuestionResponse(BaseModel):
     """Response from /api/ask-question"""
     question_text: str
     answer_text: str
+    audio_url: Optional[str] = None
+    audio_duration_ms: Optional[int] = None
+
+
+class DeepDiveOutlineRequest(BaseModel):
+    """POST /api/deep-dive/outline"""
+    lat: float = Field(..., ge=-90, le=90)
+    lng: float = Field(..., ge=-180, le=180)
+    mood: Mood = Field(default=Mood.TIME_MACHINE)
+
+
+class DeepDiveOutlineResponse(BaseModel):
+    place: str
+    title: str
+    chapters: List[str]
+
+
+class DeepDiveChapterRequest(BaseModel):
+    """POST /api/deep-dive/chapter. The client sends back the outline it got,
+    so the server keeps no per-story state."""
+    lat: float = Field(..., ge=-90, le=90)
+    lng: float = Field(..., ge=-180, le=180)
+    mood: Mood = Field(default=Mood.TIME_MACHINE)
+    voice: Voice = Field(default=Voice.NEUTRAL)
+    content_safety: bool = Field(default=False)
+    title: str = Field(..., min_length=1, max_length=120)
+    chapters: List[str] = Field(..., min_length=2, max_length=6)
+    index: int = Field(..., ge=0)
+
+
+class DeepDiveChapterResponse(BaseModel):
+    text: str
     audio_url: Optional[str] = None
     audio_duration_ms: Optional[int] = None
 

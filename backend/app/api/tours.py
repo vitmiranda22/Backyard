@@ -222,7 +222,7 @@ def _expected_r2_keys(tour_id: str, lat: float, lng: float, mood: str, voice: st
     """
     geo_hash = geohash2.encode(lat, lng, precision=GEOHASH_PRECISION)
     valid_audio_keys = {
-        r2.build_r2_key(geo_hash, mood, content_safety, voice),
+        *(r2.build_r2_key(geo_hash, mood, content_safety, voice, v) for v in range(supabase_db.MAX_NARRATION_VARIANTS)),
         r2.build_tour_r2_key(tour_id, geo_hash, content_safety, voice),
     }
     photo_geo_hash = geohash2.encode(lat, lng, precision=PHOTO_GEOHASH_PRECISION)

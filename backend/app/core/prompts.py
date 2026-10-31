@@ -982,3 +982,84 @@ def build_prompt(
     )
 
     return "\n".join(parts)
+
+# =============================================================================
+# Go deeper: an opt-in, multi-chapter story about ONE rich place, the way a
+# human guide stops and spends 10 minutes on a single building. Only offered
+# where zone_data is rich (see narrate.py's deep_dive_available), so the
+# chapters lean on real data instead of padding.
+# =============================================================================
+
+_DEEP_DIVE_OUTLINE_PROMPT = """
+You are planning a short audio documentary for a walker who has stopped at
+{street}, {neighborhood}, {city}, in the "{mood}" mood of a walking tour.
+They asked to go deeper: one place, one full story, told in {chapter_count}
+chapters of about two minutes each.
+
+Pick the single most story-rich place or subject in the REAL DATA below (a
+building, a landmark, an event that happened here). Plan ONE story arc across
+the chapters, each chapter a distinct stage of it (origin, turning point,
+decline, rebirth, or whatever the real history supports). Never plan a
+chapter the data or well-known history can't fill.
+
+Return:
+- place: the place's short name, e.g. "The Ferry Building"
+- title: a story title, 3 to 8 words
+- chapters: exactly {chapter_count} chapter titles, each under 60 characters
+
+Write in English. Never use em dashes.
+
+=== REAL DATA FROM AROUND THIS LOCATION ===
+{zone_data}
+=== END DATA ===
+"""
+
+_DEEP_DIVE_CHAPTER_PROMPT = """
+You are a walking-tour guide who has stopped with the walker at
+{street}, {neighborhood}, {city} to tell one full story: "{title}".
+The tone is the tour's "{mood}" mood.
+
+The story's chapters:
+{chapter_list}
+
+Write ONLY chapter {number}: "{chapter_title}". About 280 to 320 words,
+roughly two minutes spoken aloud.
+- Stay inside this chapter's stage of the story. Don't retell earlier
+  chapters and don't jump ahead to later ones.
+- {position_rule}
+- Use specific facts from the REAL DATA below or web search: names, years,
+  addresses. Never invent a fact. If you're unsure, leave it out.
+- Second person, spoken style. No headers, lists, citations or markdown.
+  Never use em dashes. Write in English.
+{safety}
+=== REAL DATA FROM AROUND THIS LOCATION ===
+{zone_data}
+=== END DATA ===
+"""
+
+
+def build_deep_dive_outline_prompt(
+    street: str, neighborhood: str, city: str, mood: str, zone_data: str, chapter_count: int
+) -> str:
+    return _DEEP_DIVE_OUTLINE_PROMPT.format(
+        street=street, neighborhood=neighborhood, city=city, mood=mood,
+        zone_data=zone_data, chapter_count=chapter_count,
+    )
+
+
+def build_deep_dive_chapter_prompt(
+    street: str, neighborhood: str, city: str, mood: str, content_safety: bool,
+    zone_data: str, title: str, chapters: list, index: int,
+) -> str:
+    if index == 0:
+        position_rule = "This is the first chapter: open straight into the story with a specific moment or fact."
+    elif index == len(chapters) - 1:
+        position_rule = "This is the last chapter: bring the whole story to a satisfying close, back where the walker stands today."
+    else:
+        position_rule = "Pick up where the previous chapter left off and end on a line that pulls into the next one."
+    return _DEEP_DIVE_CHAPTER_PROMPT.format(
+        street=street, neighborhood=neighborhood, city=city, mood=mood, title=title,
+        chapter_list="\n".join(f"{i + 1}. {c}" for i, c in enumerate(chapters)),
+        number=index + 1, chapter_title=chapters[index], position_rule=position_rule,
+        safety=_SAFETY_ON if content_safety else _SAFETY_OFF, zone_data=zone_data,
+    )

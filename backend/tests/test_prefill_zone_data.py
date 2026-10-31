@@ -75,3 +75,31 @@ def test_uncached_block_is_fetched_and_stored(monkeypatch):
     assert stored["geo_hash"] == "9q8znd2"
     assert stored["sources_eligible_count"] == 2  # total minus skipped, as narrate.py computes it
     assert stored["city"] == "San Francisco"
+
+
+def test_stories_fill_only_the_missing_variants(monkeypatch):
+    zone = {"street_name": "Market St", "neighborhood": "FiDi", "city": "San Francisco",
+            "raw_data": {}, "sources_hit_count": 10, "sources_eligible_count": 10}
+    stored = []
+
+    async def cached_zone(_):
+        return zone
+
+    async def cached_narration(geo_hash, mood, safety):
+        return None, 3  # 3 of 5 variants already exist for every combo
+
+    async def generate(**kwargs):
+        return "A story."
+
+    async def store(**kwargs):
+        stored.append(kwargs)
+
+    monkeypatch.setattr(prefill.supabase_db, "get_cached_zone_data", cached_zone)
+    monkeypatch.setattr(prefill.supabase_db, "get_cached_narration", cached_narration)
+    monkeypatch.setattr(prefill.openai_service, "generate_narration", generate)
+    monkeypatch.setattr(prefill.supabase_db, "store_narration", store)
+
+    assert asyncio.run(prefill.fill_stories("9q8znd2")) == f"{2 * len(prefill.STORY_COMBOS)} new stories"
+    assert {s["variant_index"] for s in stored} == {3, 4}
+    assert {s["mood"] for s in stored} == {"time_machine-short", "hidden_city-short", "time_machine",
+                                           "hidden_city", "dark_side", "behind_scenes", "unfiltered"}

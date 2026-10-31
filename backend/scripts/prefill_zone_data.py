@@ -2,11 +2,18 @@
 Pre-fetch block facts (the ~34 data sources) into zone_data_cache for an
 area, so a walker's first narration there skips the slow source fetch and
 GPT writes from the same facts it would have fetched live. Generates no
-narration and calls no LLM.
+narration and calls no LLM, unless --stories is passed.
+
+--stories also writes every missing narration variant for each block into
+narration_cache (kept forever), the same way a live walker's miss would:
+same prompt, same model, same Wikipedia highlights. Only the combos walkers
+actually hit are filled: content_safety off, free moods at free length,
+all moods at premium length. Audio is left to the first real listen.
 
 Usage (from backend/):
     python scripts/prefill_zone_data.py --lat 37.7955 --lng -122.3937 --radius-m 500 --dry-run
     python scripts/prefill_zone_data.py --lat 37.7955 --lng -122.3937 --radius-m 500
+    python scripts/prefill_zone_data.py --lat 37.7955 --lng -122.3937 --radius-m 500 --stories
 
 Safe to re-run: blocks already cached are skipped. Cache rows expire after
 30 days (store_zone_data), so re-run monthly to keep an area warm. Runs one
@@ -23,8 +30,13 @@ sys.path.insert(0, ".")
 
 import geohash2
 
-from app.services import geocode, supabase_db
-from app.services.zone_data import fetch_all_zone_data
+from app.api.narrate import _cache_mood_key
+from app.config import PREMIUM_MOODS
+from app.models.schemas import Mood
+from app.services import geocode, openai_service, supabase_db
+from app.services.zone_data import (
+    fetch_all_zone_data, find_wikipedia_highlights, format_zone_data_for_prompt, should_skip_web_search,
+)
 
 GEOHASH_PRECISION = 7  # must match app/api/narrate.py
 SAMPLE_STEP_M = 100  # finer than a ~153m cell, so no cell inside the radius is missed
@@ -76,12 +88,52 @@ async def prefill_block(geo_hash: str) -> str:
     return f"cached {result['hit_count']} sources with data ({place.street}, {place.neighborhood})"
 
 
+# (mood, is_premium) pairs walkers can actually request.
+STORY_COMBOS = [(m.value, False) for m in Mood if m.value not in PREMIUM_MOODS] + [(m.value, True) for m in Mood]
+
+
+async def _fill_combo(zone: dict, geo_hash: str, mood: str, is_premium: bool) -> int:
+    cache_mood = _cache_mood_key(mood, is_premium)
+    _, count = await supabase_db.get_cached_narration(geo_hash, cache_mood, False)
+    raw = zone.get("raw_data") or {}
+    written = 0
+    for variant_index in range(count, supabase_db.MAX_NARRATION_VARIANTS):
+        text = await openai_service.generate_narration(
+            street=zone.get("street_name") or "", neighborhood=zone.get("neighborhood") or "",
+            city=zone.get("city") or "", country=zone.get("country") or "",
+            mood=mood, content_safety=False,
+            zone_data=format_zone_data_for_prompt(raw, mode=mood),
+            skip_web_search=should_skip_web_search(zone.get("sources_hit_count"), zone.get("sources_eligible_count")),
+            is_premium=is_premium,
+        )
+        if not text:
+            break  # try again on the next run rather than leave a gap in variant_index
+        await supabase_db.store_narration(
+            geo_hash=geo_hash, mood=cache_mood, content_safety=False, narration_text=text,
+            variant_index=variant_index,
+            highlights=find_wikipedia_highlights(text, raw) if is_premium else None,
+        )
+        written += 1
+    return written
+
+
+async def fill_stories(geo_hash: str) -> str:
+    zone = await supabase_db.get_cached_zone_data(geo_hash)
+    if not zone:
+        return "no stories (no block data)"
+    # Combos run in parallel (different cache rows); variants within a combo
+    # run in order so each lands in the next free variant slot.
+    written = await asyncio.gather(*(_fill_combo(zone, geo_hash, m, p) for m, p in STORY_COMBOS))
+    return f"{sum(written)} new stories"
+
+
 async def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--lat", type=float, required=True)
     parser.add_argument("--lng", type=float, required=True)
     parser.add_argument("--radius-m", type=float, default=500)
     parser.add_argument("--dry-run", action="store_true", help="only list the blocks, fetch nothing")
+    parser.add_argument("--stories", action="store_true", help="also write missing narration variants (billed OpenAI calls)")
     args = parser.parse_args()
 
     blocks = blocks_in_radius(args.lat, args.lng, args.radius_m)
@@ -91,7 +143,10 @@ async def main():
         return
 
     for n, geo_hash in enumerate(blocks, 1):
-        print(f"[{n}/{len(blocks)}] {geo_hash}: {await prefill_block(geo_hash)}", flush=True)
+        line = f"[{n}/{len(blocks)}] {geo_hash}: {await prefill_block(geo_hash)}"
+        if args.stories:
+            line += f"; {await fill_stories(geo_hash)}"
+        print(line, flush=True)
 
 
 if __name__ == "__main__":

@@ -24,7 +24,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
 
-from app.api import health, narrate, tours, settings as settings_api, webhooks, admin, public_events, explored, discoveries, events, challenges
+from app.api import health, narrate, tours, settings as settings_api, webhooks, admin, public_events, explored, discoveries, events, challenges, deep_dive
 from app.config import settings
 
 # Crash reporting — sentry_sdk.init() with a blank DSN is a harmless no-op,
@@ -165,6 +165,9 @@ app.include_router(events.router, prefix="/api", tags=["Events"])
 
 # Challenges — requires auth
 app.include_router(challenges.router, prefix="/api", tags=["Challenges"])
+
+# Go deeper (multi-chapter story at rich places) — requires auth, premium
+app.include_router(deep_dive.router, prefix="/api", tags=["Narration"])
 
 # Public events lookup for the marketing site — no auth (event listings
 # aren't sensitive data; the marketing page has no logged-in user to gate

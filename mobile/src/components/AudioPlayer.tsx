@@ -13,6 +13,9 @@ interface AudioPlayerProps {
   onFinished?: () => void;
   onSkip?: () => void;
   onError?: () => void;
+  // Pauses playback while true (e.g. while "Go deeper" plays over it). The
+  // walker resumes with the play button; nothing auto-resumes.
+  paused?: boolean;
 }
 
 export default function AudioPlayer({
@@ -20,6 +23,7 @@ export default function AudioPlayer({
   onFinished,
   onSkip,
   onError,
+  paused,
 }: AudioPlayerProps) {
   const { t } = useTranslation();
   const [isPlaying, setIsPlaying] = useState(false);
@@ -96,6 +100,10 @@ export default function AudioPlayer({
       }
     };
   }, [audioUrl]);
+
+  useEffect(() => {
+    if (paused) soundRef.current?.pauseAsync().catch(() => {});
+  }, [paused]);
 
   async function togglePlayPause() {
     if (!soundRef.current) return;

@@ -48,6 +48,7 @@ import NarrationCard from "../components/NarrationCard";
 import WaypointCompass from "../components/WaypointCompass";
 import SafetyModal from "../components/SafetyModal";
 import AudioPlayer from "../components/AudioPlayer";
+import DeepDiveSheet from "../components/DeepDiveSheet";
 import { colors, font, radius, type, spacing } from "../theme";
 import { showToast } from "../services/toast";
 import { tap } from "../services/haptics";
@@ -161,6 +162,11 @@ export default function ActiveTourScreen({
   // compass/directive; NarrationCard just renders one quiet line.
   const [suggestedNext, setSuggestedNext] = useState<SuggestedPlace | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  // "Go deeper": offered only where the block's real data is rich (backend decides).
+  const [deepDiveAvailable, setDeepDiveAvailable] = useState(false);
+  const [deepDiveOpen, setDeepDiveOpen] = useState(false);
+  // Mirrors deepDiveOpen for the watchPosition callback (stale-closure, same as hasActiveAudioRef).
+  const deepDiveOpenRef = useRef(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [blocksVisited, setBlocksVisited] = useState(0);
   const [path, setPath] = useState<{ latitude: number; longitude: number }[]>([]);
@@ -426,6 +432,9 @@ export default function ActiveTourScreen({
           // Don't interrupt a narration that's still being listened to.
           if (hasActiveAudioRef.current) return;
 
+          // Nor a "Go deeper" story. Returning before commitZone keeps the zone narratable later.
+          if (deepDiveOpenRef.current) return;
+
           // Debounce: at least 10 seconds between triggers
           const now = Date.now();
           if (now - lastTriggerTime.current < 10000) return;
@@ -516,6 +525,7 @@ export default function ActiveTourScreen({
       setNarrationText(result.narration_text);
       setHighlights(result.highlights || []);
       setSuggestedNext(result.suggested_next || null);
+      setDeepDiveAvailable(!!result.deep_dive_available);
       setAudioUrl(result.audio_url);
       setImageUrl(result.image_url);
       setBlockOrigin({ lat, lng });
@@ -724,6 +734,21 @@ export default function ActiveTourScreen({
     } finally {
       setSavingNote(false);
     }
+  }
+
+  function handleOpenDeepDive() {
+    tap();
+    if (!isPremium) {
+      Alert.alert(t("activeTour.premiumFeatureTitle"), t("deepDive.premiumBody"));
+      return;
+    }
+    deepDiveOpenRef.current = true;
+    setDeepDiveOpen(true);
+  }
+
+  function handleCloseDeepDive() {
+    deepDiveOpenRef.current = false;
+    setDeepDiveOpen(false);
   }
 
   async function handleAskPressIn() {
@@ -946,6 +971,7 @@ export default function ActiveTourScreen({
           }
         }}
         onAudioError={handleAudioError}
+        audioPaused={deepDiveOpen}
         onSkip={() => {
           hasActiveAudioRef.current = false;
           setNarrationText(null);
@@ -953,10 +979,42 @@ export default function ActiveTourScreen({
           setClosingSuffix(null);
           setHighlights([]);
           setSuggestedNext(null);
+          setDeepDiveAvailable(false);
           setAudioUrl(null);
           setImageUrl(null);
           setStreetName(null);
         }}
+      >
+        {deepDiveAvailable && (
+          <TouchableOpacity
+            style={styles.deepDiveBtn}
+            onPress={handleOpenDeepDive}
+            accessibilityRole="button"
+            accessibilityLabel={isPremium ? t("deepDive.button") : t("deepDive.buttonPremiumA11y")}
+          >
+            <View style={styles.deepDiveTextCol}>
+              <Text style={styles.deepDiveTitle}>{t("deepDive.button")}</Text>
+              <Text style={styles.deepDiveSub}>{t("deepDive.buttonSub")}</Text>
+            </View>
+            {isPremium ? (
+              <Text style={styles.deepDiveChevron}>›</Text>
+            ) : (
+              <View style={styles.deepDiveProBadge}>
+                <Text style={styles.askProBadgeText}>{t("common.pro")}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
+      </NarrationCard>
+
+      <DeepDiveSheet
+        visible={deepDiveOpen}
+        origin={blockOrigin}
+        mood={mood}
+        voice={voice}
+        contentSafety={contentSafety}
+        imageUrl={imageUrl}
+        onClose={handleCloseDeepDive}
       />
 
       {qaAnswer && (
@@ -1225,6 +1283,28 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -4,
     right: -4,
+    backgroundColor: colors.fieldGreen,
+    borderRadius: 5,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  deepDiveBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: spacing.sm,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.fieldGreen,
+    backgroundColor: colors.parchmentSurface,
+  },
+  deepDiveTextCol: { flex: 1, gap: 2 },
+  deepDiveTitle: { fontFamily: font.sansBold, fontSize: 15, color: colors.ink },
+  deepDiveSub: { fontFamily: font.sans, fontSize: 13, color: colors.fieldMuted },
+  deepDiveChevron: { fontSize: 24, color: colors.fieldGreen },
+  deepDiveProBadge: {
     backgroundColor: colors.fieldGreen,
     borderRadius: 5,
     paddingHorizontal: 5,

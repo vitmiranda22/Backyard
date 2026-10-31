@@ -584,5 +584,21 @@
     "weekly_discoveries": {
       "label": "Recolecta {{count}} descubrimientos esta semana"
     }
+  },
+  "deepDive": {
+    "button": "Profundiza aquí",
+    "buttonSub": "La historia completa en 4 capítulos · unos 9 min",
+    "buttonPremiumA11y": "Profundiza, un beneficio Explorador",
+    "premiumBody": "Profundizar es un beneficio Explorador, mejora tu insignia para desbloquearlo.",
+    "back": "Volver a caminar",
+    "eyebrow": "Profundiza",
+    "meta": "{{place}} · {{count}} capítulos · unos {{minutes}} min",
+    "planning": "Preparando la historia...",
+    "preparing": "Preparando este capítulo...",
+    "nowPlaying": "Reproduciendo · Capítulo {{number}}",
+    "playing": "Reproduciendo",
+    "leaveAnytime": "Sal cuando quieras. Tu caminata sigue donde la dejaste.",
+    "unavailable": "Aquí no hay suficiente historia para una historia más profunda.",
+    "error": "No se pudo cargar la historia. Toca un capítulo para intentarlo de nuevo."
   }
 }

@@ -584,5 +584,21 @@
     "weekly_discoveries": {
       "label": "Collect {{count}} discoveries this week"
     }
+  },
+  "deepDive": {
+    "button": "Go deeper here",
+    "buttonSub": "The full story in 4 chapters · about 9 min",
+    "buttonPremiumA11y": "Go deeper, an Explorer Perk",
+    "premiumBody": "Going deeper is an Explorer Perk, upgrade your badge in order to unlock it.",
+    "back": "Back to walking",
+    "eyebrow": "Go deeper",
+    "meta": "{{place}} · {{count}} chapters · about {{minutes}} min",
+    "planning": "Planning the story...",
+    "preparing": "Preparing this chapter...",
+    "nowPlaying": "Now playing · Chapter {{number}}",
+    "playing": "Playing",
+    "leaveAnytime": "Leave anytime. Your walk picks up where you stopped.",
+    "unavailable": "There isn't enough history here for a deeper story.",
+    "error": "Couldn't load the story. Tap a chapter to try again."
   }
 }

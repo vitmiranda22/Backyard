@@ -131,6 +131,8 @@ export interface NarrationResponse {
   // null whenever nothing nearby qualifies -- the expected common case in
   // thin zones, not an error.
   suggested_next: SuggestedPlace | null;
+  // True when this block's real data is rich enough to offer "Go deeper".
+  deep_dive_available?: boolean;
 }
 
 export async function narrateBlock(
@@ -194,6 +196,51 @@ export async function getPendingTransition(
 ): Promise<PendingTransitionResponse> {
   const params = new URLSearchParams({ tour_id: tourId, geo_hash: geoHash });
   return authFetch(`/narrate-block/transition?${params.toString()}`);
+}
+
+// "Go deeper": a multi-chapter story about one rich place. Premium only.
+// The backend keeps no story state, so the chapter call sends the outline back.
+export interface DeepDiveOutline {
+  place: string;
+  title: string;
+  chapters: string[];
+}
+
+export interface DeepDiveChapter {
+  text: string;
+  audio_url: string | null;
+  audio_duration_ms: number | null;
+}
+
+export async function getDeepDiveOutline(lat: number, lng: number, mood: string): Promise<DeepDiveOutline> {
+  return authFetch("/deep-dive/outline", {
+    method: "POST",
+    body: JSON.stringify({ lat, lng, mood }),
+  });
+}
+
+export async function getDeepDiveChapter(
+  lat: number,
+  lng: number,
+  mood: string,
+  voice: string,
+  contentSafety: boolean,
+  outline: DeepDiveOutline,
+  index: number
+): Promise<DeepDiveChapter> {
+  return authFetch("/deep-dive/chapter", {
+    method: "POST",
+    body: JSON.stringify({
+      lat,
+      lng,
+      mood,
+      voice,
+      content_safety: contentSafety,
+      title: outline.title,
+      chapters: outline.chapters,
+      index,
+    }),
+  });
 }
 
 export interface NarrationQuotaResponse {

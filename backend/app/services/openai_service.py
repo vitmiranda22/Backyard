@@ -146,19 +146,17 @@ async def generate_narration(
         skip_web_search: True when zone_data.should_skip_web_search() found
             enough real facts already in zone_data that the separately-billed
             web_search tool call isn't worth its cost for this block.
-        is_premium: True = 120-150 words/45-60s target. False = a shorter
-            90-115 word/35-45s target — fewer completion tokens and a
-            shorter TTS script for both tiers vs. the original 150-225
-            word length, real cost savings either way. Defaults to True
-            so any caller that doesn't pass this explicitly keeps the
-            (now-shorter-than-original) premium length.
+        is_premium: True = 200-250 words/80-100s target. False = a shorter
+            150-180 word/60-70s target. Sized to the walk past one block;
+            stories are cached forever, so the length is a one-time cost.
+            Defaults to True.
         event_context: {"name", "category", "phase", "description"} when
             this block is inside an active Backyard Events zone, passed
             straight through to build_prompt() — see narrate.py and
             app/core/prompts.py's build_event_context_block().
 
     Returns:
-        The narration text (120-150 words for premium, 90-115 for free,
+        The narration text (200-250 words for premium, 150-180 for free,
         ready for TTS), or None if generation failed.
     """
     opener_move, pivot_move, closer_move = _pick_structure_moves(mood)

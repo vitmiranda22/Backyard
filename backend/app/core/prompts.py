@@ -907,11 +907,10 @@ def build_prompt(
         closer_move: instruction text for how this block closes — one entry
             from MOVE_POOLS[mood]["closer"].
         zone_data: JSON string of zone data (films, landmarks, etc.)
-        is_premium: True = 120-150 words/45-60s. False = a shorter
-            90-115 word/35-45s target — the assigned structure below
-            still applies to both, just compressed; defaults to True so
-            any caller that doesn't pass this explicitly keeps the
-            (now-shorter-than-original) premium length.
+        is_premium: True = 200-250 words/80-100s. False = a shorter
+            150-180 word/60-70s target — the assigned structure below
+            still applies to both; defaults to True so any caller that
+            doesn't pass this explicitly gets the premium length.
         event_context: {"name", "category", "phase", "description"} when
             this block is inside an active Backyard Events zone (premium
             only — see narrate.py's graceful-fallback-for-free-users
@@ -929,12 +928,15 @@ def build_prompt(
         "unfiltered": _MODE_UNFILTERED,
     }
 
+    # Sized to roughly the time it takes to walk one ~150m block (~110s).
+    depth_line = (" Spend the length going deeper into ONE place and its story (who,"
+                  " what happened, what it led to), not adding more places.")
     if is_premium:
-        duration_label = "60 seconds"
-        format_line = "120 to 150 words. 45-60 seconds of speech."
+        duration_label = "90 seconds"
+        format_line = "200 to 250 words. 80-100 seconds of speech." + depth_line
     else:
-        duration_label = "45 seconds"
-        format_line = "90 to 115 words. 35-45 seconds of speech."
+        duration_label = "65 seconds"
+        format_line = "150 to 180 words. 60-70 seconds of speech." + depth_line
 
     parts = [
         _BASE_INSTRUCTIONS.format(

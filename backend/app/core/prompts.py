@@ -931,12 +931,14 @@ def build_prompt(
     # Sized to roughly the time it takes to walk one ~150m block (~110s).
     depth_line = (" Spend the length going deeper into ONE place and its story (who,"
                   " what happened, what it led to), not adding more places.")
+    # gpt-4.1-mini lands ~25% under a soft range (Rome tester walk: premium averaged 162 words), so state a floor.
+    floor_line = " Never under {} words: if the draft is short, add the next part of the same story, not filler."
     if is_premium:
         duration_label = "90 seconds"
-        format_line = "200 to 250 words. 80-100 seconds of speech." + depth_line
+        format_line = "200 to 250 words. 80-100 seconds of speech." + depth_line + floor_line.format(200)
     else:
         duration_label = "65 seconds"
-        format_line = "150 to 180 words. 60-70 seconds of speech." + depth_line
+        format_line = "150 to 180 words. 60-70 seconds of speech." + depth_line + floor_line.format(150)
 
     parts = [
         _BASE_INSTRUCTIONS.format(

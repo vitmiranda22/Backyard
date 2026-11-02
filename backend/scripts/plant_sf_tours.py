@@ -160,11 +160,12 @@ TOURS = [
 ]
 
 
-async def build_tour(spec):
+async def build_tour(spec, uid=UID, publish=True):
     is_premium = spec["tier"] == "premium"
+    city, country = spec.get("city", CITY), spec.get("country", COUNTRY)
     print(f"\n=== Building '{spec['title']}' ({spec['mood']}, {spec['tier']}, {len(spec['blocks'])} blocks) ===")
     tour = await supabase_db.create_tour(
-        creator_id=UID, mood=spec["mood"], voice=VOICE, tour_type="walking", content_safety=False,
+        creator_id=uid, mood=spec["mood"], voice=VOICE, tour_type="walking", content_safety=False,
     )
     if not tour:
         print(f"    !! create_tour failed (DB error) -- skipping '{spec['title']}', rerun will retry it")
@@ -186,12 +187,12 @@ async def build_tour(spec):
         print(f" -- block {i}: {street} / {hood}")
         geo_hash = geohash2.encode(lat, lng, precision=7)
         result = await zone_data.fetch_all_zone_data(
-            lat=lat, lng=lng, street_name=street, neighborhood=hood, city=CITY, country=COUNTRY,
+            lat=lat, lng=lng, street_name=street, neighborhood=hood, city=city, country=country,
         )
         zone_str = format_zone_data_for_prompt(result["zone_data"], mode=spec["mood"])
         skip_ws = should_skip_web_search(result["hit_count"], result["total"] - len(result["sources_skipped"]))
         narration_text = await openai_service.generate_narration(
-            street=street, neighborhood=hood, city=CITY, country=COUNTRY, mood=spec["mood"],
+            street=street, neighborhood=hood, city=city, country=country, mood=spec["mood"],
             content_safety=False, zone_data=zone_str, skip_web_search=skip_ws, is_premium=is_premium,
         )
         if not narration_text:
@@ -217,7 +218,7 @@ async def build_tour(spec):
             await r2.upload_image(image_bytes, image_r2_key)
 
         await supabase_db.save_tour_block(
-            tour_id=tour_id, sequence=len(saved_blocks) + 1, street_name=street, neighborhood=hood, city=CITY,
+            tour_id=tour_id, sequence=len(saved_blocks) + 1, street_name=street, neighborhood=hood, city=city,
             lat=lat, lng=lng, narration_text=narration_text, audio_r2_key=audio_r2_key,
             voice=VOICE, mood=spec["mood"], trigger_type="auto", image_r2_key=image_r2_key,
         )
@@ -255,12 +256,15 @@ async def build_tour(spec):
     await supabase_db.end_tour(
         tour_id=tour_id, title=spec["title"], blocks_visited=len(saved_blocks),
         total_distance_m=int(total_distance_m), duration_sec=duration_sec,
-        center_lat=saved_blocks[0][0], center_lng=saved_blocks[0][1], city=CITY,
+        center_lat=saved_blocks[0][0], center_lng=saved_blocks[0][1], city=city,
         location=f"SRID=4326;POINT({saved_blocks[0][1]} {saved_blocks[0][0]})",
         path_points=walked_path, flagged_implausible_speed=False,
     )
     if last_narration:
         await supabase_db.update_tour_narrative_summary(tour_id, last_narration[:200])
+    if not publish:
+        print(f"Done (private): {spec['title']} -> {len(saved_blocks)} blocks, {int(total_distance_m)}m, tour_id={tour_id}")
+        return tour_id
     await supabase_db.publish_tour(tour_id, True, spec["title"])
 
     n_likes = random.randint(4, len(SAFE_LIKERS))
@@ -280,4 +284,5 @@ async def main():
     print("\nAll tour IDs:", ids)
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())

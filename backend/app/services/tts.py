@@ -31,6 +31,7 @@ cache key has to include tier, not just voice.
 
 import asyncio
 import logging
+import re
 import time
 from google.cloud import texttospeech
 
@@ -46,6 +47,7 @@ logger = logging.getLogger(__name__)
 # insurance against exactly that.
 _MAX_SYNTHESIS_ATTEMPTS = 3
 _RETRY_BACKOFF_SEC = 1.5
+_CHUNK_WORDS = 70
 
 # Map our voice presets to Google TTS voice names.
 # You can preview these at https://cloud.google.com/text-to-speech#demo
@@ -113,8 +115,8 @@ async def synthesize_speech(text: str, voice: str = "neutral", is_premium: bool 
     Convert text to MP3 audio.
 
     Args:
-        text: The narration text to speak. Should be 120-150 words for
-            premium narration, 90-115 for free (see prompts.build_prompt).
+        text: The narration text to speak (200-250 words for premium
+            narration, 150-180 for free; see prompts.build_prompt).
         voice: One of "neutral", "dramatic", "warm".
         is_premium: True = Journey voice tier, False = the cheaper
             Standard tier. Defaults to True so any caller that doesn't
@@ -131,7 +133,26 @@ async def synthesize_speech(text: str, voice: str = "neutral", is_premium: bool 
     # asyncio event loop uvicorn runs here — a blocked loop can't answer
     # Render's health check either, which was causing the instance to be
     # cycled as "unhealthy" mid-request.
-    return await asyncio.to_thread(_synthesize_speech_sync, text, voice, is_premium)
+    # Journey synthesis time grows with length (~17s for 190 words, past the 20s per-attempt timeout at 250), so
+    # synthesize sentence-aligned chunks in parallel and join them -- MP3 frames concatenate into one playable file.
+    chunks = _split_for_synthesis(text)
+    parts = await asyncio.gather(*(asyncio.to_thread(_synthesize_speech_sync, c, voice, is_premium) for c in chunks))
+    if any(p is None for p in parts):
+        return None
+    return b"".join(parts)
+
+
+def _split_for_synthesis(text: str, max_words: int = _CHUNK_WORDS) -> list:
+    """Split at sentence ends into chunks of at most ~max_words (a single longer sentence stays whole)."""
+    chunks, current = [], []
+    for sentence in re.split(r"(?<=[.!?…])\s+", text.strip()):
+        if current and len(" ".join(current + [sentence]).split()) > max_words:
+            chunks.append(" ".join(current))
+            current = []
+        current.append(sentence)
+    if current:
+        chunks.append(" ".join(current))
+    return chunks
 
 
 def _synthesize_speech_sync(text: str, voice: str, is_premium: bool = True):

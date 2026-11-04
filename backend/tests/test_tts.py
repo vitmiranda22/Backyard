@@ -106,3 +106,28 @@ def test_empty_audio_content_returns_none_without_retrying(monkeypatch):
 
     assert result is None
     assert client.synthesize_speech.call_count == 1
+
+
+def test_splits_long_text_at_sentence_ends_without_losing_words():
+    text = " ".join(f"Sentence number {i} has exactly eight words here." for i in range(30))
+
+    chunks = tts._split_for_synthesis(text, max_words=70)
+
+    assert len(chunks) == 4  # 240 words, 8 whole sentences (64 words) per chunk
+    assert all(len(c.split()) <= 70 for c in chunks)
+    assert all(c.endswith(".") for c in chunks)
+    assert " ".join(chunks) == text
+
+
+async def test_synthesizes_chunks_and_joins_the_audio_in_order(monkeypatch):
+    monkeypatch.setattr(tts, "_split_for_synthesis", lambda text: ["One.", "Two."])
+    monkeypatch.setattr(tts, "_synthesize_speech_sync", lambda text, voice, is_premium: text.encode())
+
+    assert await tts.synthesize_speech("ignored") == b"One.Two."
+
+
+async def test_returns_none_if_any_chunk_fails(monkeypatch):
+    monkeypatch.setattr(tts, "_split_for_synthesis", lambda text: ["One.", "Two."])
+    monkeypatch.setattr(tts, "_synthesize_speech_sync", lambda text, voice, is_premium: None if text == "Two." else b"x")
+
+    assert await tts.synthesize_speech("ignored") is None
